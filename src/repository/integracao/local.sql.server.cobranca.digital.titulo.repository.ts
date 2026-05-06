@@ -10,6 +10,7 @@ import LocalBaseRepositoryContract from '../../contracts/local.base.repository.c
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+import { normalizeExpedicaoItemSequenceKey } from '../../utils/expedicao.item.sequence';
 
 export default class LocalSqlServerCobrancaDigitalTituloRepository
   implements LocalBaseRepositoryContract<CobrancaDigitalTituloDto>
@@ -60,9 +61,27 @@ export default class LocalSqlServerCobrancaDigitalTituloRepository
 
   public async insert(entity: CobrancaDigitalTituloDto): Promise<void> {
     try {
+      const normalized = new CobrancaDigitalTituloDto({
+        codEmpresa: entity.codEmpresa,
+        codCobrancaDigital: entity.codCobrancaDigital,
+        item: normalizeExpedicaoItemSequenceKey(entity.item),
+        sysId: entity.sysId,
+        status: entity.status,
+        tipoCobranca: entity.tipoCobranca,
+        numeroTitulo: entity.numeroTitulo,
+        parcela: entity.parcela,
+        qtdParcelas: entity.qtdParcelas,
+        liberacaoKey: entity.liberacaoKey,
+        dataLancamento: entity.dataLancamento,
+        dataEmissao: entity.dataEmissao,
+        dataVenda: entity.dataVenda,
+        dataVencimento: entity.dataVencimento,
+        valor: entity.valor,
+        observacao: entity.observacao,
+      });
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.titulo.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      await this.actonEntity(entity, insert);
+      await this.actonEntity(normalized, insert);
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     }

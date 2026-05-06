@@ -8,6 +8,7 @@ import { Params } from '../../contracts/local.base.params';
 import ItemLiberacaoBloqueioSituacaoDto from '../../dto/common.data/item.liberacao.bloqueio.situacao.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { normalizeExpedicaoItemSequenceKey } from '../../utils/expedicao.item.sequence';
 
 export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioSituacaoDto>
@@ -49,7 +50,29 @@ export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   }
 
   async insert(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
-    throw new Error('Method not implemented.');
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.insert.sql');
+      const insert = readSqlFileCached(patchSQL);
+      const normalizedItem = normalizeExpedicaoItemSequenceKey(entity.item);
+      const payload =
+        normalizedItem === entity.item
+          ? entity
+          : new ItemLiberacaoBloqueioSituacaoDto({
+              codLiberacaoBloqueio: entity.codLiberacaoBloqueio,
+              item: normalizedItem,
+              status: entity.status,
+              rotinaLiberacao: entity.rotinaLiberacao,
+              dataHoraLiberacao: entity.dataHoraLiberacao,
+              codUsuarioLiberacao: entity.codUsuarioLiberacao,
+              estacaoTrabalhoLiberacao: entity.estacaoTrabalhoLiberacao,
+              observacaoLiberacao: entity.observacaoLiberacao,
+              motivoRejeicaoLiberacaoBloqueio: entity.motivoRejeicaoLiberacaoBloqueio,
+              complemento: entity.complemento,
+            });
+      await this.actonInsertEntity(payload, insert);
+    } catch (error: any) {
+      throw new Error(error.message);
+    }
   }
 
   async update(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
@@ -63,7 +86,43 @@ export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   }
 
   async delete(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
-    this.update(this.resetSituacao(entity));
+    await this.update(this.resetSituacao(entity));
+  }
+
+  private async actonInsertEntity(entity: ItemLiberacaoBloqueioSituacaoDto, sqlCommand: string): Promise<void> {
+    const pool = await this.connect.getConnection();
+
+    try {
+      const transaction = await pool.connect();
+      await transaction.request().query(`
+            BEGIN
+              CREATE VARIABLE @CodEmpresa VARCHAR(1) = '1';
+              CREATE VARIABLE @CodFilial VARCHAR(1) = '1';
+              CREATE VARIABLE @CodUsuario VARCHAR(1) = '1';
+              CREATE VARIABLE @NomeUsuario VARCHAR(30) = 'ADMINISTRADOR';
+              CREATE VARIABLE @CodEstacaoTrabalho VARCHAR(1) = '1';
+              CREATE VARIABLE @EstacaoTrabalho VARCHAR(30) = 'SERVIDOR';
+            END;
+      `);
+
+      await transaction
+        .request()
+        .input('CodLiberacaoBloqueio', sql.Int, entity.codLiberacaoBloqueio)
+        .input('Item', sql.VarChar(5), entity.item)
+        .input('Status', sql.VarChar(3), entity.status.substring(0, 3))
+        .input('RotinaLiberacao', sql.VarChar(20), entity.rotinaLiberacao?.substring(0, 20))
+        .input('DataHoraLiberacao', sql.DateTime, entity.dataHoraLiberacao)
+        .input('CodUsuarioLiberacao', sql.Int, entity.codUsuarioLiberacao)
+        .input('EstacaoTrabalhoLiberacao', sql.VarChar(20), entity.estacaoTrabalhoLiberacao?.substring(0, 20))
+        .input('ObservacaoLiberacao', sql.VarChar(2000), entity.observacaoLiberacao?.substring(0, 2000))
+        .input('MotivoRejeicaoLiberacaoBloqueio', sql.VarChar(2000), entity.motivoRejeicaoLiberacaoBloqueio ?? '')
+        .input('Complemento', sql.VarChar(2000), entity.complemento ?? '')
+        .query(sqlCommand);
+    } catch (error: any) {
+      throw new Error(error.message);
+    } finally {
+      pool.close();
+    }
   }
 
   private async actonEntity(entity: ItemLiberacaoBloqueioSituacaoDto, sqlCommand: string): Promise<void> {

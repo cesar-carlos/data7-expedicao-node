@@ -10,6 +10,7 @@ import ExpedicaoCarrinhoPercursoEstagioDto from '../../dto/expedicao/expedicao.c
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+import { withNormalizedExpedicaoLineItem } from '../../utils/expedicao.item.sequence';
 
 export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
   implements LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoEstagioDto>
@@ -66,7 +67,7 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      await this.actonEntity(entity, insert);
+      await this.actonEntity(withNormalizedExpedicaoLineItem(entity), insert);
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     }
@@ -78,7 +79,7 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      const result = await this.actonEntityWithReturn(entity, insert);
+      const result = await this.actonEntityWithReturn(withNormalizedExpedicaoLineItem(entity), insert);
       return result;
     } catch (error: unknown) {
       throw wrapRepositoryError(error);

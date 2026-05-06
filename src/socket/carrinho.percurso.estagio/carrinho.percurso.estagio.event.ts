@@ -9,7 +9,12 @@ import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.c
 import CarrinhoPercursoRepository from '../carrinho.percurso/carrinho.percurso.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import SepararRepository from '../separar/separar.repository';
-import { convertSocketMutationPayload, mapWithConcurrency, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  mapWithConcurrency,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class CarrinhoPercursoEstagioEvent {
   private repository = new CarrinhoPercursoEstagioRepository();
@@ -151,10 +156,14 @@ export default class CarrinhoPercursoEstagioEvent {
   private convert(mutations: any[] | any): ExpedicaoCarrinhoPercursoEstagioDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoCarrinhoPercursoEstagioDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoCarrinhoPercursoEstagioDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       {
         eventName: 'carrinho.percurso.estagio.mutation',
-        requiredKeys: ['CodEmpresa', 'CodCarrinhoPercurso', 'Item', 'Origem', 'CodOrigem'],
+        requiredKeys: ['CodEmpresa', 'CodCarrinhoPercurso', 'Origem', 'CodOrigem'],
       },
     );
   }

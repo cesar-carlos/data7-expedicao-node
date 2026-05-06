@@ -4,7 +4,11 @@ import { Params } from '../../contracts/local.base.params';
 import ItemArmazenarRepository from './item.armazenar.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import ExpedicaoItemArmazenarDto from '../../dto/expedicao/expedicao.item.armazenar.dto';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class ItemArmazenarEvent {
   private repository = new ItemArmazenarRepository();
@@ -98,7 +102,11 @@ export default class ItemArmazenarEvent {
   private convert(mutations: any[] | any): ExpedicaoItemArmazenarDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoItemArmazenarDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoItemArmazenarDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       { eventName: 'armazenar.item.mutation' },
     );
   }

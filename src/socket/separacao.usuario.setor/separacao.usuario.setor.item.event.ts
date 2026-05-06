@@ -5,7 +5,11 @@ import SeparacaoUsuarioSetorItemRepository from './separacao.usuario.setor.item.
 import ExpedicaoSeparacaoUsuarioSetorDto from '../../dto/expedicao/expedicao.separacao.usuario.setor.dto';
 import ExpedicaoMutationListenEvent from '../../model/expedicao.mutation.listen.event';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class SeparacaoUsuarioSetorItemEvent {
   private repository = new SeparacaoUsuarioSetorItemRepository();
@@ -114,7 +118,11 @@ export default class SeparacaoUsuarioSetorItemEvent {
   private convert(mutations: any[] | any): ExpedicaoSeparacaoUsuarioSetorDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoSeparacaoUsuarioSetorDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoSeparacaoUsuarioSetorDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       { eventName: 'separar.usuario.setor.mutation' },
     );
   }

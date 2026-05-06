@@ -6,7 +6,11 @@ import ExpedicaoItemSepararDto from '../../dto/expedicao/expedicao.item.separar.
 import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
 import ExpedicaoItemSepararUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.separar.unidade.medida.consulta.dto';
 import ExpedicaoMutationListenEvent from '../../model/expedicao.mutation.listen.event';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class SepararItemEvent {
   private repository = new SepararItemRepository();
@@ -159,7 +163,11 @@ export default class SepararItemEvent {
   private convert(mutations: any[] | any): ExpedicaoItemSepararDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoItemSepararDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoItemSepararDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       { eventName: 'separar.item.mutation', requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'CodProduto'] },
     );
   }

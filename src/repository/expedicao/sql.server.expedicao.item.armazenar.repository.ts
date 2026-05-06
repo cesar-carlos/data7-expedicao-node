@@ -10,6 +10,7 @@ import ExpedicaoItemArmazenarDto from '../../dto/expedicao/expedicao.item.armaze
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+import { withNormalizedExpedicaoLineItem } from '../../utils/expedicao.item.sequence';
 
 export default class SqlServerExpedicaoItemArmazenarRepository
   implements LocalBaseRepositoryContract<ExpedicaoItemArmazenarDto>
@@ -66,7 +67,7 @@ export default class SqlServerExpedicaoItemArmazenarRepository
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.armazenar.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      await this.actonEntity(entity, insert);
+      await this.actonEntity(withNormalizedExpedicaoLineItem(entity), insert);
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     }
@@ -76,7 +77,7 @@ export default class SqlServerExpedicaoItemArmazenarRepository
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.armazenar.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      const result = await this.actonEntityWithReturn(entity, insert);
+      const result = await this.actonEntityWithReturn(withNormalizedExpedicaoLineItem(entity), insert);
       return result;
     } catch (error: unknown) {
       throw wrapRepositoryError(error);

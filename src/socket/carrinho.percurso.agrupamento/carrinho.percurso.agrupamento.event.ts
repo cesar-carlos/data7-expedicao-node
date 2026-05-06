@@ -4,7 +4,11 @@ import { Params } from '../../contracts/local.base.params';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import CarrinhoPercursoAgrupamentoRepository from './carrinho.percurso.agrupamento.repository';
 import ExpedicaoCarrinhoPercursoAgrupamento from '../../dto/expedicao/expedicao.carrinho.percurso.agrupamento';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class CarrinhoPercursoAgrupamentoEvent {
   private repository = new CarrinhoPercursoAgrupamentoRepository();
@@ -98,7 +102,11 @@ export default class CarrinhoPercursoAgrupamentoEvent {
   private convert(mutations: any[] | any): ExpedicaoCarrinhoPercursoAgrupamento[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoCarrinhoPercursoAgrupamento.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoCarrinhoPercursoAgrupamento.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       { eventName: 'carrinho.percurso.agrupamento.mutation' },
     );
   }

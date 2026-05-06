@@ -136,6 +136,8 @@ export async function withSocketRequest(
   }
 }
 
+export { normalizeExpedicaoItemSequenceKey } from '../utils/expedicao.item.sequence';
+
 export function convertSocketMutationPayload<T>(
   mutations: unknown[] | unknown,
   mapper: (mutation: any) => T,

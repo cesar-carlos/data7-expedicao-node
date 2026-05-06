@@ -8,6 +8,7 @@ import { ConnectionSybase } from '../../infra/connection.sybase';
 import ItemLiberacaoBloqueioDto from '../../dto/common.data/item.liberacao.bloqueio.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { normalizeExpedicaoItemSequenceKey } from '../../utils/expedicao.item.sequence';
 
 export default class LocalSybaseItemLiberacaoBloqueioRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>
@@ -56,7 +57,23 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.insert.sql');
       const insert = readSqlFileCached(patchSQL);
-      await this.actonEntity(entity, insert);
+      const normalized = new ItemLiberacaoBloqueioDto({
+        codLiberacaoBloqueio: entity.codLiberacaoBloqueio,
+        item: normalizeExpedicaoItemSequenceKey(entity.item),
+        status: entity.status,
+        codRegra: entity.codRegra,
+        regra: entity.regra,
+        mensagemBloqueio: entity.mensagemBloqueio,
+        descricaoBloqueio: entity.descricaoBloqueio,
+        observacaoBloqueio: entity.observacaoBloqueio,
+        dataHoraSolicitacao: entity.dataHoraSolicitacao,
+        codUsuarioSolicitacao: entity.codUsuarioSolicitacao,
+        nomeUsuarioSolicitacao: entity.nomeUsuarioSolicitacao,
+        estacaoTrabalhoSolicitacao: entity.estacaoTrabalhoSolicitacao,
+        observacaoLiberacaoBloqueio: entity.observacaoLiberacaoBloqueio,
+        motivoRejeicaoLiberacaoBloqueio: entity.motivoRejeicaoLiberacaoBloqueio,
+      });
+      await this.actonEntity(normalized, insert);
     } catch (error: any) {
       throw new Error(error.message);
     }

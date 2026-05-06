@@ -10,7 +10,12 @@ import ExpedicaoItemConferenciaDto from '../../dto/expedicao/expedicao.item.conf
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
 import ConferirItemRepository from '../conferir.item/conferir.item.repository';
-import { convertSocketMutationPayload, mapWithConcurrency, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  mapWithConcurrency,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 type ProdutoConferir = {
   CodEmpresa: number;
@@ -184,10 +189,14 @@ export default class ConferenciaItemEvent {
   private convert(mutations: any[] | any): ExpedicaoItemConferenciaDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoItemConferenciaDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoItemConferenciaDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       {
         eventName: 'conferencia.item.mutation',
-        requiredKeys: ['CodEmpresa', 'CodConferir', 'Item', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso', 'CodProduto'],
+        requiredKeys: ['CodEmpresa', 'CodConferir', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso', 'CodProduto'],
       },
     );
   }

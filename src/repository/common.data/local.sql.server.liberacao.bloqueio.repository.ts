@@ -108,13 +108,15 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
       const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
 
-      entity.itemLiberacaoBloqueio.map(async (item) => {
+      for (const item of entity.itemLiberacaoBloqueio) {
         await this.itemLiberacaoBloqueioRepository.insert(item);
-      });
+      }
 
-      entity.itemLiberacaoBloqueioSituacao?.map(async (item) => {
-        await this.itemLiberacaoBloqueioSituacaoRepository.insert(item);
-      });
+      if (entity.itemLiberacaoBloqueioSituacao) {
+        for (const item of entity.itemLiberacaoBloqueioSituacao) {
+          await this.itemLiberacaoBloqueioSituacaoRepository.insert(item);
+        }
+      }
     } catch (error: any) {
       throw new Error(error.message);
     }
@@ -126,13 +128,17 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
       const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
 
-      entity.itemLiberacaoBloqueio?.map(async (item) => {
-        await this.itemLiberacaoBloqueioRepository.update(item);
-      });
+      if (entity.itemLiberacaoBloqueio) {
+        for (const item of entity.itemLiberacaoBloqueio) {
+          await this.itemLiberacaoBloqueioRepository.update(item);
+        }
+      }
 
-      entity.itemLiberacaoBloqueioSituacao?.map(async (item) => {
-        await this.itemLiberacaoBloqueioSituacaoRepository.update(item);
-      });
+      if (entity.itemLiberacaoBloqueioSituacao) {
+        for (const item of entity.itemLiberacaoBloqueioSituacao) {
+          await this.itemLiberacaoBloqueioSituacaoRepository.update(item);
+        }
+      }
     } catch (error: any) {
       throw new Error(error.message);
     }

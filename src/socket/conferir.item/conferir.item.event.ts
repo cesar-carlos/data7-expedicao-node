@@ -4,7 +4,11 @@ import { Params } from '../../contracts/local.base.params';
 import ConferirItemRepository from './conferir.item.repository';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  normalizeExpedicaoItemSequenceKey,
+  withSocketRequest,
+} from '../socket.event.helpers';
 
 export default class ConferirItemEvent {
   private repository = new ConferirItemRepository();
@@ -128,7 +132,11 @@ export default class ConferirItemEvent {
   private convert(mutations: any[] | any): ExpedicaoItemConferirDto[] {
     return convertSocketMutationPayload(
       mutations,
-      (mutation) => ExpedicaoItemConferirDto.fromObject(mutation),
+      (mutation) =>
+        ExpedicaoItemConferirDto.fromObject({
+          ...mutation,
+          Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
+        }),
       { eventName: 'conferir.item.mutation', requiredKeys: ['CodEmpresa', 'CodConferir', 'CodProduto'] },
     );
   }

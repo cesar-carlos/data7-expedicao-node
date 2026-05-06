@@ -10,6 +10,7 @@ import LocalBaseRepositoryContract from '../../contracts/local.base.repository.c
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+import { normalizeExpedicaoItemSequenceKey } from '../../utils/expedicao.item.sequence';
 
 export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioSituacaoDto>
@@ -58,7 +59,29 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   }
 
   async insert(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
-    throw new Error('Method not implemented.');
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.insert.sql');
+      const insert = readSqlFileCached(patchSQL);
+      const normalizedItem = normalizeExpedicaoItemSequenceKey(entity.item);
+      const payload =
+        normalizedItem === entity.item
+          ? entity
+          : new ItemLiberacaoBloqueioSituacaoDto({
+              codLiberacaoBloqueio: entity.codLiberacaoBloqueio,
+              item: normalizedItem,
+              status: entity.status,
+              rotinaLiberacao: entity.rotinaLiberacao,
+              dataHoraLiberacao: entity.dataHoraLiberacao,
+              codUsuarioLiberacao: entity.codUsuarioLiberacao,
+              estacaoTrabalhoLiberacao: entity.estacaoTrabalhoLiberacao,
+              observacaoLiberacao: entity.observacaoLiberacao,
+              motivoRejeicaoLiberacaoBloqueio: entity.motivoRejeicaoLiberacaoBloqueio,
+              complemento: entity.complemento,
+            });
+      await this.actonInsertEntity(payload, insert);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
+    }
   }
 
   async update(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
@@ -72,7 +95,28 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   }
 
   async delete(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
-    this.update(this.resetSituacao(entity));
+    await this.update(this.resetSituacao(entity));
+  }
+
+  private async actonInsertEntity(entity: ItemLiberacaoBloqueioSituacaoDto, sqlCommand: string): Promise<void> {
+    try {
+      await this.connect.executeInTransaction(async (request) => {
+        await request
+          .input('CodLiberacaoBloqueio', sql.Int, entity.codLiberacaoBloqueio)
+          .input('Item', sql.VarChar(5), entity.item)
+          .input('Status', sql.VarChar(3), entity.status.substring(0, 3))
+          .input('RotinaLiberacao', sql.VarChar(20), entity.rotinaLiberacao?.substring(0, 20))
+          .input('DataHoraLiberacao', sql.DateTime, entity.dataHoraLiberacao)
+          .input('CodUsuarioLiberacao', sql.Int, entity.codUsuarioLiberacao)
+          .input('EstacaoTrabalhoLiberacao', sql.VarChar(20), entity.estacaoTrabalhoLiberacao?.substring(0, 20))
+          .input('ObservacaoLiberacao', sql.VarChar(2000), entity.observacaoLiberacao?.substring(0, 2000))
+          .input('MotivoRejeicaoLiberacaoBloqueio', sql.VarChar(2000), entity.motivoRejeicaoLiberacaoBloqueio ?? '')
+          .input('Complemento', sql.VarChar(2000), entity.complemento ?? '')
+          .query(sqlCommand);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
+    }
   }
 
   private async actonEntity(entity: ItemLiberacaoBloqueioSituacaoDto, sqlCommand: string): Promise<void> {
