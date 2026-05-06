@@ -1,5 +1,6 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 
+import { handleController } from '../controllers/controller.helpers';
 import RouterExpedicao from '../controllers/expedicao/router.expedicao';
 import RouterCobrancaDigital from '../controllers/cobranca.digital/router.cobranca.digital';
 import RouterGeral from '../controllers/geral/router.geral';
@@ -20,9 +21,12 @@ export default class ApiRoute {
   }
 
   private index() {
-    this._router.get('/', (req: Request, res: Response) => {
-      res.send('Data7 API');
-    });
+    this._router.get(
+      '/',
+      handleController((_req, res) => {
+        res.send('Data7 API');
+      }),
+    );
   }
 
   private geral() {

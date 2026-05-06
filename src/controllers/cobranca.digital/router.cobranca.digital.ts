@@ -1,4 +1,6 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
+
+import { handleController } from '../controller.helpers';
 import WebhookRegisterController from './register.webhook.controller';
 import CobrancaController from './cobranca.controller';
 import PagamentoController from './pagamento.controller';
@@ -19,9 +21,12 @@ export default class RouterCobrancaDigital {
   }
 
   private index() {
-    this._router.get('/', (req: Request, res: Response) => {
-      res.send('Data7 Cobrança Digital');
-    });
+    this._router.get(
+      '/',
+      handleController((_req, res) => {
+        res.send('Data7 Cobrança Digital');
+      }),
+    );
   }
 
   private webhookRegister() {

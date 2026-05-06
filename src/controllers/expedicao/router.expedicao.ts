@@ -1,5 +1,6 @@
-import { Router, Request, Response } from 'express';
+import { Router } from 'express';
 
+import { handleController } from '../controller.helpers';
 import ConferirExpedicaoController from './conferir.expedicao.controller';
 import ConferirNotifyExpedicaoController from './conferir.notify.expedicao.controller';
 import SeparacaoNotifyExpedicaoController from './separacao.notify.expedicao.controller';
@@ -28,9 +29,12 @@ export default class RouterExpedicao {
   }
 
   private index() {
-    this._router.get('/', (req: Request, res: Response) => {
-      res.status(200).send({ message: 'Expedição API' });
-    });
+    this._router.get(
+      '/',
+      handleController((_req, res) => {
+        res.status(200).send({ message: 'Expedição API' });
+      }),
+    );
   }
 
   private conferirExpedicaoController() {
