@@ -14,6 +14,8 @@ import CobrancaPixListenService from '../services/cobranca.pix.listen.service';
 import SepararPeriodicListenService from '../services/separar.periodic.listen.service';
 
 export default class AppLinstens {
+  private separarPeriodicListen: SepararPeriodicListenService | null = null;
+
   constructor(private readonly io: SocketIOServer) {}
 
   execute() {
@@ -60,8 +62,16 @@ export default class AppLinstens {
   }
 
   private listenSepararPeriodic() {
-    const separarPeriodicService = new SepararPeriodicListenService(this.io);
-    separarPeriodicService.start();
+    this.separarPeriodicListen = new SepararPeriodicListenService(this.io);
+    this.separarPeriodicListen.start();
     console.log('Serviço de emissão periódica de Separar iniciado automaticamente');
+  }
+
+  /**
+   * Encerra listeners periódicos (ex.: antes de fechar pool / processo).
+   */
+  stopPeriodicListeners(): void {
+    this.separarPeriodicListen?.stop();
+    this.separarPeriodicListen = null;
   }
 }

@@ -1,9 +1,13 @@
 import PeriodicListenContract from '../contracts/periodic.listen.contract';
 
+const MAX_BACKOFF_EXPONENT = 5;
+const MAX_BACKOFF_MS = 120_000;
+
 export default abstract class BasePeriodicListenService implements PeriodicListenContract {
-  private interval: NodeJS.Timeout | null = null;
+  private timeoutRef: NodeJS.Timeout | null = null;
   private running: boolean = false;
   private paused: boolean = false;
+  private consecutiveFailures: number = 0;
   protected intervalTime: number;
 
   constructor(intervalTime: number = 8000) {
@@ -17,7 +21,8 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
   protected abstract emitData(): Promise<void>;
 
   /**
-   * Inicia o listener periódico
+   * Inicia o listener periódico (uma execução por vez, sem sobreposição;
+   * backoff exponencial após falhas consecutivas).
    */
   public start(): void {
     if (this.running) {
@@ -27,22 +32,14 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
 
     this.running = true;
     this.paused = false;
+    this.consecutiveFailures = 0;
 
-    // Executa imediatamente na primeira vez
-    this.executeEmit();
-
-    // Configura intervalo
-    this.interval = setInterval(() => {
-      if (!this.paused) {
-        this.executeEmit();
-      }
-    }, this.intervalTime);
-
-    console.log(`[${this.constructor.name}] Iniciado com intervalo de ${this.intervalTime}ms`);
+    console.log(`[${this.constructor.name}] Iniciado com intervalo base de ${this.intervalTime}ms`);
+    void this.runTick();
   }
 
   /**
-   * Para o listener periódico e limpa o intervalo
+   * Para o listener periódico e limpa o agendamento
    */
   public stop(): void {
     if (!this.running) {
@@ -50,19 +47,20 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
       return;
     }
 
-    if (this.interval) {
-      clearInterval(this.interval);
-      this.interval = null;
+    if (this.timeoutRef) {
+      clearTimeout(this.timeoutRef);
+      this.timeoutRef = null;
     }
 
     this.running = false;
     this.paused = false;
+    this.consecutiveFailures = 0;
 
     console.log(`[${this.constructor.name}] Parado`);
   }
 
   /**
-   * Pausa as emissões sem parar o timer
+   * Pausa as emissões sem parar o ciclo de agendamento
    */
   public pause(): void {
     if (!this.running) {
@@ -97,37 +95,76 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
     console.log(`[${this.constructor.name}] Retomado`);
   }
 
-  /**
-   * Verifica se está em execução
-   */
   public isRunning(): boolean {
     return this.running;
   }
 
-  /**
-   * Verifica se está pausado
-   */
   public isPaused(): boolean {
     return this.paused;
   }
 
-  /**
-   * Implementa o contrato ListenContract
-   */
   public listen(): void {
     this.start();
   }
 
-  /**
-   * Executa a emissão com tratamento de erros
-   */
-  private async executeEmit(): Promise<void> {
+  private async runTick(): Promise<void> {
+    if (!this.running) {
+      return;
+    }
+
+    if (this.paused) {
+      this.scheduleNext(this.intervalTime);
+      return;
+    }
+
     try {
       await this.emitData();
-    } catch (error: any) {
-      console.error(`[${this.constructor.name}] Erro ao emitir dados:`, error.message);
-      // Não interrompe o timer, apenas loga o erro
+      this.consecutiveFailures = 0;
+    } catch (error: unknown) {
+      this.consecutiveFailures += 1;
+      this.logEmitError(error);
     }
+
+    if (!this.running) {
+      return;
+    }
+
+    this.scheduleNext(this.computeNextDelayMs());
+  }
+
+  private computeNextDelayMs(): number {
+    if (this.consecutiveFailures === 0) {
+      return this.intervalTime;
+    }
+    const exponent = Math.min(this.consecutiveFailures, MAX_BACKOFF_EXPONENT);
+    return Math.min(this.intervalTime * Math.pow(2, exponent), MAX_BACKOFF_MS);
+  }
+
+  private scheduleNext(delayMs: number): void {
+    if (!this.running) {
+      return;
+    }
+    if (this.timeoutRef) {
+      clearTimeout(this.timeoutRef);
+    }
+    this.timeoutRef = setTimeout(() => {
+      this.timeoutRef = null;
+      void this.runTick();
+    }, delayMs);
+  }
+
+  private logEmitError(error: unknown): void {
+    const name = this.constructor.name;
+    if (error instanceof Error) {
+      console.error(`[${name}] Erro ao emitir dados:`, error.message);
+      if (error.stack) {
+        console.error(error.stack);
+      }
+    } else {
+      console.error(`[${name}] Erro ao emitir dados:`, error);
+    }
+    console.error(
+      `[${name}] Falhas consecutivas: ${this.consecutiveFailures}; próximo intervalo (ms): ${this.computeNextDelayMs()}`,
+    );
   }
 }
-

@@ -7,6 +7,7 @@ import AppFirebase from './app.firebase';
 
 export default class App {
   private readonly port: number = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3000;
+  private static listeners: AppLinstens | null = null;
 
   constructor() {
     this.initialize();
@@ -21,19 +22,20 @@ export default class App {
 
   private static registerClose() {
     const connectionInstance = ConnectionSqlServerMssql.getInstance();
-    process.on('SIGINT', async () => {
+    const shutdown = async () => {
+      App.listeners?.stopPeriodicListeners();
+      App.listeners = null;
       await connectionInstance.closePool();
       process.exit();
-    });
+    };
 
-    process.on('SIGTERM', async () => {
-      await connectionInstance.closePool();
-      process.exit();
-    });
+    process.on('SIGINT', shutdown);
+    process.on('SIGTERM', shutdown);
   }
 
   public async execute() {
     const appApi = AppApi.getInstance();
-    new AppLinstens(appApi.getIO()).execute();
+    App.listeners = new AppLinstens(appApi.getIO());
+    App.listeners.execute();
   }
 }

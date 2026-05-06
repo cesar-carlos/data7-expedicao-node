@@ -21,22 +21,23 @@ describe('Teste conferencia de pedidos socket', () => {
     const params = '';
 
     const send = {
-      session: socket.id,
-      responseIn: responseIn,
-      where: params,
+      Session: socket.id,
+      ResponseIn: responseIn,
+      Where: params,
     };
 
     socket.emit(event, JSON.stringify(send));
 
     const responsePromise = new Promise((resolve) => {
       socket.on(responseIn, (receiver) => {
-        const data = JSON.parse(receiver);
+        const payload = typeof receiver === 'string' ? JSON.parse(receiver) : receiver;
         socket.off(responseIn);
-        resolve(data);
+        resolve(payload);
       });
     });
 
-    const data = (await responsePromise) as Array<any>;
-    expect(data).toBeInstanceOf(Array);
+    const payload = (await responsePromise) as { Data?: unknown[]; Error?: string };
+    expect(payload.Data).toBeDefined();
+    expect(payload.Data).toBeInstanceOf(Array);
   });
 }, 15000);

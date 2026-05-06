@@ -14,13 +14,21 @@ export default class SqlServerExpedicaoSepararConsultaRepository
 {
   private connect = ConnectionSqlServerMssql.getInstance();
   private basePatchSQL = ParamsCommonRepository.basePatchSQL('expedicao');
+  private cachedSelectSql: string | null = null;
+
+  private getSelectSql(): string {
+    if (this.cachedSelectSql === null) {
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separar.consulta.sql');
+      this.cachedSelectSql = fs.readFileSync(patchSQL).toString();
+    }
+    return this.cachedSelectSql;
+  }
 
   public async select(pagination: Pagination): Promise<ExpedicaoSepararConsultaDto[]> {
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separar.consulta.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = this.getSelectSql();
       const sqlWithPagination = `${sql} ORDER BY (SELECT NULL) OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
       const result = await pool.request().query(sqlWithPagination);
 
@@ -44,8 +52,7 @@ export default class SqlServerExpedicaoSepararConsultaRepository
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separar.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = this.getSelectSql();
 
       let _params: string;
       if (typeof params === 'string') {
