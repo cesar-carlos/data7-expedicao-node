@@ -14,10 +14,7 @@ import SepararRepository from './separar.repository';
 export default class SepararEvent {
   private repository = new SepararRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} separar.consulta`, async (data) => {
@@ -177,12 +174,6 @@ export default class SepararEvent {
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        const basicEventSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: separarConsulta.map((item) => item.toJson()),
-        });
-
         const listenEvent = new ExpedicaoMutationListenEvent({
           Mutation: separarConsulta.map((item) => item.toJson()),
         });
@@ -224,12 +215,6 @@ export default class SepararEvent {
           Session: session,
           ResponseIn: responseIn,
           Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: separarConsulta.map((item) => item.toJson()),
         });
 
         const listenEvent = new ExpedicaoMutationListenEvent({
@@ -274,12 +259,6 @@ export default class SepararEvent {
           Session: session,
           ResponseIn: responseIn,
           Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: separarConsulta.map((item) => item.toJson()),
         });
 
         const listenEvent = new ExpedicaoMutationListenEvent({

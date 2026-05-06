@@ -1,5 +1,6 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
@@ -91,29 +92,29 @@ export default class SeparacaoItemRepository {
 
   private repositoryConsulta() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConsultaDto,
     });
   }
 
   private repositoryResumoConsulta() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoResumoConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoResumoConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoResumoConsultaDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoItemSeparacaoDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoItemSeparacaoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSeparacaoDto,
     });
   }
 
   private repositorySpecific(): SqlServerExpedicaoItemSeparacaoRepository {
     return AppDependencys.resolve<SqlServerExpedicaoItemSeparacaoRepository>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoItemSeparacaoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSeparacaoDto,
     }) as SqlServerExpedicaoItemSeparacaoRepository;
   }
 }

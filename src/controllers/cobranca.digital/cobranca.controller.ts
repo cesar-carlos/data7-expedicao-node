@@ -52,7 +52,7 @@ export default class CobrancaController {
 
   public static async put(req: Request, res: Response) {
     try {
-      const { CodEmpresa, CodLiberacaoBloqueio, Item, IdLiberacao } = req.query;
+      const { CodLiberacaoBloqueio, IdLiberacao } = req.query;
       const codLiberacaoBloqueio = parseInt(CodLiberacaoBloqueio as string);
       const idLiberacao = parseInt(IdLiberacao as string);
 

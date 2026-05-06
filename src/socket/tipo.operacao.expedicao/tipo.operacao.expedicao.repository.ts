@@ -1,5 +1,6 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -66,15 +67,15 @@ export default class TipoOperacaoExpedicaoRepository {
 
   private sequenceRepository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoTipoOperacaoExpedicaoDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoTipoOperacaoExpedicaoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoTipoOperacaoExpedicaoDto,
     });
   }
 }

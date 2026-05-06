@@ -1,3 +1,4 @@
+import { DI_BIND } from '../di/bind.tokens';
 import { eContext } from '../dependency/container.dependency';
 
 import ContainerDependency from '../dependency/container.dependency';
@@ -13,86 +14,83 @@ import LocalSybaseCobrancaDigitalPagamentoRepository from '../repository/integra
 import LocalSybaseCobrancaDigitalTituloRepository from '../repository/integracao/local.sybase.cobranca.digital.titulo.repository';
 import LocalSybaseCobrancaDigitalPixRepository from '../repository/integracao/local.sybase.cobranca.digital.pix.repository';
 import LocalSybaseCobrancaDigitalRepository from '../repository/integracao/local.sybase.cobranca.digital.repository';
+import CreatePixApiStub from '../infra/create.pix.api.stub';
 
 export default class AppDependencysIntegracaoPix {
   public static load() {
     ContainerDependency.instance.register({
       context: eContext.firebase,
-      bind: 'ContractBaseRepository<CobrancaPix>',
+      bind: DI_BIND.ContractBaseRepository_CobrancaPix,
       instance: new FirebaseCobrancaPixRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPixDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalPixDto,
       instance: new LocalSqlServerCobrancaDigitalPixRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPixDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalPixDto,
       instance: new LocalSybaseCobrancaDigitalPixRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalTituloDto,
       instance: new LocalSqlServerCobrancaDigitalTituloRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalTituloDto,
       instance: new LocalSybaseCobrancaDigitalTituloRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalPagamentoDto,
       instance: new LocalSqlServerCobrancaDigitalPagamentoRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalPagamentoDto,
       instance: new LocalSybaseCobrancaDigitalPagamentoRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalDto,
       instance: new LocalSqlServerCobrancaDigitalRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalDto,
       instance: new LocalSybaseCobrancaDigitalRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.firebase,
-      bind: 'DataBaseActiveContract<DatabaseOnlineDto>',
+      bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
       instance: new FirebaseDatabaseOnlineRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.firebase,
-      bind: 'ContractBaseRepository<PagamentoPix>',
+      bind: DI_BIND.ContractBaseRepository_PagamentoPix,
       instance: new FirebasePagamentoPixRepository(),
     });
 
-    //TODO:> Implementar a injeção de dependência para os adapters
-    // ContainerDependency.instance.register({
-    //   context: eContext.gerencianet,
-    //   bind: 'CreatePixApiContract',
-    //   instance: new GerencianetCreatePixAdapter(),
-    // });
-
-    // ContainerDependency.instance.register({
-    //   context: eContext.sicredi,
-    //   bind: 'CreatePixApiContract',
-    //   instance: new SicrediCreatePixAdapter(),
-    // });
+    const apiPixContext = process.env.API_PIX?.toLocaleLowerCase();
+    if (apiPixContext) {
+      ContainerDependency.instance.register({
+        context: apiPixContext,
+        bind: DI_BIND.CreatePixApiContract,
+        instance: new CreatePixApiStub(),
+      });
+    }
   }
 }

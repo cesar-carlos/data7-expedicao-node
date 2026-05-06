@@ -1,6 +1,7 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Request, Response } from 'express';
 
-import { eContext } from '../../dependency/container.dependency';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
@@ -38,8 +39,8 @@ export default class GeralSequenciaController {
 
   public static getRepository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 }

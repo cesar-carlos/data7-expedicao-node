@@ -15,10 +15,7 @@ import SepararRepository from '../separar/separar.repository';
 export default class CarrinhoPercursoEstagioEvent {
   private repository = new CarrinhoPercursoEstagioRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} carrinho.percurso.estagio.consulta`, async (data) => {

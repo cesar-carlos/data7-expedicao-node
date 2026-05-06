@@ -1,0 +1,23 @@
+description: "Socket.IO and WebSocket-specific conventions for real-time communication"
+globs: ["src/aplication/app.socket.config.ts", "src/socket/**/*.ts"]
+alwaysApply: true
+---
+
+# WebSocket Conventions
+
+- This is a stack-specific rule file for the WebSocket transport.
+- `src/aplication/app.socket.config.ts` owns global socket registration and connection lifecycle wiring.
+- Keep each feature class under `src/socket/<feature>/` focused on registering and handling only its own events.
+- Keep event handlers thin: validate inbound payloads, resolve trusted context, call the service or repository boundary, and emit or acknowledge the result.
+- Define event names and payload contracts close to the feature instead of scattering string literals across controllers, helpers, and tests.
+- Reuse the same business flow behind HTTP when the action is the same; do not fork business rules only because the transport is different.
+- Authenticate on connection when the event family depends on user, setor, carrinho, ou other scoped data, and authorize room joins or broadcasts explicitly.
+- Clean up listeners and per-socket resources on disconnect.
+- Preserve existing event names and payload formats during refactors unless the task explicitly includes a contract migration.
+- When acknowledgements or callback responses are part of the protocol, keep the success and error shape consistent within that event family.
+- Guard against slow consumers and oversized payloads when an event streams lists, progress updates, or repeated notifications.
+
+## Testing
+
+- Use `vitest` to cover critical event behavior, including validation, emissions, repository calls, and disconnect cleanup.
+- Add contract-style tests when a socket event has a stable payload format that other clients depend on.

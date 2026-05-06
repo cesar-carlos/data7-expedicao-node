@@ -1,5 +1,3 @@
-import { liberacaoKeyDto } from './liberacao.key.dto';
-
 export default class CobrancaDigitalTituloDto {
   codEmpresa: number;
   codCobrancaDigital: number;

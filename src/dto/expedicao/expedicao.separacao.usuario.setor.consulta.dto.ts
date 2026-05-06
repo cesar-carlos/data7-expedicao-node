@@ -1,5 +1,3 @@
-import { N } from 'vitest/dist/chunks/environment.d.cL3nLXbE';
-
 export default class ExpedicaoSeparacaoUsuarioSetorConsultaDto {
   CodEmpresa: number;
   CodSepararEstoque: number;

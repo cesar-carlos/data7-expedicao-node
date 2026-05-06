@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { DI_BIND } from '../di/bind.tokens';
+import { getLocalDbContext } from '../di/database.context';
 import AppDependencys from '../aplication/app.dependencys';
 import LocalBaseConsultaRepositoryContract from '../contracts/local.base.consulta.repository.contract';
 import UsuarioConsultaDto from '../dto/common.data/usuario.consulta.dto';
@@ -360,8 +361,8 @@ export default class UsuarioConsultaService {
 
   private repository() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<UsuarioConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<UsuarioConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_UsuarioConsultaDto,
     });
   }
 }

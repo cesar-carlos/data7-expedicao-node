@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -10,10 +10,7 @@ import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 export default class CarrinhoPercursoAgrupamentoEvent {
   private repository = new CarrinhoPercursoAgrupamentoRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} carrinho.percurso.agrupamento.consulta`, async (data) => {

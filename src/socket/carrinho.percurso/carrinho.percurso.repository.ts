@@ -1,4 +1,5 @@
-import { eContext } from '../../dependency/container.dependency';
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
@@ -82,22 +83,22 @@ export default class CarrinhoPercursoRepository {
 
   private repositoryConsulta() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoPercursoEstagioConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoPercursoEstagioConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoDto,
     });
   }
 
   private sequenceRepository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 }

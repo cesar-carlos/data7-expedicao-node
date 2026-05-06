@@ -1,7 +1,8 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Request, Response } from 'express';
 
 import { Params } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ProcessoExecutavelDto from '../../dto/common.data/processo.executavel.dto';
@@ -61,8 +62,8 @@ export default class GeralProcessoExecutavelController {
 
   public static getRepository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ProcessoExecutavelDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ProcessoExecutavelDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ProcessoExecutavelDto,
     });
   }
 

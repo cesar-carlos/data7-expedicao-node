@@ -20,10 +20,7 @@ type ProdutoSeparar = {
 export default class SeparacaoItemEvent {
   private repository = new SeparacaoItemRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} separacao.item.resumo.consulta`, async (data) => {

@@ -10,10 +10,7 @@ import CarrinhoRepository from './setor.estoque.repository';
 export default class SetorEstoqueEvent {
   private repository = new CarrinhoRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} setor.estoque.select`, async (data) => {

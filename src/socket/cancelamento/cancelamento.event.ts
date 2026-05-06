@@ -10,10 +10,7 @@ import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 export default class CancelamentoEvent {
   private repository = new CancelamentoRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} expedicao.cancelamento.select`, async (data) => {

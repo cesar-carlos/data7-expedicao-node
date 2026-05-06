@@ -1,5 +1,6 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
@@ -76,22 +77,22 @@ export default class SeparacaoUsuarioSetorItemRepository {
 
   private repositoryConsulta() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoSeparacaoUsuarioSetorConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<ExpedicaoSeparacaoUsuarioSetorConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSeparacaoUsuarioSetorConsultaDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoSeparacaoUsuarioSetorDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoSeparacaoUsuarioSetorDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSeparacaoUsuarioSetorDto,
     });
   }
 
   private repositorySpecific(): SqlServerExpedicaoSeparacaoUsuarioSetorRepository {
     return AppDependencys.resolve<SqlServerExpedicaoSeparacaoUsuarioSetorRepository>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoSeparacaoUsuarioSetorDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSeparacaoUsuarioSetorDto,
     }) as SqlServerExpedicaoSeparacaoUsuarioSetorRepository;
   }
 }

@@ -1,0 +1,55 @@
+description: "Express-specific HTTP and routing conventions"
+globs: ["src/aplication/app.api.ts", "src/route/**/*.ts", "src/controllers/**/*.ts", "src/middleware/**/*.ts", "src/validation/**/*.ts"]
+alwaysApply: true
+---
+
+# Express REST API Conventions
+
+- This is a stack-specific rule file for the Express transport.
+
+## Router structure
+
+- Global Express setup lives in `src/aplication/app.api.ts`.
+- Route aggregation lives in `src/route/` and may delegate to class-based routers under `src/controllers/`.
+- Keep route registration inside router files or router classes. Do not place business logic in the route assembly layer.
+- Preserve existing path prefixes unless the task explicitly includes a contract migration.
+
+## Route definition
+
+- Prefer the flow `route -> validateBody|validateQuery|validateParams -> controller`.
+- Keep route handler callbacks in controller files; do not inline business logic inside router methods except for trivial index or health responses.
+- Maintain consistency with the existing naming and grouping used by the feature being edited.
+
+## Controllers
+
+- Keep controllers thin: parse the already-validated request, call a service or repository boundary, and map the result to HTTP.
+- Avoid embedding SQL, Firebase, PIX SDK, or other infrastructure details directly in controllers.
+- When a controller must preserve a legacy response shape, isolate that shaping in a helper or dedicated mapper instead of spreading compatibility logic across multiple methods.
+
+## Validation
+
+- Validate request `body`, `params`, and `query` at the boundary using the helpers from `src/middleware/validation.middleware.ts`.
+- Keep Zod schemas in `src/validation/` and name them by feature or contract.
+- When new validation is introduced, prefer typed access to validated values instead of spreading `(req as any)` across more files.
+
+## Response contract
+
+- Preserve the current public response shape of each endpoint unless the task explicitly changes the contract.
+- Use explicit status codes and avoid mixing success payload formats for the same endpoint family without a clear compatibility reason.
+- `204` responses must not send a body.
+
+## Middleware and error handling
+
+- Keep cross-cutting middleware registration centralized in `src/aplication/app.api.ts`.
+- Always call `next(error)` for unexpected failures in middleware.
+- Always call `next()` when a middleware does not finish the response cycle.
+
+## Testing
+
+- Use `vitest` for HTTP-facing behavior touched by the refactor.
+- When route contracts change, add or update targeted tests that cover validation, status codes, and any legacy response shape that must remain stable.
+
+## Response and logging
+
+- Return intentional status codes such as `200`, `201`, `204`, `400`, `401`, `403`, `404`, `409`, `422`, `500`, and `503`.
+- Keep HTTP access logging centralized in `src/aplication/app.api.ts`.

@@ -11,10 +11,7 @@ import UsuarioRepository from './usuario.repository';
 export default class UsuarioEvent {
   private repository = new UsuarioRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} usuario.consulta`, async (data) => {

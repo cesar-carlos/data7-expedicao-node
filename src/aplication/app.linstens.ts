@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext, getOnlineDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 import { Server as SocketIOServer } from 'socket.io';
 
 import CobrancaPix from '../entities/cobranca.pix';
@@ -26,27 +27,27 @@ export default class AppLinstens {
 
   private async listenCobrancaPix() {
     const firebaseCobrancaPixRepository = AppDependencys.resolve<ContractBaseRepository<CobrancaPix>>({
-      context: process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'ContractBaseRepository<CobrancaPix>',
+      context: getOnlineDbContext(),
+      bind: DI_BIND.ContractBaseRepository_CobrancaPix,
     });
 
     const firebasePagamentoPixRepository = AppDependencys.resolve<ContractBaseRepository<PagamentoPix>>({
-      context: process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'ContractBaseRepository<PagamentoPix>',
+      context: getOnlineDbContext(),
+      bind: DI_BIND.ContractBaseRepository_PagamentoPix,
     });
 
     const localCobrancaDigitalTituloRepository = AppDependencys.resolve<
       LocalBaseRepositoryContract<CobrancaDigitalTituloDto>
     >({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalTituloDto,
     });
 
     const localCobrancaDigitalPagamentoRepository = AppDependencys.resolve<
       LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>
     >({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalPagamentoDto,
     });
 
     new CobrancaPixListenService(

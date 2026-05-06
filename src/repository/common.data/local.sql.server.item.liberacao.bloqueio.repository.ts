@@ -9,7 +9,6 @@ import ItemLiberacaoBloqueioDto from '../../dto/common.data/item.liberacao.bloqu
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
-import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerItemLiberacaoBloqueioRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>

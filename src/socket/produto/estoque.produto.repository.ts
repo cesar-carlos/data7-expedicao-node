@@ -1,5 +1,6 @@
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -82,22 +83,22 @@ export default class EstoqueProdutoRepository {
 
   private sequenceRepository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 
   private repositoryConsulta() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<EstoqueProdutoConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<EstoqueProdutoConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_EstoqueProdutoConsultaDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<EstoqueProdutoDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<EstoqueProdutoDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_EstoqueProdutoDto,
     });
   }
 }

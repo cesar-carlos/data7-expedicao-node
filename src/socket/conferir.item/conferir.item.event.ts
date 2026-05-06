@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import ConferirItemRepository from './conferir.item.repository';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
@@ -10,10 +10,7 @@ import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 export default class ConferirItemEvent {
   private repository = new ConferirItemRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} conferir.item.consulta`, async (data) => {

@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext, getOnlineDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 
 import ProcessInfo from '../entities/process.info';
 import DatabaseOnlineDto from '../dto/common.data/database.online.dto';
@@ -8,13 +9,13 @@ import AppDependencys from './app.dependencys';
 
 export default class AppTestDatabeses {
   private localRepo = AppDependencys.resolve<DataBaseActiveContract<DatabaseOnlineDto>>({
-    context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-    bind: 'DataBaseActiveContract<DatabaseOnlineDto>',
+    context: getLocalDbContext(),
+    bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
   });
 
   private onlineRepo = AppDependencys.resolve<DataBaseActiveContract<DatabaseOnlineDto>>({
-    context: process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext,
-    bind: 'DataBaseActiveContract<DatabaseOnlineDto>',
+    context: getOnlineDbContext(),
+    bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
   });
 
   public async execute(): Promise<ProcessInfo> {

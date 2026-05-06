@@ -1,3 +1,4 @@
+import { DI_BIND } from '../di/bind.tokens';
 import { eContext } from '../dependency/container.dependency';
 
 import ContainerDependency from '../dependency/container.dependency';
@@ -16,61 +17,61 @@ export default class AppDependencysGeral {
   public static load() {
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'DataBaseActiveContract<DatabaseOnlineDto>',
+      bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
       instance: new LocalSqlServerDatabaseOnlineRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'DataBaseActiveContract<DatabaseOnlineDto>',
+      bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
       instance: new LocalSybaseDatabaseOnlineRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_ItemLiberacaoBloqueioDto,
       instance: new LocalSqlServerItemLiberacaoBloqueioRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sybase,
-      bind: 'LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_ItemLiberacaoBloqueioDto,
       instance: new LocalSybaseItemLiberacaoBloqueioRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<EstoqueProdutoDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_EstoqueProdutoDto,
       instance: new LocalSqlServerEstoqueProdutoRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<ProcessoExecutavelDto>',
+      bind: DI_BIND.LocalBaseRepositoryContract_ProcessoExecutavelDto,
       instance: new LocalSqlServerProcessoExecutavelRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
       instance: new LocalSqlServerSequences(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseConsultaRepositoryContract<EstoqueProdutoConsultaDto>',
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_EstoqueProdutoConsultaDto,
       instance: new LocalSqlServerEstoqueProdutoConsultaRepository(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseConsultaRepositoryContract<EstoqueConversaoUnidadeConsultaDto>',
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_EstoqueConversaoUnidadeConsultaDto,
       instance: new LocalSqlServerEstoqueConversaoUnidadeConsulta(),
     });
 
     ContainerDependency.instance.register({
       context: eContext.sql_server,
-      bind: 'LocalBaseConsultaRepositoryContract<UsuarioConsultaDto>',
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_UsuarioConsultaDto,
       instance: new LocalSqlServerUsuarioConsultaRepository(),
     });
   }

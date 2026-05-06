@@ -6,5 +6,6 @@ export default defineConfig({
   test: {
     environment: 'node',
     env: loadEnv('', process.cwd(), ''),
+    setupFiles: ['./test/vitest.setup.ts'],
   },
 });

@@ -29,10 +29,7 @@ type CarrinhoPercursoEstagioParams = {
 export default class ConferenciaItemEvent {
   private repository = new ConferenciaItemRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} conferencia.item.consulta`, async (data) => {

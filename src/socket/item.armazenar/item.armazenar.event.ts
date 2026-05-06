@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import ItemArmazenarRepository from './item.armazenar.repository';
 import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
@@ -10,10 +10,7 @@ import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 export default class ItemArmazenarEvent {
   private repository = new ItemArmazenarRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} armazenar.item.consulta`, async (data) => {

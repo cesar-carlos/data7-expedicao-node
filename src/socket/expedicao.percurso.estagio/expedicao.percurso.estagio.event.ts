@@ -10,10 +10,7 @@ import ExpedicaoPercursoEstagioRepository from './expedicao.percurso.estagio.rep
 export default class ExpedicaoPercursoEstagioEvent {
   private repository = new ExpedicaoPercursoEstagioRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} expedicao.percurso.estagio.select`, async (data) => {

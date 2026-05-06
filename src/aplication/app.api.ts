@@ -4,7 +4,7 @@ import logger from 'morgan';
 import express from 'express';
 
 import http from 'http';
-import { Server as SocketIOServer, Socket } from 'socket.io';
+import { Server as SocketIOServer } from 'socket.io';
 
 import ApiRoute from '../route/api.router';
 import AppSocket from './app.socket.config';

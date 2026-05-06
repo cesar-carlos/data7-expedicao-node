@@ -1,5 +1,6 @@
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
-import { eContext } from '../../dependency/container.dependency';
+import { getLocalDbContext } from '../../di/database.context';
+import { DI_BIND } from '../../di/bind.tokens';
+import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
@@ -17,8 +18,8 @@ export default class SequenciaRegistroRepository {
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 }

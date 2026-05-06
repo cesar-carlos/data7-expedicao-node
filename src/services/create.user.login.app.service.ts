@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
 import LocalBaseRepositorySequenceContract from '../contracts/local.base.repository.sequence.contract';
 import ExpedicaoLoginAppDto from '../dto/expedicao/expedicao.login.app.dto';
@@ -79,15 +80,15 @@ export default class CreateUserLoginAppService {
 
   private sequenceRepository() {
     return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
     });
   }
 
   private repository() {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoLoginAppDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<ExpedicaoLoginAppDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoLoginAppDto,
     });
   }
 }

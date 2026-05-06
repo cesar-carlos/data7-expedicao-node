@@ -10,10 +10,7 @@ import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 export default class TipoOperacaoArmazenagemEvent {
   private repository = new TipoOperacaoArmazenagemRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} tipo.operacao.armazenagem.select`, async (data) => {

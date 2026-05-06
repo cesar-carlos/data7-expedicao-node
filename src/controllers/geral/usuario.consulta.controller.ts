@@ -11,14 +11,11 @@ export default class UsuarioConsultaController {
         .validatedQuery as UsuarioConsultaQuery;
 
       let currentPage: number;
-      let currentOffset: number;
 
       if (Offset !== undefined) {
-        currentOffset = Offset;
         currentPage = Math.floor(Offset / Limit) + 1;
       } else {
         currentPage = Page;
-        currentOffset = (Page - 1) * Limit;
       }
 
       const currentLimit = Limit;

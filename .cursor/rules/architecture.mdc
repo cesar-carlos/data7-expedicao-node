@@ -1,0 +1,24 @@
+description: "Project-specific architecture rules for this legacy Node/TypeScript API"
+globs: ["src/**/*.ts", "test/**/*.ts"]
+alwaysApply: true
+---
+
+# Backend Communication Architecture
+
+- This is a project-specific rule file. It defines the target dependency flow for incremental refactors in this repository.
+- The current process entrypoint is `src/server.ts`, which delegates startup to `src/aplication/app.ts`.
+- `src/aplication/` owns application bootstrap, dependency registration, lifecycle hooks, and composition of HTTP plus Socket.IO runtime pieces.
+- Preferred REST flow: `route -> validation/middleware -> controller -> service/application orchestration -> repository -> infra/sql/external integration`.
+- Preferred Socket.IO flow: `connection -> auth/validation -> event class or handler -> service/application orchestration -> repository -> infra/sql/external integration`.
+- Routes, controllers, middleware, and socket event classes must stay thin. They should translate transport input and output, not own business rules.
+- Shared business behavior should live in `src/services/` or focused modules under `src/aplication/` instead of being duplicated across HTTP and Socket.IO entrypoints.
+- Repositories encapsulate persistence and integration details. SQL files stay in `src/sql/`; connection and adapter concerns stay in `src/infra/` or `src/dependency/`.
+- Prefer inward dependency flow during refactors even if the legacy structure is still broad.
+- Avoid broad rewrites. Each change should reduce coupling or improve readability while preserving existing public contracts unless the task explicitly includes a contract change.
+
+## Dependency injection
+
+- `ContainerDependency` delegates to **tsyringe** with composite keys `context::bind`. Entrypoint loads `reflect-metadata` before other imports (`src/server.ts`).
+- Registration lives in `AppDependencys*.load()`; resolution uses `AppDependencys.resolve` with `DI_BIND` strings from `src/di/bind.tokens.ts` and context helpers from `src/di/database.context.ts`.
+- **`LOCAL_DATABASE`** and **`ONLINE_DATABASE`** must match a literal from `eContext` (`sql_server`, `sybase`, `firebase`, etc.) after trim and locale lowercasing; invalid values fail fast at startup via `validateDatabaseContexts()`.
+- Expedition repositories register only under `sql_server`; switching local DB to `sybase` without Sybase implementations for those binds will fail at resolve time (known limitation).

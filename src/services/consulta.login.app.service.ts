@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 import { Params, Pagination, OrderBy } from '../contracts/local.base.params';
 
 import AppDependencys from '../aplication/app.dependencys';
@@ -274,8 +275,8 @@ export default class ConsultaLoginAppService {
 
   private repository() {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoLoginAppConsultaDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseConsultaRepositoryContract<ExpedicaoLoginAppConsultaDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoLoginAppConsultaDto,
     });
   }
 }

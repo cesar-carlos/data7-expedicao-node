@@ -10,10 +10,7 @@ import EstoqueProdutoDto from '../../dto/common.data/estoque.produto.dto';
 export default class EstoqueProdutoEvent {
   private repository = new EstoqueProdutoRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
     socket.on(`${client} estoque.produto.consulta`, async (data) => {
       const json = JSON.parse(data);

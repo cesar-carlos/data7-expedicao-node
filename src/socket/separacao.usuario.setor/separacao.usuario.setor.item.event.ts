@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import SeparacaoUsuarioSetorItemRepository from './separacao.usuario.setor.item.repository';
@@ -11,10 +11,7 @@ import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 export default class SeparacaoUsuarioSetorItemEvent {
   private repository = new SeparacaoUsuarioSetorItemRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} separar.usuario.setor.consulta`, async (data) => {

@@ -38,8 +38,6 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
   }
 
   public async selectWhere(params: Params[] = []): Promise<CobrancaDigitalDataBaseDto[]> {
-    let pool: ConnectionPool | null = null;
-
     try {
       const pool: ConnectionPool = await this.connect.getConnection();
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.select.sql');

@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext, getOnlineDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 
 import CobrancaPix from '../entities/cobranca.pix';
 import ContractBaseRepository from '../contracts/base.repository.contract';
@@ -10,18 +11,18 @@ import AppDependencys from './app.dependencys';
 
 export default class AppRegraStatusCobrancaPix {
   private localRepositoryLiberacao = AppDependencys.resolve<LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>>({
-    context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-    bind: 'LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>',
+    context: getLocalDbContext(),
+    bind: DI_BIND.LocalBaseRepositoryContract_ItemLiberacaoBloqueioDto,
   });
 
   private localRepositoryCobranca = AppDependencys.resolve<LocalBaseRepositoryContract<CobrancaDigitalDto>>({
-    context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-    bind: 'LocalBaseRepositoryContract<CobrancaDigitalDto>',
+    context: getLocalDbContext(),
+    bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalDto,
   });
 
   private onlineRepository = AppDependencys.resolve<ContractBaseRepository<CobrancaPix>>({
-    context: process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext,
-    bind: 'ContractBaseRepository<CobrancaPix>',
+    context: getOnlineDbContext(),
+    bind: DI_BIND.ContractBaseRepository_CobrancaPix,
   });
 
   private regraStatusCobrancaService = new RegraStatusCobrancaPixService(

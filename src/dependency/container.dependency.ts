@@ -1,3 +1,5 @@
+import { container, InjectionToken } from 'tsyringe';
+
 export enum eContext {
   sql_server = 'sql_server',
   sybase = 'sybase',
@@ -19,7 +21,6 @@ export interface FindDepedecy {
 
 export default class ContainerDependency {
   private static _instance: ContainerDependency;
-  private _dependencies: Depedecy<any>[] = [];
 
   private constructor() {}
 
@@ -27,17 +28,29 @@ export default class ContainerDependency {
     return this._instance || (this._instance = new this());
   }
 
+  private static compositeKey(context: string, bind: string): string {
+    return `${context}::${bind}`;
+  }
+
   public register<T>(params: Depedecy<T>) {
-    this._dependencies.push(params);
+    const token = ContainerDependency.compositeKey(params.context, params.bind);
+    const k = token as InjectionToken<T>;
+    // Legacy container appended duplicates and resolve returned the *first* match; keep that semantics.
+    if (container.isRegistered(k, true)) {
+      return;
+    }
+    container.registerInstance(k, params.instance);
   }
 
   public resolve<T>(params: FindDepedecy): T {
-    const dependency = this._dependencies.find((x) => x.context === params.context && x.bind === params.bind);
-    if (!dependency) throw new Error(`Dependency not found for context: ${params.context}`);
-    return dependency.instance;
+    const token = ContainerDependency.compositeKey(params.context, params.bind);
+    if (!container.isRegistered(token as InjectionToken<T>, true)) {
+      throw new Error(`Dependency not found for context: ${params.context}, bind: ${params.bind}`);
+    }
+    return container.resolve<T>(token as InjectionToken<T>);
   }
 
   public clear() {
-    this._dependencies = [];
+    container.reset();
   }
 }

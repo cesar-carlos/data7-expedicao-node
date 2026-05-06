@@ -1,0 +1,23 @@
+description: "Stack-specific security rules for the REST and WebSocket backend"
+globs: ["src/**/*.ts"]
+alwaysApply: true
+---
+
+# Security Best Practices
+
+- This is a stack-specific rule file for transport, token, and integration security in this backend.
+- Validate `body`, `query`, `params`, headers, and every inbound WebSocket event payload at the boundary with `zod` or another schema-based validator.
+- Do not trust client input for authorization, ownership, or roles; derive those from trusted server-side context.
+- Treat permissive transport defaults such as `cors({ origin: "*" })` as legacy compatibility, not as the desired baseline for new public-facing behavior.
+- Authenticate WebSocket connections during the handshake whenever the event family depends on user, store, or device identity.
+- Use `jsonwebtoken` carefully: validate signature, issuer, audience, expiration, and expected token type before trusting claims.
+- Validate allowed origins for WebSocket connections and use `wss://` in production when sockets are exposed outside a trusted network.
+- Apply per-connection limits for message rate, payload size, and idle time when exposing high-volume or sensitive socket events.
+- Never hardcode secrets. Load them through `dotenv`-managed environment variables and document required keys in `.env.example`.
+- Hash passwords with `bcryptjs`; never log or persist raw secrets.
+- Centralize JWT secret parsing and token helpers so security-sensitive changes do not spread across controllers and event handlers.
+- Return generic error responses to clients and keep stack traces or database details out of production responses.
+- Log only safe metadata. Never log passwords, tokens, PIX credentials, raw webhook secrets, certificate contents, or sensitive personal data.
+- Keep a centralized redaction policy in the logger for auth headers, tokens, cookies when applicable, API keys, and other known secret-bearing fields.
+- Use parameterized queries or safe ORM/query-builder APIs and keep database permissions minimal.
+- Validate signatures, webhook authenticity, and external callback provenance for PIX or payment-related integrations whenever the integration supports it.

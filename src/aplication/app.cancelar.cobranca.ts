@@ -1,4 +1,5 @@
-import { eContext } from '../dependency/container.dependency';
+import { getLocalDbContext, getOnlineDbContext } from '../di/database.context';
+import { DI_BIND } from '../di/bind.tokens';
 
 import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
 import CobrancaDigitalTituloDto from '../dto/integracao/cobranca.digital.titulo.dto';
@@ -18,13 +19,13 @@ export default class AppCancelarCobranca {
 
   public async execute() {
     const localRepository = AppDependencys.resolve<LocalBaseRepositoryContract<CobrancaDigitalTituloDto>>({
-      context: process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalTituloDto,
     });
 
     const onlineRepository = AppDependencys.resolve<ContractBaseRepository<CobrancaPix>>({
-      context: process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext,
-      bind: 'ContractBaseRepository<CobrancaPix>',
+      context: getOnlineDbContext(),
+      bind: DI_BIND.ContractBaseRepository_CobrancaPix,
     });
 
     const cancelamentoPixService = new CancelamentoPixService(localRepository, onlineRepository);

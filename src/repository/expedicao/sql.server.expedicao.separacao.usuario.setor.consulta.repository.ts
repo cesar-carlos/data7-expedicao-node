@@ -1,4 +1,3 @@
-import fs, { cpSync } from 'fs';
 import path from 'path';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
 

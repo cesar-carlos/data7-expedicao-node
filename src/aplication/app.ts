@@ -6,7 +6,6 @@ import AppDependencys from './app.dependencys';
 import AppFirebase from './app.firebase';
 
 export default class App {
-  private readonly port: number = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3000;
   private static listeners: AppLinstens | null = null;
 
   constructor() {

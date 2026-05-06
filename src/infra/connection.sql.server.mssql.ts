@@ -1,4 +1,4 @@
-import sql, { ConnectionPool, config as SqlConfig, Transaction, Request } from 'mssql';
+import { ConnectionPool, config as SqlConfig, Transaction, Request } from 'mssql';
 
 import config from '../assets/config.msql';
 

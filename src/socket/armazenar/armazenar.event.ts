@@ -10,10 +10,7 @@ import ArmazenarRepository from './armazenar.repository';
 export default class ArmazenarEvent {
   private repository = new ArmazenarRepository();
 
-  constructor(
-    private readonly io: SocketIOServer,
-    private readonly socket: Socket,
-  ) {
+  constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} armazenar.select`, async (data) => {
