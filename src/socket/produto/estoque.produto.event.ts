@@ -1,11 +1,10 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import EstoqueProdutoRepository from './estoque.produto.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import EstoqueProdutoDto from '../../dto/common.data/estoque.produto.dto';
+import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
 
 export default class EstoqueProdutoEvent {
   private repository = new EstoqueProdutoRepository();
@@ -13,74 +12,34 @@ export default class EstoqueProdutoEvent {
   constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
     socket.on(`${client} estoque.produto.consulta`, async (data) => {
-      const json = JSON.parse(data);
-
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} estoque.produto.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} estoque.produto.consulta`,
+        eventName: 'estoque.produto.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} estoque.produto.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} estoque.produto.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} estoque.produto.select`,
+        eventName: 'estoque.produto.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} estoque.produto.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? (`${client} estoque.produto.insert` as string);
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} estoque.produto.insert`,
+        eventName: 'estoque.produto.insert',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         for (const item of itens) {
           const sequence = await this.repository.sequence();
           item.CodProduto = sequence?.Valor ?? 0;
@@ -88,91 +47,62 @@ export default class EstoqueProdutoEvent {
         }
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('estoque.produto.insert.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itens.map((item) => item.toJson()));
+        emitListen(io, 'estoque.produto.insert.listen', basicEvent.toJson());
+      });
     });
 
     socket.on(`${client} estoque.produto.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} estoque.produto.update`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} estoque.produto.update`,
+        eventName: 'estoque.produto.update',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.update(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('estoque.produto.update.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itens.map((item) => item.toJson()));
+        emitListen(io, 'estoque.produto.update.listen', basicEvent.toJson());
+      });
     });
 
     socket.on(`${client} estoque.produto.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} estoque.produto.delete`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} estoque.produto.delete`,
+        eventName: 'estoque.produto.delete',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.delete(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('estoque.produto.delete.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itens.map((item) => item.toJson()));
+        emitListen(io, 'estoque.produto.delete.listen', basicEvent.toJson());
+      });
     });
   }
 
   private convert(mutations: any[] | any): EstoqueProdutoDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return EstoqueProdutoDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => EstoqueProdutoDto.fromObject(mutation),
+      { eventName: 'estoque.produto.mutation' },
+    );
   }
 }

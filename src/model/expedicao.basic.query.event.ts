@@ -1,18 +1,18 @@
 export default class ExpedicaoBasicSelectEvent {
   Session: string;
   ResponseIn: string;
-  Data: string[];
+  Data: unknown;
 
-  constructor(params: { Session: string; ResponseIn: string; Data: string[] }) {
+  constructor(params: { Session: string; ResponseIn: string; Data: unknown }) {
     this.Session = params.Session;
     this.ResponseIn = params.ResponseIn;
     this.Data = params.Data;
   }
 
-  public toJson(): any {
+  public toJson(): { Session: string; ResponseIn: string; Data: unknown } {
     return {
       Session: this.Session,
-      EesposeIn: this.ResponseIn,
+      ResponseIn: this.ResponseIn,
       Data: this.Data,
     };
   }

@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 
-import ConferirExpedicaoController from './conferir.notify.expedicao.controller';
+import ConferirExpedicaoController from './conferir.expedicao.controller';
 import ConferirNotifyExpedicaoController from './conferir.notify.expedicao.controller';
 import SeparacaoNotifyExpedicaoController from './separacao.notify.expedicao.controller';
 import expedicaoCreateLoginAppRoute from '../../route/expedicao.create.login.app.route';

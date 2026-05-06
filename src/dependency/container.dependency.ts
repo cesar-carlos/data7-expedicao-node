@@ -35,9 +35,8 @@ export default class ContainerDependency {
   public register<T>(params: Depedecy<T>) {
     const token = ContainerDependency.compositeKey(params.context, params.bind);
     const k = token as InjectionToken<T>;
-    // Legacy container appended duplicates and resolve returned the *first* match; keep that semantics.
     if (container.isRegistered(k, true)) {
-      return;
+      throw new Error(`Dependency already registered for context: ${params.context}, bind: ${params.bind}`);
     }
     container.registerInstance(k, params.instance);
   }

@@ -1,30 +1,27 @@
-import { Request, Response } from 'express';
+import AppExpressError from '../../aplication/app.express.error';
 import LoginConfigService from '../../services/login.config.service';
+import { createNotImplementedHandler, handleController } from '../controller.helpers';
 
 export default class LoginController {
-  public static async get(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
+  public static get = createNotImplementedHandler('LoginController', 'get');
 
-  public static post(req: Request, res: Response) {
+  public static post = handleController((req, res) => {
     const { email, password } = req.body;
 
     const loginConfigService = new LoginConfigService();
     const token = loginConfigService.auth(email, password);
 
     if (token === 'unauthorized') {
-      res.status(401).send({ message: 'unauthorized' });
-      return;
+      throw new AppExpressError({
+        message: 'unauthorized',
+        statusCode: 401,
+        code: 'UNAUTHORIZED',
+      });
     }
 
     res.status(200).send({ token });
-  }
+  });
 
-  public static put(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static delete(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
+  public static put = createNotImplementedHandler('LoginController', 'put');
+  public static delete = createNotImplementedHandler('LoginController', 'delete');
 }

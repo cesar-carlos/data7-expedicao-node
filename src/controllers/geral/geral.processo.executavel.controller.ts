@@ -1,79 +1,64 @@
-import { getLocalDbContext } from '../../di/database.context';
-import { DI_BIND } from '../../di/bind.tokens';
-import { Request, Response } from 'express';
-
+import { Request } from 'express';
 import { Params } from '../../contracts/local.base.params';
-
-import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ProcessoExecutavelDto from '../../dto/common.data/processo.executavel.dto';
-import AppDependencys from '../../aplication/app.dependencys';
+import AppExpressError from '../../aplication/app.express.error';
+import { createNotImplementedHandler, handleController } from '../controller.helpers';
+import { createProcessoExecutavelRepository } from '../../factory/geral.factory';
 
 export default class GeralProcessoExecutavelController {
-  public static async get(req: Request, res: Response) {
-    try {
-      const repository = GeralProcessoExecutavelController.getRepository();
-      const params = GeralProcessoExecutavelController.buildParams(req);
-      let itens: ProcessoExecutavelDto[] = [];
+  public static get = handleController(async (req, res) => {
+    const repository = createProcessoExecutavelRepository();
+    const params = GeralProcessoExecutavelController.buildParams(req);
+    const itens = params.length === 0 ? await repository.select() : await repository.selectWhere(params);
 
-      if (params.length === 0) {
-        itens = await repository.select();
-      }
+    const sortItens = itens.sort((a, b) => {
+      return a.DataAbertura < b.DataAbertura ? 1 : -1;
+    });
 
-      if (params.length != 0) {
-        itens = await repository.selectWhere(params);
-      }
+    res.status(200).send(sortItens);
+  });
 
-      const sortIntens = itens.sort((a, b) => {
-        return a.DataAbertura < b.DataAbertura ? 1 : -1;
+  public static post = createNotImplementedHandler('GeralProcessoExecutavelController', 'post');
+
+  public static put = handleController(async (req, res) => {
+    const repository = createProcessoExecutavelRepository();
+    const codProcessoExecutavel = Number.parseInt(String(req.params.CodProcessoExecutavel), 10);
+
+    if (Number.isNaN(codProcessoExecutavel)) {
+      throw new AppExpressError({
+        message: 'CodProcessoExecutavel invalid',
+        statusCode: 400,
+        code: 'INVALID_REQUEST',
       });
-
-      res.status(200).send(sortIntens);
-    } catch (error: any) {
-      res.status(500).send({ message: error.message });
     }
-  }
-
-  public static async post(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static async put(req: Request, res: Response) {
-    const repository = await GeralProcessoExecutavelController.getRepository();
-    const { CodProcessoExecutavel } = req.params;
 
     const reqProcessoExecutavelDto = req.body as ProcessoExecutavelDto;
     const baseProcessoExecutavelDto = await repository.selectWhere([
-      { key: 'CodProcessoExecutavel', value: parseInt(CodProcessoExecutavel as string) },
+      { key: 'CodProcessoExecutavel', value: codProcessoExecutavel },
     ]);
 
     if (!baseProcessoExecutavelDto || baseProcessoExecutavelDto.length === 0) {
-      res.status(404).send({ message: 'not found' });
-      return;
+      throw new AppExpressError({
+        message: 'not found',
+        statusCode: 404,
+        code: 'NOT_FOUND',
+      });
     }
 
     const newProcessoExecutavelDto = baseProcessoExecutavelDto[0].copyWith(reqProcessoExecutavelDto);
     await repository.update(newProcessoExecutavelDto);
-    res.send(201).send();
-  }
+    res.status(201).send();
+  });
 
-  public static async delete(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static getRepository() {
-    return AppDependencys.resolve<LocalBaseRepositoryContract<ProcessoExecutavelDto>>({
-      context: getLocalDbContext(),
-      bind: DI_BIND.LocalBaseRepositoryContract_ProcessoExecutavelDto,
-    });
-  }
+  public static delete = createNotImplementedHandler('GeralProcessoExecutavelController', 'delete');
 
   public static buildParams(req: Request): Params[] {
-    const _params: Params[] = [];
+    const params: Params[] = [];
+
     for (const keyName in req.query) {
-      const value = req.query[keyName];
-      _params.push({ key: keyName, value: value });
+      params.push({ key: keyName, value: req.query[keyName] });
     }
 
-    return _params;
+    return params;
   }
 }

@@ -1,19 +1,8 @@
-import { Request, Response } from 'express';
+import { createNotImplementedHandler } from '../controller.helpers';
 
 export default class ConferirExpedicaoController {
-  public static async get(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static async post(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static put(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static delete(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
+  public static get = createNotImplementedHandler('ConferirExpedicaoController', 'get');
+  public static post = createNotImplementedHandler('ConferirExpedicaoController', 'post');
+  public static put = createNotImplementedHandler('ConferirExpedicaoController', 'put');
+  public static delete = createNotImplementedHandler('ConferirExpedicaoController', 'delete');
 }

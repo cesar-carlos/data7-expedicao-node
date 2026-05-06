@@ -1,14 +1,12 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import SepararItemRepository from './separar.item.repository';
 import ExpedicaoItemSepararDto from '../../dto/expedicao/expedicao.item.separar.dto';
 import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
 import ExpedicaoItemSepararUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.separar.unidade.medida.consulta.dto';
 import ExpedicaoMutationListenEvent from '../../model/expedicao.mutation.listen.event';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
+import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
 
 export default class SepararItemEvent {
   private repository = new SepararItemRepository();
@@ -17,205 +15,100 @@ export default class SepararItemEvent {
     const client = socket.id;
 
     socket.on(`${client} separar.item.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-
-        // Obter parâmetros para consulta de unidades de medida
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.consulta`,
+        eventName: 'separar.item.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
         const unidadeMedidaParams = this.groupResultsByEmpresaAndSepararEstoque(result);
-
-        // Buscar unidades de medida usando os parâmetros agrupados
         const unidadesMedida = await this.repository.consultaUnidadeMedida(unidadeMedidaParams);
-
-        // Converter para JSON, incluindo as unidades de medida agrupadas por item
-
         const itens = this.buildUnidadesMedida(result, unidadesMedida);
-        const jsonData = itens.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitQuery(itens.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separar.item.unidade.medida.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.unidade.medida.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consultaUnidadeMedida(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.unidade.medida.consulta`,
+        eventName: 'separar.item.unidade.medida.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consultaUnidadeMedida(
+          request.where as Params[],
+          request.pagination,
+          request.orderBy,
+        );
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separar.item.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.select`,
+        eventName: 'separar.item.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separar.item.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.insert`,
+        eventName: 'separar.item.insert',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         const inserteds = await this.repository.insert(itens);
 
         const itensJson = inserteds.map((item) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensJson,
-        });
-
         const listenEvent = new ExpedicaoMutationListenEvent({
           Mutation: itensJson,
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separar.item.insert.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itensJson);
+        emitListen(io, 'separar.item.insert.listen', listenEvent.toJson());
+      });
     });
 
     socket.on(`${client} separar.item.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.update`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.update`,
+        eventName: 'separar.item.update',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.update(itens);
 
         const itensJson = itens.map((item) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensJson,
-        });
-
         const listenEvent = new ExpedicaoMutationListenEvent({
           Mutation: itensJson,
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separar.item.update.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itensJson);
+        emitListen(io, 'separar.item.update.listen', listenEvent.toJson());
+      });
     });
 
     socket.on(`${client} separar.item.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.item.delete`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separar.item.delete`,
+        eventName: 'separar.item.delete',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.delete(itens);
 
         const itensJson = itens.map((item) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensJson,
-        });
-
         const listenEvent = new ExpedicaoMutationListenEvent({
           Mutation: itensJson,
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separar.item.delete.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itensJson);
+        emitListen(io, 'separar.item.delete.listen', listenEvent.toJson());
+      });
     });
   }
 
@@ -243,16 +136,20 @@ export default class SepararItemEvent {
     results: ExpedicaoItemSepararConsultaDto[],
     unidadesMedida: ExpedicaoItemSepararUnidadeMedidaConsultaDto[],
   ): ExpedicaoItemSepararConsultaDto[] {
+    const unidadesPorItem = new Map<string, ExpedicaoItemSepararUnidadeMedidaConsultaDto[]>();
+
+    for (const unidade of unidadesMedida) {
+      const key = `${unidade.CodEmpresa}:${unidade.CodSepararEstoque}:${unidade.CodProduto}:${unidade.Item}`;
+      const current = unidadesPorItem.get(key) ?? [];
+      current.push(unidade);
+      unidadesPorItem.set(key, current);
+    }
+
     return results.map((item) => {
       if (!item.UnidadeMedidas) item.UnidadeMedidas = [];
 
-      const unidadesDoProduto = unidadesMedida.filter(
-        (um) =>
-          um.CodEmpresa === item.CodEmpresa &&
-          um.CodSepararEstoque === item.CodSepararEstoque &&
-          um.CodProduto === item.CodProduto &&
-          um.Item === item.Item,
-      );
+      const key = `${item.CodEmpresa}:${item.CodSepararEstoque}:${item.CodProduto}:${item.Item}`;
+      const unidadesDoProduto = unidadesPorItem.get(key) ?? [];
 
       item.UnidadeMedidas.push(...unidadesDoProduto);
       return item;
@@ -260,13 +157,10 @@ export default class SepararItemEvent {
   }
 
   private convert(mutations: any[] | any): ExpedicaoItemSepararDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoItemSepararDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoItemSepararDto.fromObject(mutation),
+      { eventName: 'separar.item.mutation', requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'CodProduto'] },
+    );
   }
 }

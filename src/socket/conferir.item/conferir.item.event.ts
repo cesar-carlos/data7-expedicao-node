@@ -1,11 +1,10 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import ConferirItemRepository from './conferir.item.repository';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
+import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
 
 export default class ConferirItemEvent {
   private repository = new ConferirItemRepository();
@@ -14,219 +13,123 @@ export default class ConferirItemEvent {
     const client = socket.id;
 
     socket.on(`${client} conferir.item.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.consulta`,
+        eventName: 'conferir.item.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferir.item.unidade.medida.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.unidade.medida.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consultaUnidadeMedida(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.unidade.medida.consulta`,
+        eventName: 'conferir.item.unidade.medida.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consultaUnidadeMedida(
+          request.where as Params[],
+          request.pagination,
+          request.orderBy,
+        );
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferir.separacao.item.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.separacao.item.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consultaConferirSeparacao(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.separacao.item.consulta`,
+        eventName: 'conferir.separacao.item.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consultaConferirSeparacao(
+          request.where as Params[],
+          request.pagination,
+          request.orderBy,
+        );
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferir.item.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.select`,
+        eventName: 'conferir.item.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferir.item.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.insert`,
+        eventName: 'conferir.item.insert',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         const inserteds = await this.repository.insert(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: inserteds.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferir.item.insert.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(inserteds.map((item) => item.toJson()));
+        emitListen(io, 'conferir.item.insert.listen', basicEvent.toJson());
+      });
     });
 
     socket.on(`${client} conferir.item.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.update`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.update`,
+        eventName: 'conferir.item.update',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.update(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferir.item.update.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itens.map((item) => item.toJson()));
+        emitListen(io, 'conferir.item.update.listen', basicEvent.toJson());
+      });
     });
 
     socket.on(`${client} conferir.item.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferir.item.delete`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferir.item.delete`,
+        eventName: 'conferir.item.delete',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itens = this.convert(request.mutation);
         await this.repository.delete(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
+          Session: request.session,
+          ResponseIn: request.responseIn,
           Mutation: itens.map((item) => item.toJson()),
         });
 
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferir.item.delete.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(itens.map((item) => item.toJson()));
+        emitListen(io, 'conferir.item.delete.listen', basicEvent.toJson());
+      });
     });
   }
 
   private convert(mutations: any[] | any): ExpedicaoItemConferirDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoItemConferirDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoItemConferirDto.fromObject(mutation),
+      { eventName: 'conferir.item.mutation', requiredKeys: ['CodEmpresa', 'CodConferir', 'CodProduto'] },
+    );
   }
 }

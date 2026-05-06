@@ -1,19 +1,8 @@
-import { Request, Response } from 'express';
+import { createNotImplementedHandler } from '../controller.helpers';
 
 export default class WebhookRegisterController {
-  public static async get(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static async post(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static put(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static delete(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
+  public static get = createNotImplementedHandler('WebhookRegisterController', 'get');
+  public static post = createNotImplementedHandler('WebhookRegisterController', 'post');
+  public static put = createNotImplementedHandler('WebhookRegisterController', 'put');
+  public static delete = createNotImplementedHandler('WebhookRegisterController', 'delete');
 }

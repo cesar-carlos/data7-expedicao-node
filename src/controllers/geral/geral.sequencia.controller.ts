@@ -1,46 +1,25 @@
-import { getLocalDbContext } from '../../di/database.context';
-import { DI_BIND } from '../../di/bind.tokens';
-import { Request, Response } from 'express';
-
-
-import AppDependencys from '../../aplication/app.dependencys';
-import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
-import SequenceDto from '../../dto/common.data/sequence.dto';
+import AppExpressError from '../../aplication/app.express.error';
+import { createSequenceRepository } from '../../factory/geral.factory';
+import { createNotImplementedHandler, handleController } from '../controller.helpers';
 
 export default class GeralSequenciaController {
-  public static async get(req: Request, res: Response) {
-    try {
-      const sequenciaNome = req.params.nome;
-      const repository = GeralSequenciaController.getRepository();
-      const sequenceDto = await repository.select(sequenciaNome);
+  public static get = handleController(async (req, res) => {
+    const sequenceNome = req.params.nome;
+    const repository = createSequenceRepository();
+    const sequenceDto = await repository.select(sequenceNome);
 
-      if (sequenceDto === undefined) {
-        res.status(404).send({ message: 'sequence not found' });
-        return;
-      }
-
-      res.status(200).send(sequenceDto);
-    } catch (error: any) {
-      res.status(500).send({ message: error.message });
+    if (sequenceDto === undefined) {
+      throw new AppExpressError({
+        message: 'sequence not found',
+        statusCode: 404,
+        code: 'NOT_FOUND',
+      });
     }
-  }
 
-  public static async post(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
+    res.status(200).send(sequenceDto);
+  });
 
-  public static put(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static delete(req: Request, res: Response) {
-    res.status(404).send({ message: 'not implemented get' });
-  }
-
-  public static getRepository() {
-    return AppDependencys.resolve<LocalBaseRepositorySequenceContract<SequenceDto>>({
-      context: getLocalDbContext(),
-      bind: DI_BIND.LocalBaseRepositorySequenceContract_SequenceDto,
-    });
-  }
+  public static post = createNotImplementedHandler('GeralSequenciaController', 'post');
+  public static put = createNotImplementedHandler('GeralSequenciaController', 'put');
+  public static delete = createNotImplementedHandler('GeralSequenciaController', 'delete');
 }

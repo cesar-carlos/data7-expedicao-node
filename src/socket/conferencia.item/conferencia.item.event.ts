@@ -1,8 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import ConferenciaItemRepository from './conferencia.item.repository';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import ExpedicaoItemConferenciaConsultaDto from '../../dto/expedicao/expedicao.item.conferencia.consulta.dto';
 import CarrinhoPercursoEstagioRepository from '../carrinho.percurso.estagio/carrinho.percurso.estagio.repository';
@@ -10,8 +9,8 @@ import ExpedicaoItemConferirConsultaDto from '../../dto/expedicao/expedicao.item
 import ExpedicaoItemConferenciaDto from '../../dto/expedicao/expedicao.item.conferencia.dto';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 import ConferirItemRepository from '../conferir.item/conferir.item.repository';
+import { convertSocketMutationPayload, mapWithConcurrency, withSocketRequest } from '../socket.event.helpers';
 
 type ProdutoConferir = {
   CodEmpresa: number;
@@ -28,423 +27,280 @@ type CarrinhoPercursoEstagioParams = {
 
 export default class ConferenciaItemEvent {
   private repository = new ConferenciaItemRepository();
+  private conferirItemRepository = new ConferirItemRepository();
+  private carrinhoPercursoEstagioRepository = new CarrinhoPercursoEstagioRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} conferencia.item.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferencia.item.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferencia.item.consulta`,
+        eventName: 'conferencia.item.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferencia.item.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferencia.item.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferencia.item.select`,
+        eventName: 'conferencia.item.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} conferencia.item.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferencia.item.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const produtoConferir: ProdutoConferir[] = [];
-        const itensMutation = this.convert(mutation);
-
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferencia.item.insert`,
+        eventName: 'conferencia.item.insert',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
         const inserteds = await this.repository.insert(itensMutation);
+        const refresh = await this.buildRefreshPayload(inserteds);
 
-        for (const el of inserteds) {
-          const codCarrinho = await this.getCodCarrinho({
-            CodEmpresa: el.CodEmpresa,
-            CodCarrinhoPercurso: el.CodCarrinhoPercurso,
-            ItemCarrinhoPercurso: el.ItemCarrinhoPercurso,
-          });
+        const responseEvent = this.createMutationEvent(request.session, request.responseIn, inserteds);
+        const conferenciaListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensConferenciaConsulta,
+        );
+        const conferirListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensConferirConsulta,
+        );
 
-          const isExist = produtoConferir.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodConferir == el.CodConferir &&
-              sel.CodCarrinho == codCarrinho &&
-              sel.CodProduto == el.CodProduto,
-          );
-
-          if (isExist == -1) {
-            produtoConferir.push({
-              CodEmpresa: el.CodEmpresa,
-              CodConferir: el.CodConferir,
-              CodCarrinho: codCarrinho,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensConferirConsulta: ExpedicaoItemConferirConsultaDto[] = [];
-        for (const el of produtoConferir) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('CodCarrinho', el.CodCarrinho),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const itensConferenciaConsultaProdutoCarrinho = await this.repository.consulta(params);
-          const sumQtdConferida = itensConferenciaConsultaProdutoCarrinho.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const conferirItemRepository = new ConferirItemRepository();
-          const itensConferirProdutoCarrinho = await conferirItemRepository.consulta(params);
-
-          if (itensConferirProdutoCarrinho.length > 0) {
-            const itemConferirProdutoCarrinho = ExpedicaoItemConferirDto.fromConsulta(
-              itensConferirProdutoCarrinho.shift()!,
-            );
-
-            itemConferirProdutoCarrinho.QuantidadeConferida = sumQtdConferida;
-            await conferirItemRepository.update([itemConferirProdutoCarrinho]);
-          }
-
-          const conferirItensConsultaProdutoCarrinho = await conferirItemRepository.consulta(params);
-          itensConferirConsulta.push(...conferirItensConsultaProdutoCarrinho);
-        }
-
-        const itensConferenciaConsulta: ExpedicaoItemConferenciaConsultaDto[] = [];
-        for (const el of inserteds) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensConferenciaConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: inserteds.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferenciaConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferenciaConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferirConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferirConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferencia.item.insert.listen', JSON.stringify(basicEventItensConferenciaConsulta.toJson()));
-        io.emit('conferir.item.update.listen', JSON.stringify(basicEventItensConferirConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? inserteds.map((item) => item.toJson()));
+        emitListen(io, 'conferencia.item.insert.listen', conferenciaListenEvent.toJson());
+        emitListen(io, 'conferir.item.update.listen', conferirListenEvent.toJson());
+      });
     });
 
     socket.on(`${client} conferencia.item.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferencia.item.update`;
-      const mutation = json['Mutation'];
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferencia.item.update`,
+        eventName: 'conferencia.item.update',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
+        await this.updateOneByOne(itensMutation);
+        const refresh = await this.buildRefreshPayload(itensMutation);
 
-      try {
-        const produtoConferir: ProdutoConferir[] = [];
-        const itensMutation = this.convert(mutation);
+        const responseEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensConferenciaConsulta,
+        );
+        const conferirListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensConferirConsulta,
+        );
 
-        for (const el of itensMutation) {
-          await this.repository.update([el]);
-
-          const codCarrinho = await this.getCodCarrinho({
-            CodEmpresa: el.CodEmpresa,
-            CodCarrinhoPercurso: el.CodCarrinhoPercurso,
-            ItemCarrinhoPercurso: el.ItemCarrinhoPercurso,
-          });
-
-          const isExist = produtoConferir.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodConferir == el.CodConferir &&
-              sel.CodCarrinho == codCarrinho &&
-              sel.CodProduto == el.CodProduto,
-          );
-
-          if (isExist == -1) {
-            produtoConferir.push({
-              CodEmpresa: el.CodEmpresa,
-              CodConferir: el.CodConferir,
-              CodCarrinho: codCarrinho,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensConferirConsulta: ExpedicaoItemConferirConsultaDto[] = [];
-        for (const el of produtoConferir) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('CodCarrinho', el.CodCarrinho),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const itensConferenciaConsultaProdutoCarrinho = await this.repository.consulta(params);
-          const sumQtdConferida = itensConferenciaConsultaProdutoCarrinho.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const conferirItemRepository = new ConferirItemRepository();
-          const itensConferirProdutoCarrinho = await conferirItemRepository.consulta(params);
-
-          if (itensConferirProdutoCarrinho.length > 0) {
-            const itemConferirProdutoCarrinho = ExpedicaoItemConferirDto.fromConsulta(
-              itensConferirProdutoCarrinho.shift()!,
-            );
-
-            itemConferirProdutoCarrinho.QuantidadeConferida = sumQtdConferida;
-            await conferirItemRepository.update([itemConferirProdutoCarrinho]);
-          }
-
-          const conferirItensConsultaProdutoCarrinho = await conferirItemRepository.consulta(params);
-          itensConferirConsulta.push(...conferirItensConsultaProdutoCarrinho);
-        }
-
-        const itensConferenciaConsulta: ExpedicaoItemConferenciaConsultaDto[] = [];
-        for (const el of itensMutation) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensConferenciaConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferenciaConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferenciaConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferenciaConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferirConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferirConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferencia.item.update.listen', JSON.stringify(basicEventItensConferenciaConsulta.toJson()));
-        io.emit('conferir.item.update.listen', JSON.stringify(basicEventItensConferirConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? refresh.itensConferenciaConsulta.map((item) => item.toJson()));
+        emitListen(io, 'conferencia.item.update.listen', responseEvent.toJson());
+        emitListen(io, 'conferir.item.update.listen', conferirListenEvent.toJson());
+      });
     });
 
     socket.on(`${client} conferencia.item.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} conferencia.item.delete`;
-      const mutation = json['Mutation'];
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} conferencia.item.delete`,
+        eventName: 'conferencia.item.delete',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
+        const itensConferenciaConsulta = await this.loadItensConferenciaConsulta(itensMutation);
+        await this.deleteOneByOne(itensMutation);
+        const produtoConferir = await this.buildProdutosConferir(itensMutation);
+        const itensConferirConsulta = await this.refreshItensConferirConsulta(produtoConferir);
 
-      try {
-        const produtoConferir: ProdutoConferir[] = [];
-        const itensMutation = this.convert(mutation);
+        const responseEvent = this.createMutationEvent(request.session, request.responseIn, itensMutation);
+        const conferenciaListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          itensConferenciaConsulta,
+        );
+        const conferirListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          itensConferirConsulta,
+        );
 
-        const itensConferenciaConsulta: ExpedicaoItemConferenciaConsultaDto[] = [];
-        for (const el of itensMutation) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensConferenciaConsulta.push(...result);
-        }
-
-        for (const el of itensMutation) {
-          await this.repository.delete([el]);
-
-          const codCarrinho = await this.getCodCarrinho({
-            CodEmpresa: el.CodEmpresa,
-            CodCarrinhoPercurso: el.CodCarrinhoPercurso,
-            ItemCarrinhoPercurso: el.ItemCarrinhoPercurso,
-          });
-
-          const isExist = produtoConferir.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodConferir == el.CodConferir &&
-              sel.CodCarrinho == codCarrinho &&
-              sel.CodProduto == el.CodProduto,
-          );
-
-          if (isExist == -1) {
-            produtoConferir.push({
-              CodEmpresa: el.CodEmpresa,
-              CodConferir: el.CodConferir,
-              CodCarrinho: codCarrinho,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensConferirConsulta: ExpedicaoItemConferirConsultaDto[] = [];
-        for (const el of produtoConferir) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodConferir', el.CodConferir),
-            Params.equals('CodCarrinho', el.CodCarrinho),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const itensConferenciaConsultaProdutoCarrinho = await this.repository.consulta(params);
-          const sumQtdConferida = itensConferenciaConsultaProdutoCarrinho.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const conferirItemRepository = new ConferirItemRepository();
-          const itensConferirProdutoCarrinho = await conferirItemRepository.consulta(params);
-
-          if (itensConferirProdutoCarrinho.length > 0) {
-            const itemConferirProdutoCarrinho = ExpedicaoItemConferirDto.fromConsulta(
-              itensConferirProdutoCarrinho.shift()!,
-            );
-
-            itemConferirProdutoCarrinho.QuantidadeConferida = sumQtdConferida;
-            await conferirItemRepository.update([itemConferirProdutoCarrinho]);
-          }
-
-          const conferirItensConsultaProdutoCarrinho = await conferirItemRepository.consulta(params);
-          itensConferirConsulta.push(...conferirItensConsultaProdutoCarrinho);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensMutation.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferenciaConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferenciaConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensConferirConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensConferirConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('conferencia.item.delete.listen', JSON.stringify(basicEventItensConferenciaConsulta.toJson()));
-        io.emit('conferir.item.update.listen', JSON.stringify(basicEventItensConferirConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? itensMutation.map((item) => item.toJson()));
+        emitListen(io, 'conferencia.item.delete.listen', conferenciaListenEvent.toJson());
+        emitListen(io, 'conferir.item.update.listen', conferirListenEvent.toJson());
+      });
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoItemConferenciaDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoItemConferenciaDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
+  private createMutationEvent(
+    session: string,
+    responseIn: string,
+    items: Array<{ toJson(): unknown }>,
+  ): ExpedicaoMutationBasicEvent {
+    return new ExpedicaoMutationBasicEvent({
+      Session: session,
+      ResponseIn: responseIn,
+      Mutation: items.map((item) => item.toJson()),
+    });
+  }
+
+  private async buildRefreshPayload(items: ExpedicaoItemConferenciaDto[]): Promise<{
+    itensConferenciaConsulta: ExpedicaoItemConferenciaConsultaDto[];
+    itensConferirConsulta: ExpedicaoItemConferirConsultaDto[];
+  }> {
+    const produtoConferir = await this.buildProdutosConferir(items);
+    const [itensConferirConsulta, itensConferenciaConsulta] = await Promise.all([
+      this.refreshItensConferirConsulta(produtoConferir),
+      this.loadItensConferenciaConsulta(items),
+    ]);
+
+    return {
+      itensConferenciaConsulta,
+      itensConferirConsulta,
+    };
+  }
+
+  private async updateOneByOne(items: ExpedicaoItemConferenciaDto[]): Promise<void> {
+    for (const item of items) {
+      await this.repository.update([item]);
     }
   }
 
-  private async getCodCarrinho(params: CarrinhoPercursoEstagioParams): Promise<number> {
-    const repository = new CarrinhoPercursoEstagioRepository();
-    const result = await repository.select([
+  private async deleteOneByOne(items: ExpedicaoItemConferenciaDto[]): Promise<void> {
+    for (const item of items) {
+      await this.repository.delete([item]);
+    }
+  }
+
+  private convert(mutations: any[] | any): ExpedicaoItemConferenciaDto[] {
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoItemConferenciaDto.fromObject(mutation),
+      {
+        eventName: 'conferencia.item.mutation',
+        requiredKeys: ['CodEmpresa', 'CodConferir', 'Item', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso', 'CodProduto'],
+      },
+    );
+  }
+
+  private async buildProdutosConferir(items: ExpedicaoItemConferenciaDto[]): Promise<ProdutoConferir[]> {
+    const codCarrinhoCache = new Map<string, Promise<number>>();
+    const produtos = new Map<string, ProdutoConferir>();
+
+    await Promise.all(
+      items.map(async (item) => {
+        const codCarrinho = await this.getCodCarrinho({
+          CodEmpresa: item.CodEmpresa,
+          CodCarrinhoPercurso: item.CodCarrinhoPercurso,
+          ItemCarrinhoPercurso: item.ItemCarrinhoPercurso,
+        }, codCarrinhoCache);
+
+        const produto = {
+          CodEmpresa: item.CodEmpresa,
+          CodConferir: item.CodConferir,
+          CodCarrinho: codCarrinho,
+          CodProduto: item.CodProduto,
+        };
+
+        produtos.set(this.getProdutoConferirKey(produto), produto);
+      }),
+    );
+
+    return Array.from(produtos.values());
+  }
+
+  private async refreshItensConferirConsulta(
+    produtos: ProdutoConferir[],
+  ): Promise<ExpedicaoItemConferirConsultaDto[]> {
+    const consultas = await mapWithConcurrency(
+      produtos,
+      async (produto) => {
+        const params = this.buildProdutoConferirParams(produto);
+        const [itensConferenciaConsulta, itensConferir] = await Promise.all([
+          this.repository.consulta(params),
+          this.conferirItemRepository.consulta(params),
+        ]);
+
+        const quantidadeConferida = itensConferenciaConsulta.reduce((acc, cur) => {
+          return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
+        }, 0);
+
+        if (itensConferir.length > 0) {
+          const itemConferir = ExpedicaoItemConferirDto.fromConsulta(itensConferir[0]);
+          itemConferir.QuantidadeConferida = quantidadeConferida;
+          await this.conferirItemRepository.update([itemConferir]);
+          return this.conferirItemRepository.consulta(params);
+        }
+
+        return itensConferir;
+      },
+    );
+
+    return consultas.flat();
+  }
+
+  private async loadItensConferenciaConsulta(
+    items: ExpedicaoItemConferenciaDto[],
+  ): Promise<ExpedicaoItemConferenciaConsultaDto[]> {
+    const queryParams = Array.from(
+      new Map(
+        items.map((item) => [
+          `${item.CodEmpresa}:${item.CodConferir}:${item.Item}`,
+          [
+            Params.equals('CodEmpresa', item.CodEmpresa),
+            Params.equals('CodConferir', item.CodConferir),
+            Params.equals('Item', item.Item),
+          ],
+        ]),
+      ).values(),
+    );
+    const consultas = await mapWithConcurrency(queryParams, (params) => this.repository.consulta(params));
+
+    return consultas.flat();
+  }
+
+  private async getCodCarrinho(
+    params: CarrinhoPercursoEstagioParams,
+    cache?: Map<string, Promise<number>>,
+  ): Promise<number> {
+    const key = `${params.CodEmpresa}:${params.CodCarrinhoPercurso}:${params.ItemCarrinhoPercurso}`;
+
+    if (cache?.has(key)) {
+      return cache.get(key)!;
+    }
+
+    const load = this.carrinhoPercursoEstagioRepository.select([
       Params.equals('CodEmpresa', params.CodEmpresa),
       Params.equals('CodCarrinhoPercurso', params.CodCarrinhoPercurso),
       Params.equals('Item', params.ItemCarrinhoPercurso),
-    ]);
+    ]).then((result) => result?.shift()?.CodCarrinho ?? 0);
 
-    return result?.shift()?.CodCarrinho ?? 0;
+    if (cache) {
+      cache.set(key, load);
+    }
+
+    return load;
+  }
+
+  private getProdutoConferirKey(produto: ProdutoConferir): string {
+    return `${produto.CodEmpresa}:${produto.CodConferir}:${produto.CodCarrinho}:${produto.CodProduto}`;
+  }
+
+  private buildProdutoConferirParams(produto: ProdutoConferir): Params[] {
+    return [
+      Params.equals('CodEmpresa', produto.CodEmpresa),
+      Params.equals('CodConferir', produto.CodConferir),
+      Params.equals('CodCarrinho', produto.CodCarrinho),
+      Params.equals('CodProduto', produto.CodProduto),
+    ];
   }
 }

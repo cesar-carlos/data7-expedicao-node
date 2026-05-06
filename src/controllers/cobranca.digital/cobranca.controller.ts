@@ -57,7 +57,7 @@ export default class CobrancaController {
       const idLiberacao = parseInt(IdLiberacao as string);
 
       const appRegraStatusCobrancaPix = new AppRegraStatusCobrancaPix();
-      appRegraStatusCobrancaPix.execute({ codLiberacaoBloqueio, idLiberacao });
+      await appRegraStatusCobrancaPix.execute({ codLiberacaoBloqueio, idLiberacao });
       res.status(204).send();
     } catch (error: any) {
       res.header('INFO-REQUEST', error.message);
@@ -65,7 +65,7 @@ export default class CobrancaController {
     }
   }
 
-  public static delete(req: Request, res: Response) {
+  public static async delete(req: Request, res: Response) {
     try {
       const { sysId } = req.params;
 
@@ -79,7 +79,7 @@ export default class CobrancaController {
         requerente: 'CS',
       });
 
-      appAbortCharge.execute();
+      await appAbortCharge.execute();
       res.status(204).send();
     } catch (error: any) {
       res.header('INFO-REQUEST', error.message);

@@ -1,215 +1,79 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
-
-import CarrinhoRepository from './carrinho.repository';
-import ExpedicaoCarrinhoDto from '../../dto/expedicao/expedicao.carrinho.dto';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
+import { Params } from '../../contracts/local.base.params';
 import ExpedicaoCarrinhoConsultaDto from '../../dto/expedicao/expedicao.carrinho.consulta.dto';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
+import ExpedicaoCarrinhoDto from '../../dto/expedicao/expedicao.carrinho.dto';
+import { convertSocketMutationPayload } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
+import CarrinhoRepository from './carrinho.repository';
 
 export default class CarrinhoEvent {
-  private repository = new CarrinhoRepository();
+  private readonly repository = new CarrinhoRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} carrinho.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} carrinho.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.query({
+      eventSuffix: 'carrinho.consulta',
+      execute: (where, pagination, orderBy) => this.repository.consulta(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} carrinho.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} carrinho.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.query({
+      eventSuffix: 'carrinho.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} carrinho.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} carrinho.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodCarrinho = sequence?.Valor ?? 0;
-          await this.repository.insert([item]);
+    registrar.mutation({
+      eventSuffix: 'carrinho.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          item.CodCarrinho = (await this.repository.sequence())?.Valor ?? 0;
         }
-
-        const carrinhosConsulta: ExpedicaoCarrinhoConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodCarrinho', item.CodCarrinho)]);
-          carrinhosConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventCarrinhoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: carrinhosConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('carrinho.insert.listen', JSON.stringify(basicEventCarrinhoConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      },
+      execute: async (items) => this.repository.insert(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.insert.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} carrinho.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} carrinho.update`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-        await this.repository.update(itens);
-
-        const carrinhosConsulta: ExpedicaoCarrinhoConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodCarrinho', item.CodCarrinho)]);
-          carrinhosConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventCarrinhoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: carrinhosConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('carrinho.update.listen', JSON.stringify(basicEventCarrinhoConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.mutation({
+      eventSuffix: 'carrinho.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.update.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} carrinho.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} carrinho.delete`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-        const carrinhosConsulta: ExpedicaoCarrinhoConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodCarrinho', item.CodCarrinho)]);
-          carrinhosConsulta.push(...result);
-        }
-
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventCarrinhoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: carrinhosConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('carrinho.delete.listen', JSON.stringify(basicEventCarrinhoConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.mutation({
+      eventSuffix: 'carrinho.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      loadListenBeforeExecute: true,
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.delete.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoCarrinhoDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoCarrinhoDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+  private async loadConsulta(items: ExpedicaoCarrinhoDto[]): Promise<ExpedicaoCarrinhoConsultaDto[]> {
+    const results = await Promise.all(
+      items.map((item) => this.repository.consulta([Params.equals('CodCarrinho', item.CodCarrinho)])),
+    );
+
+    return results.flat();
+  }
+
+  private convert(mutations: unknown[] | unknown): ExpedicaoCarrinhoDto[] {
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoCarrinhoDto.fromObject(mutation),
+      { eventName: 'carrinho.mutation' },
+    );
   }
 }

@@ -7,7 +7,6 @@ import SqlServerExpedicaoConferirRepository from '../repository/expedicao/sql.se
 import SqlServerExpedicaoPrioridadeRepository from '../repository/expedicao/sql.server.expedicao.prioridade.repository';
 import SqlServerExpedicaoMotivoRecusaRepository from '../repository/expedicao/sql.server.expedicao.motivo.recusa.repository';
 import SqlServerExpedicaoSepararConsultaRepository from '../repository/expedicao/sql.server.expedicao.separar.consulta.repository';
-import LocalSqlServerProcessoExecutavelRepository from '../repository/common.data/local.sql.server.processo.executavel.repository';
 import SqlServerExpedicaoCarrinhoPercursoRepository from '../repository/expedicao/sql.server.expedicao.carrinho.percurso.repository';
 import SqlServerExpedicaoCarrinhoConsultaRepository from '../repository/expedicao/sql.server.expedicao.carrinho.consulta.repository';
 import SqlServerExpedicaoSepararItemConsultaRepository from '../repository/expedicao/sql.server.expedicao.item.separar.consulta.repository';
@@ -51,12 +50,6 @@ export default class AppDependencysExpedicao {
       context: eContext.sql_server,
       bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCancelamentoDto,
       instance: new SqlServerCancelamentoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ProcessoExecutavelDto,
-      instance: new LocalSqlServerProcessoExecutavelRepository(),
     });
 
     ContainerDependency.instance.register({

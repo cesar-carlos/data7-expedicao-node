@@ -1,11 +1,11 @@
 export default class ExpedicaoMutationListenEvent {
-  Mutation: string[];
+  Mutation: unknown[];
 
-  constructor(params: { Mutation: string[] }) {
+  constructor(params: { Mutation: unknown[] }) {
     this.Mutation = params.Mutation;
   }
 
-  public toJson(): any {
+  public toJson(): { Mutation: unknown[] } {
     return { Mutation: this.Mutation };
   }
 }

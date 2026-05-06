@@ -7,11 +7,18 @@ import AppDependencysExpedicao from './app.dependencys.expedicao';
 import { validateDatabaseContexts } from '../di/database.context';
 
 export default class AppDependencys {
+  private static loaded: boolean = false;
+
   public static load() {
+    if (this.loaded) {
+      return;
+    }
+
     validateDatabaseContexts();
+    AppDependencysGeral.load();
     AppDependencysIntegracaoPix.load();
     AppDependencysExpedicao.load();
-    AppDependencysGeral.load();
+    this.loaded = true;
   }
 
   public static resolve<T>(params: FindDepedecy): T {
@@ -19,6 +26,7 @@ export default class AppDependencys {
   }
 
   public static clear() {
+    this.loaded = false;
     ContainerDependency.instance.clear();
   }
 }

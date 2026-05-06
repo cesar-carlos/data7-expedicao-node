@@ -3,13 +3,13 @@ export default class ExpedicaoBasicErrorEvent {
   ResponseIn: string;
   Error: string[];
 
-  constructor(params: { Session: string; ResponseIn: string; Error: string[] }) {
+  constructor(params: { Session: string; ResponseIn: string; Error: string | string[] }) {
     this.Session = params.Session;
     this.ResponseIn = params.ResponseIn;
-    this.Error = params.Error;
+    this.Error = Array.isArray(params.Error) ? params.Error : [params.Error];
   }
 
-  public toJson(): any {
+  public toJson(): { Session: string; ResponseIn: string; Error: string[] } {
     return {
       Session: this.Session,
       ResponseIn: this.ResponseIn,

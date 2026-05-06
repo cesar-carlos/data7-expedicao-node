@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import SepararItemRepository from '../separar.item/separar.item.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -7,9 +7,8 @@ import ExpedicaoItemSeparacaoConsultaDto from '../../dto/expedicao/expedicao.ite
 import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
 import ExpedicaoItemSeparacaoDto from '../../dto/expedicao/expedicao.item.separacao.dto';
 import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import SeparacaoItemRepository from './separacao.item.repository';
+import { convertSocketMutationPayload, mapWithConcurrency, withSocketRequest } from '../socket.event.helpers';
 
 type ProdutoSeparar = {
   CodEmpresa: number;
@@ -19,408 +18,250 @@ type ProdutoSeparar = {
 
 export default class SeparacaoItemEvent {
   private repository = new SeparacaoItemRepository();
+  private separarItemRepository = new SepararItemRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
     const client = socket.id;
 
     socket.on(`${client} separacao.item.resumo.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.resumo.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consultaResumo(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.resumo.consulta`,
+        eventName: 'separacao.item.resumo.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consultaResumo(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separacao.item.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.consulta(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.consulta`,
+        eventName: 'separacao.item.consulta',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separacao.item.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.select`,
+        eventName: 'separacao.item.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
+        emitQuery(result.map((item) => item.toJson()));
+      });
     });
 
     socket.on(`${client} separacao.item.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const produtosSeparado: ProdutoSeparar[] = [];
-        const itensMutation = this.convert(mutation);
-
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.insert`,
+        eventName: 'separacao.item.insert',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
         const inserteds = await this.repository.insert(itensMutation);
+        const refresh = await this.buildRefreshPayload(inserteds);
 
-        for (const el of inserteds) {
-          const isExist = produtosSeparado.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodSepararEstoque == el.CodSepararEstoque &&
-              sel.CodProduto == el.CodProduto,
-          );
+        const responseEvent = this.createMutationEvent(request.session, request.responseIn, inserteds);
+        const separacaoListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensSeparacaoConsulta,
+        );
+        const separarListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensSepararConsulta,
+        );
 
-          if (isExist == -1) {
-            produtosSeparado.push({
-              CodEmpresa: el.CodEmpresa,
-              CodSepararEstoque: el.CodSepararEstoque,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensSepararConsulta: ExpedicaoItemSepararConsultaDto[] = [];
-        for (const el of produtosSeparado) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const separados = await this.repository.select(params);
-          const sumQtdSeparada = separados.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const separarItemRepository = new SepararItemRepository();
-          const separarItem = await separarItemRepository.select(params);
-
-          if (separarItem.length > 0) {
-            const item = separarItem.shift()!;
-            item.QuantidadeSeparacao = sumQtdSeparada;
-            await separarItemRepository.update([item]);
-          }
-
-          const separarItensConsulta = await separarItemRepository.consulta(params);
-          itensSepararConsulta.push(...separarItensConsulta);
-        }
-
-        const itensSeparacaoConsulta: ExpedicaoItemSeparacaoConsultaDto[] = [];
-        for (const el of inserteds) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensSeparacaoConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: inserteds.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSeparacaoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSeparacaoConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSepararConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separacao.item.insert.listen', JSON.stringify(basicEventItensSeparacaoConsulta.toJson()));
-        io.emit('separar.item.consulta.update.listen', JSON.stringify(basicEventItensSepararConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? inserteds.map((item) => item.toJson()));
+        emitListen(io, 'separacao.item.insert.listen', separacaoListenEvent.toJson());
+        emitListen(io, 'separar.item.consulta.update.listen', separarListenEvent.toJson());
+      });
     });
 
     socket.on(`${client} separacao.item.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.update`;
-      const mutation = json['Mutation'];
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.update`,
+        eventName: 'separacao.item.update',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
+        await this.updateOneByOne(itensMutation);
+        const refresh = await this.buildRefreshPayload(itensMutation);
 
-      try {
-        const produtosSeparado: ProdutoSeparar[] = [];
-        const itensMutation = this.convert(mutation);
+        const responseEvent = this.createMutationEvent(request.session, request.responseIn, itensMutation);
+        const separacaoListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensSeparacaoConsulta,
+        );
+        const separarListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          refresh.itensSepararConsulta,
+        );
 
-        for (const el of itensMutation) {
-          await this.repository.update([el]);
-
-          const isExist = produtosSeparado.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodSepararEstoque == el.CodSepararEstoque &&
-              sel.CodProduto == el.CodProduto,
-          );
-
-          if (isExist == -1) {
-            produtosSeparado.push({
-              CodEmpresa: el.CodEmpresa,
-              CodSepararEstoque: el.CodSepararEstoque,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensSepararConsulta: ExpedicaoItemSepararConsultaDto[] = [];
-        for (const el of produtosSeparado) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const separados = await this.repository.select(params);
-
-          const sumQtdSeparada = separados.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const separarItemRepository = new SepararItemRepository();
-          const separarItem = await separarItemRepository.select(params);
-
-          if (separarItem.length > 0) {
-            const item = separarItem.shift()!;
-            item.QuantidadeSeparacao = sumQtdSeparada;
-            await separarItemRepository.update([item]);
-          }
-
-          const separarItensConsulta = await separarItemRepository.consulta(params);
-          itensSepararConsulta.push(...separarItensConsulta);
-        }
-
-        const itensSeparacaoConsulta: ExpedicaoItemSeparacaoConsultaDto[] = [];
-        for (const el of itensMutation) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensSeparacaoConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensMutation.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSeparacaoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSeparacaoConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSepararConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separacao.item.update.listen', JSON.stringify(basicEventItensSeparacaoConsulta.toJson()));
-        io.emit('separar.item.consulta.update.listen', JSON.stringify(basicEventItensSepararConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? itensMutation.map((item) => item.toJson()));
+        emitListen(io, 'separacao.item.update.listen', separacaoListenEvent.toJson());
+        emitListen(io, 'separar.item.consulta.update.listen', separarListenEvent.toJson());
+      });
     });
 
     socket.on(`${client} separacao.item.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separacao.item.delete`;
-      const mutation = json['Mutation'];
+      await withSocketRequest(socket, data, {
+        defaultResponseIn: `${client} separacao.item.delete`,
+        eventName: 'separacao.item.delete',
+        kind: 'mutation',
+      }, async ({ request, emitMutation, emitListen }) => {
+        const itensMutation = this.convert(request.mutation);
+        const itensSeparacaoConsulta = await this.loadItensSeparacaoConsulta(itensMutation);
+        await this.deleteOneByOne(itensMutation);
+        const produtosSeparado = this.buildProdutosSeparado(itensMutation);
+        const itensSepararConsulta = await this.refreshItensSepararConsulta(produtosSeparado);
 
-      try {
-        const produtosSeparado: ProdutoSeparar[] = [];
-        const itensMutation = this.convert(mutation);
+        const responseEvent = this.createMutationEvent(request.session, request.responseIn, itensMutation);
+        const separacaoListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          itensSeparacaoConsulta,
+        );
+        const separarListenEvent = this.createMutationEvent(
+          request.session,
+          request.responseIn,
+          itensSepararConsulta,
+        );
 
-        const itensSeparacaoConsulta: ExpedicaoItemSeparacaoConsultaDto[] = [];
-        for (const el of itensMutation) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('Item', el.Item),
-          ];
-
-          const result = await this.repository.consulta(params);
-          itensSeparacaoConsulta.push(...result);
-        }
-
-        for (const el of itensMutation) {
-          await this.repository.delete([el]);
-
-          const isExist = produtosSeparado.findIndex(
-            (sel) =>
-              sel.CodEmpresa == el.CodEmpresa &&
-              sel.CodSepararEstoque == el.CodSepararEstoque &&
-              sel.CodProduto == el.CodProduto,
-          );
-
-          if (isExist == -1) {
-            produtosSeparado.push({
-              CodEmpresa: el.CodEmpresa,
-              CodSepararEstoque: el.CodSepararEstoque,
-              CodProduto: el.CodProduto,
-            });
-          }
-        }
-
-        const itensSepararConsulta: ExpedicaoItemSepararConsultaDto[] = [];
-        for (const el of produtosSeparado) {
-          const params = [
-            Params.equals('CodEmpresa', el.CodEmpresa),
-            Params.equals('CodSepararEstoque', el.CodSepararEstoque),
-            Params.equals('CodProduto', el.CodProduto),
-          ];
-
-          const separados = await this.repository.select(params);
-
-          const sumQtdSeparada = separados.reduce((acc, cur) => {
-            return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-          }, 0);
-
-          const separarItemRepository = new SepararItemRepository();
-          const separarItem = await separarItemRepository.select(params);
-
-          if (separarItem.length > 0) {
-            const item = separarItem.shift()!;
-            item.QuantidadeSeparacao = sumQtdSeparada;
-            await separarItemRepository.update([item]);
-          }
-
-          const separarItensConsulta = await separarItemRepository.consulta(params);
-          itensSepararConsulta.push(...separarItensConsulta);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensMutation.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSeparacaoConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSeparacaoConsulta.map((item) => item.toJson()),
-        });
-
-        const basicEventItensSepararConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itensSepararConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('separacao.item.delete.listen', JSON.stringify(basicEventItensSeparacaoConsulta.toJson()));
-        io.emit('separar.item.consulta.update.listen', JSON.stringify(basicEventItensSepararConsulta.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+        emitMutation(responseEvent.Mutation ?? itensMutation.map((item) => item.toJson()));
+        emitListen(io, 'separacao.item.delete.listen', separacaoListenEvent.toJson());
+        emitListen(io, 'separar.item.consulta.update.listen', separarListenEvent.toJson());
+      });
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoItemSeparacaoDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoItemSeparacaoDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
+  private createMutationEvent(
+    session: string,
+    responseIn: string,
+    items: Array<{ toJson(): unknown }>,
+  ): ExpedicaoMutationBasicEvent {
+    return new ExpedicaoMutationBasicEvent({
+      Session: session,
+      ResponseIn: responseIn,
+      Mutation: items.map((item) => item.toJson()),
+    });
+  }
+
+  private async buildRefreshPayload(items: ExpedicaoItemSeparacaoDto[]): Promise<{
+    itensSepararConsulta: ExpedicaoItemSepararConsultaDto[];
+    itensSeparacaoConsulta: ExpedicaoItemSeparacaoConsultaDto[];
+  }> {
+    const produtosSeparado = this.buildProdutosSeparado(items);
+    const [itensSepararConsulta, itensSeparacaoConsulta] = await Promise.all([
+      this.refreshItensSepararConsulta(produtosSeparado),
+      this.loadItensSeparacaoConsulta(items),
+    ]);
+
+    return {
+      itensSepararConsulta,
+      itensSeparacaoConsulta,
+    };
+  }
+
+  private async updateOneByOne(items: ExpedicaoItemSeparacaoDto[]): Promise<void> {
+    for (const item of items) {
+      await this.repository.update([item]);
     }
+  }
+
+  private async deleteOneByOne(items: ExpedicaoItemSeparacaoDto[]): Promise<void> {
+    for (const item of items) {
+      await this.repository.delete([item]);
+    }
+  }
+
+  private convert(mutations: any[] | any): ExpedicaoItemSeparacaoDto[] {
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoItemSeparacaoDto.fromObject(mutation),
+      {
+        eventName: 'separacao.item.mutation',
+        requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'Item', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso', 'CodProduto'],
+      },
+    );
+  }
+
+  private buildProdutosSeparado(items: ExpedicaoItemSeparacaoDto[]): ProdutoSeparar[] {
+    return Array.from(
+      new Map(
+        items.map((item) => [
+          `${item.CodEmpresa}:${item.CodSepararEstoque}:${item.CodProduto}`,
+          {
+            CodEmpresa: item.CodEmpresa,
+            CodSepararEstoque: item.CodSepararEstoque,
+            CodProduto: item.CodProduto,
+          },
+        ]),
+      ).values(),
+    );
+  }
+
+  private async refreshItensSepararConsulta(produtos: ProdutoSeparar[]): Promise<ExpedicaoItemSepararConsultaDto[]> {
+    const consultas = await mapWithConcurrency(
+      produtos,
+      async (produto) => {
+        const params = this.buildProdutoSeparadoParams(produto);
+        const [separados, separarItem] = await Promise.all([
+          this.repository.select(params),
+          this.separarItemRepository.select(params),
+        ]);
+
+        const quantidadeSeparada = separados.reduce((acc, cur) => {
+          return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
+        }, 0);
+
+        if (separarItem.length > 0) {
+          const item = separarItem[0];
+          item.QuantidadeSeparacao = quantidadeSeparada;
+          await this.separarItemRepository.update([item]);
+          return this.separarItemRepository.consulta(params);
+        }
+
+        return this.separarItemRepository.consulta(params);
+      },
+    );
+
+    return consultas.flat();
+  }
+
+  private async loadItensSeparacaoConsulta(
+    items: ExpedicaoItemSeparacaoDto[],
+  ): Promise<ExpedicaoItemSeparacaoConsultaDto[]> {
+    const queryParams = Array.from(
+      new Map(
+        items.map((item) => [
+          `${item.CodEmpresa}:${item.CodSepararEstoque}:${item.Item}`,
+          [
+            Params.equals('CodEmpresa', item.CodEmpresa),
+            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
+            Params.equals('Item', item.Item),
+          ],
+        ]),
+      ).values(),
+    );
+    const consultas = await mapWithConcurrency(queryParams, (params) => this.repository.consulta(params));
+
+    return consultas.flat();
+  }
+
+  private buildProdutoSeparadoParams(produto: ProdutoSeparar): Params[] {
+    return [
+      Params.equals('CodEmpresa', produto.CodEmpresa),
+      Params.equals('CodSepararEstoque', produto.CodSepararEstoque),
+      Params.equals('CodProduto', produto.CodProduto),
+    ];
   }
 }

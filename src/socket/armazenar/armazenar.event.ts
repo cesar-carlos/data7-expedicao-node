@@ -1,149 +1,61 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy } from '../../contracts/local.base.params';
-
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import ExpedicaoArmazenarDto from '../../dto/expedicao/expedicao.armazenar.dto';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
+import { convertSocketMutationPayload } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
 import ArmazenarRepository from './armazenar.repository';
 
 export default class ArmazenarEvent {
-  private repository = new ArmazenarRepository();
+  private readonly repository = new ArmazenarRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} armazenar.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} armazenar.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
-
-      try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.query({
+      eventSuffix: 'armazenar.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} armazenar.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} armazenar.insert`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodArmazenar = sequence?.Valor ?? 0;
-          await this.repository.insert([item]);
+    registrar.mutation({
+      eventSuffix: 'armazenar.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          if (item.CodArmazenar <= 0) {
+            item.CodArmazenar = (await this.repository.sequence())?.Valor ?? 0;
+          }
         }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('armazenar.insert.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+      },
+      execute: async (items) => this.repository.insert(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'armazenar.insert.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} armazenar.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} armazenar.update`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-        await this.repository.update(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('armazenar.update.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.mutation({
+      eventSuffix: 'armazenar.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'armazenar.update.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} armazenar.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} armazenar.delete`;
-      const mutation = json['Mutation'];
-
-      try {
-        const itens = this.convert(mutation);
-
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('armazenar.delete.listen', JSON.stringify(basicEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      }
+    registrar.mutation({
+      eventSuffix: 'armazenar.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'armazenar.delete.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoArmazenarDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoArmazenarDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+  private convert(mutations: unknown[] | unknown): ExpedicaoArmazenarDto[] {
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoArmazenarDto.fromObject(mutation),
+      { eventName: 'armazenar.mutation' },
+    );
   }
 }

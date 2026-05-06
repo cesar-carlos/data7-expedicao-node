@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy, Params } from '../../contracts/local.base.params';
+import { Params } from '../../contracts/local.base.params';
 
 import ExpedicaoSepararDto from '../../dto/expedicao/expedicao.separar.dto';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -8,8 +8,8 @@ import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.c
 import ExpedicaoProgressoSeparacaoConsultaDto from '../../dto/expedicao/expedicao.progresso.separacao.consulta.dto';
 import ExpedicaoItemImpressoConsultaDto from '../../dto/expedicao/expedicao.item.impresso.consulta.dto';
 import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import SepararRepository from './separar.repository';
+import { convertSocketMutationPayload, emitSocketError, getSocketPayloadOrEmitError } from '../socket.event.helpers';
 
 export default class SepararEvent {
   private repository = new SepararRepository();
@@ -18,15 +18,19 @@ export default class SepararEvent {
     const client = socket.id;
 
     socket.on(`${client} separar.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.consulta`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, where, pagination, orderBy } = payload;
 
       try {
-        const result: ExpedicaoSepararConsultaDto[] = await this.repository.consulta(params, pagination, orderBy);
+        const result: ExpedicaoSepararConsultaDto[] = await this.repository.consulta(
+          where as Params[],
+          pagination,
+          orderBy,
+        );
         const jsonData = result.map((item) => item.toJson());
 
         const event = new ExpedicaoBasicSelectEvent({
@@ -36,28 +40,22 @@ export default class SepararEvent {
         });
 
         socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.progresso.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.progresso.consulta`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.progresso.consulta`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, where, pagination, orderBy } = payload;
 
       try {
         const result: ExpedicaoProgressoSeparacaoConsultaDto[] = await this.repository.consultaProgressoSeparacao(
-          params,
+          where as Params[],
           pagination,
           orderBy,
         );
@@ -70,28 +68,23 @@ export default class SepararEvent {
         });
 
         socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.estoque.item.impresso.consulta`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.estoque.item.impresso.consulta`;
-      const params = json['Where'] ?? [];
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.estoque.item.impresso.consulta`,
+        defaultWhere: [],
+      });
+      if (!payload) return;
+
+      const { session, responseIn, where, pagination, orderBy } = payload;
 
       try {
         const result: ExpedicaoItemImpressoConsultaDto[] = await this.repository.consultaSepararEstoqueItemImpresso(
-          params,
+          where as Params[],
           pagination,
           orderBy,
         );
@@ -102,26 +95,21 @@ export default class SepararEvent {
           Data: jsonData,
         });
         socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.select`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, where, pagination, orderBy } = payload;
 
       try {
-        const result = await this.repository.select(params, pagination, orderBy);
+        const result = await this.repository.select(where as Params[], pagination, orderBy);
         const jsonData = result.map((item) => item.toJson());
 
         const event = new ExpedicaoBasicSelectEvent({
@@ -131,22 +119,18 @@ export default class SepararEvent {
         });
 
         socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.insert`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.insert`;
-      const mutation = json['Mutation'];
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.insert`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, mutation } = payload;
 
       try {
         const itens = this.convert(mutation);
@@ -180,22 +164,18 @@ export default class SepararEvent {
 
         socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
         io.emit('separar.insert.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.update`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.update`;
-      const mutation = json['Mutation'];
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.update`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, mutation } = payload;
 
       try {
         const itens = this.convert(mutation);
@@ -223,22 +203,18 @@ export default class SepararEvent {
 
         socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
         io.emit('separar.update.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
 
     socket.on(`${client} separar.delete`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} separar.delete`;
-      const mutation = json['Mutation'];
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} separar.delete`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, mutation } = payload;
 
       try {
         const itens = this.convert(mutation);
@@ -267,26 +243,17 @@ export default class SepararEvent {
 
         socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
         io.emit('separar.delete.listen', JSON.stringify(listenEvent.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
   }
 
   private convert(mutations: any[] | any): ExpedicaoSepararDto[] {
-    try {
-      if (!Array.isArray(mutations)) mutations = [mutations];
-      return mutations.map((mutation: any) => {
-        return ExpedicaoSepararDto.fromObject(mutation);
-      });
-    } catch (error) {
-      return [];
-    }
+    return convertSocketMutationPayload(
+      mutations,
+      (mutation) => ExpedicaoSepararDto.fromObject(mutation),
+      { eventName: 'separar.mutation' },
+    );
   }
 }

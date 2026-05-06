@@ -21,7 +21,7 @@ export default class CancelamentoPixService {
     //CANCELADO-CLIENTE
     if (params.status === 'CC') {
       const titulos = await this.localRepository.selectWhere([{ key: 'SysId ', value: params.sysId }]);
-      titulos?.forEach(async (titulo) => {
+      for (const titulo of titulos || []) {
         const item = new CobrancaDigitalTituloDto({
           codEmpresa: titulo.codEmpresa,
           codCobrancaDigital: titulo.codCobrancaDigital,
@@ -42,7 +42,7 @@ export default class CancelamentoPixService {
         });
 
         await this.localRepository.update(item);
-      });
+      }
     }
 
     //CANCELADO-SISTEMA

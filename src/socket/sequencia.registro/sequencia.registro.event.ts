@@ -1,9 +1,8 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import SequenciaRegistroRepository from './sequencia.registro.repository';
 import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
+import { emitSocketError, getSocketPayloadOrEmitError } from '../socket.event.helpers';
 
 export default class SequenciaRegistroEvent {
   private repository = new SequenciaRegistroRepository();
@@ -12,33 +11,28 @@ export default class SequenciaRegistroEvent {
     const client = socket.id;
 
     socket.on(`${client} sequencia.select`, async (data) => {
-      const json = JSON.parse(data);
-      const session = json['Session'] ?? '';
-      const responseIn = json['ResponseIn'] ?? `${client} sequencia.select`;
-      const params = json['Where'] ?? '';
-      const pagination = Pagination.fromQueryString(json['Pagination']);
-      const orderBy = OrderBy.fromQueryString(json['OrderBy']);
+      const payload = getSocketPayloadOrEmitError(socket, data, {
+        defaultResponseIn: `${client} sequencia.select`,
+      });
+      if (!payload) return;
+
+      const { session, responseIn, where, pagination, orderBy } = payload;
 
       try {
-        const result = await this.repository.select(params, pagination, orderBy);
-        if (result === undefined) throw new Error('Sequencia não encontrada');
-        const jsonData = result.toJson();
+        const result = await this.repository.select(String(where ?? ''), pagination, orderBy);
+        if (result === undefined) {
+          throw new Error('Sequencia nÃ£o encontrada');
+        }
 
         const event = new ExpedicaoBasicSelectEvent({
           Session: session,
           ResponseIn: responseIn,
-          Data: jsonData,
+          Data: result.toJson(),
         });
 
         socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error: any) {
-        const event = new ExpedicaoBasicErrorEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Error: error.message,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
+      } catch (error) {
+        emitSocketError(socket, responseIn, session, error);
       }
     });
   }

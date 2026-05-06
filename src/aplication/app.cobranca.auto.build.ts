@@ -30,7 +30,7 @@ export default class AppCobrancaAutoBuild {
 
           //METHOD DELETE
           if (request?.Method === 'DELETE') {
-            new AppAbortCharge({
+            await new AppAbortCharge({
               sysId: request.SysId,
               requerente: 'CS',
             }).execute();
@@ -42,14 +42,14 @@ export default class AppCobrancaAutoBuild {
             const infoValid = new AppCobrancaPixValidar().execute(data);
             if (infoValid.process.status === 'error') return infoValid;
             const appCobrancaPix = new AppCobrancaPix();
-            appCobrancaPix.execute(data);
+            await appCobrancaPix.execute(data);
           }
 
           //METHOD PUT
           if (request?.Method === 'PUT') {
             const { CodLiberacaoBloqueio, IdLiberacao } = request?.Body;
             const appRegraStatusCobrancaPix = new AppRegraStatusCobrancaPix();
-            appRegraStatusCobrancaPix.execute({
+            await appRegraStatusCobrancaPix.execute({
               codLiberacaoBloqueio: CodLiberacaoBloqueio,
               idLiberacao: IdLiberacao,
             });
