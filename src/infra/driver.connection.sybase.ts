@@ -50,7 +50,10 @@ export class Request {
           const _input = value === undefined ? 'NULL' : value;
           return acc.replace(`@${input.name}`, _input);
         } else {
-          const value = typeof input.value === 'string' ? (input.value = `'${input.value}'`) : input.value;
+          const value =
+            typeof input.value === 'string'
+              ? `'${String(input.value).replace(/'/g, "''")}'`
+              : input.value;
           const _input = value === undefined ? 'NULL' : value;
           return acc.replace(`@${input.name}`, _input);
         }

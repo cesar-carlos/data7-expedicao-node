@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoItemSepararUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.separar.unidade.medida.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepository
   implements LocalBaseConsultaRepositoryContract<ExpedicaoItemSepararUnidadeMedidaConsultaDto>
@@ -20,7 +22,7 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.unidade.medida.consulta.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -29,8 +31,8 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
       });
 
       return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
       //if (pool) pool.close();
     }
@@ -45,15 +47,9 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.unidade.medida.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -61,8 +57,8 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
       });
 
       return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

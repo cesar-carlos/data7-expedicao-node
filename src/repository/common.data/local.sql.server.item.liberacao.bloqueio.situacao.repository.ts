@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import ItemLiberacaoBloqueioSituacaoDto from '../../dto/common.data/item.liberacao.bloqueio.situacao.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioSituacaoDto>
@@ -20,7 +22,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -40,10 +42,8 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
-      const _params = ParamsCommonRepository.build(params);
-      const sql = `${select} WHERE ${_params}`;
-      const result = await pool.request().query(sql);
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
       const situacoes = result.recordset.map((item: any) => {
@@ -64,7 +64,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   async update(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -76,13 +76,9 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
   }
 
   private async actonEntity(entity: ItemLiberacaoBloqueioSituacaoDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodLiberacaoBloqueio', sql.Int, entity.codLiberacaoBloqueio)
         .input('Item', sql.VarChar(3), entity.item.substring(0, 3))
         .input('Status', sql.VarChar(3), entity.status.substring(0, 3))
@@ -95,10 +91,9 @@ export default class LocalSqlServerItemLiberacaoBloqueioSituacaoRepository
         .input('Complemento', sql.VarChar(2000), entity.complemento)
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      await transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

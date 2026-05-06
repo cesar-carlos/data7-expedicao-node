@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ExpedicaoSeparacaoUsuarioSetorDto from '../../dto/expedicao/expedicao.separacao.usuario.setor.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
   implements LocalBaseRepositoryContract<ExpedicaoSeparacaoUsuarioSetorDto>
@@ -20,7 +22,7 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -29,8 +31,8 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
       });
 
       return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -44,15 +46,9 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -60,8 +56,8 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
       });
 
       return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -69,64 +65,58 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
   public async insert(entity: ExpedicaoSeparacaoUsuarioSetorDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async insertWithReturn(entity: ExpedicaoSeparacaoUsuarioSetorDto): Promise<ExpedicaoSeparacaoUsuarioSetorDto> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       const result = await this.actonEntityWithReturn(entity, insert);
       return result;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async update(entity: ExpedicaoSeparacaoUsuarioSetorDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async delete(entity: ExpedicaoSeparacaoUsuarioSetorDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.separacao.usuario.setor.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: ExpedicaoSeparacaoUsuarioSetorDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
-        .input('CodEmpresa', sql.Int, entity.CodEmpresa)
-        .input('CodSepararEstoque', sql.Int, entity.CodSepararEstoque)
-        .input('Item', sql.VarChar(5), entity.Item)
-        .input('CodSetorEstoque', sql.Int, entity.CodSetorEstoque)
-        .input('DataLancamento', sql.Date, entity.DataLancamento)
-        .input('HoraLancamento', sql.VarChar(8), entity.HoraLancamento)
-        .input('CodUsuario', sql.Int, entity.CodUsuario)
-        .input('NomeUsuario', sql.VarChar(30), entity.NomeUsuario)
-        .input('EstacaoSeparacao', sql.VarChar(30), entity.EstacaoSeparacao)
-        .query(sqlCommand);
-
-      await transaction.commit();
-    } catch (error: any) {
-      console.error('Erro em SqlServerExpedicaoSeparacaoUsuarioSetorRepository.actonEntity:', error.message);
-      transaction.rollback();
-      throw new Error(error.message);
+      await this.connect.executeInTransaction(async (request) => {
+        await request
+          .input('CodEmpresa', sql.Int, entity.CodEmpresa)
+          .input('CodSepararEstoque', sql.Int, entity.CodSepararEstoque)
+          .input('Item', sql.VarChar(5), entity.Item)
+          .input('CodSetorEstoque', sql.Int, entity.CodSetorEstoque)
+          .input('DataLancamento', sql.Date, entity.DataLancamento)
+          .input('HoraLancamento', sql.VarChar(8), entity.HoraLancamento)
+          .input('CodUsuario', sql.Int, entity.CodUsuario)
+          .input('NomeUsuario', sql.VarChar(30), entity.NomeUsuario)
+          .input('EstacaoSeparacao', sql.VarChar(30), entity.EstacaoSeparacao)
+          .query(sqlCommand);
+      });
+    } catch (error: unknown) {
+      console.error('Erro em SqlServerExpedicaoSeparacaoUsuarioSetorRepository.actonEntity:', error);
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -134,35 +124,29 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorRepository
     entity: ExpedicaoSeparacaoUsuarioSetorDto,
     sqlCommand: string,
   ): Promise<ExpedicaoSeparacaoUsuarioSetorDto> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      const result = await transaction
-        .request()
-        .input('CodEmpresa', sql.Int, entity.CodEmpresa)
-        .input('CodSepararEstoque', sql.Int, entity.CodSepararEstoque)
-        .input('Item', sql.VarChar(5), entity.Item)
-        .input('CodSetorEstoque', sql.Int, entity.CodSetorEstoque)
-        .input('DataLancamento', sql.Date, entity.DataLancamento)
-        .input('HoraLancamento', sql.VarChar(8), entity.HoraLancamento)
-        .input('CodUsuario', sql.Int, entity.CodUsuario)
-        .input('NomeUsuario', sql.VarChar(30), entity.NomeUsuario)
-        .input('EstacaoSeparacao', sql.VarChar(30), entity.EstacaoSeparacao)
-        .query(sqlCommand);
+      return await this.connect.executeInTransaction(async (request) => {
+        const result = await request
+          .input('CodEmpresa', sql.Int, entity.CodEmpresa)
+          .input('CodSepararEstoque', sql.Int, entity.CodSepararEstoque)
+          .input('Item', sql.VarChar(5), entity.Item)
+          .input('CodSetorEstoque', sql.Int, entity.CodSetorEstoque)
+          .input('DataLancamento', sql.Date, entity.DataLancamento)
+          .input('HoraLancamento', sql.VarChar(8), entity.HoraLancamento)
+          .input('CodUsuario', sql.Int, entity.CodUsuario)
+          .input('NomeUsuario', sql.VarChar(30), entity.NomeUsuario)
+          .input('EstacaoSeparacao', sql.VarChar(30), entity.EstacaoSeparacao)
+          .query(sqlCommand);
 
-      await transaction.commit();
+        if (result.recordset && result.recordset.length > 0) {
+          return ExpedicaoSeparacaoUsuarioSetorDto.fromObject(result.recordset[0]);
+        }
 
-      if (result.recordset && result.recordset.length > 0) {
-        return ExpedicaoSeparacaoUsuarioSetorDto.fromObject(result.recordset[0]);
-      }
-
-      throw new Error('Nenhum registro foi inserido');
-    } catch (error: any) {
-      console.error('Erro em SqlServerExpedicaoSeparacaoUsuarioSetorRepository.actonEntityWithReturn:', error.message);
-      transaction.rollback();
-      throw new Error(error.message);
+        throw new Error('Nenhum registro foi inserido');
+      });
+    } catch (error: unknown) {
+      console.error('Erro em SqlServerExpedicaoSeparacaoUsuarioSetorRepository.actonEntityWithReturn:', error);
+      throw wrapRepositoryError(error);
     }
   }
 }

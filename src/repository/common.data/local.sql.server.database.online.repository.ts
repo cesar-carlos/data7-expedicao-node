@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import { ConnectionPool } from 'mssql';
 
 import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
@@ -16,7 +16,7 @@ export default class LocalSqlServerDatabaseOnlineRepository implements DataBaseA
 
     try {
       const patch = path.resolve(this.basePatchSQL, 'local.database.online.select.sql');
-      const select = fs.readFileSync(patch).toString();
+      const select = readSqlFileCached(patch);
       const result = await pool.request().query(select);
 
       const data = result.recordset.map((item: any) => {

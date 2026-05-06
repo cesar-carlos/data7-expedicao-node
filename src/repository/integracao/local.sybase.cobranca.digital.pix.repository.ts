@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import sql from 'mssql';
 
 import { ConnectionSybase } from '../../infra/connection.sybase';
@@ -19,7 +19,7 @@ export default class LocalSybaseCobrancaDigitalPixRepository
     try {
       const pool = await (await this.connect.getConnection()).connect();
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pix.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
       pool.close();
 
@@ -38,7 +38,7 @@ export default class LocalSybaseCobrancaDigitalPixRepository
     try {
       const pool = await (await this.connect.getConnection()).connect();
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pix.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
       const _params = ParamsCommonRepository.build(params);
       const sql = _params ? `${select} WHERE ${_params}` : select;
@@ -59,7 +59,7 @@ export default class LocalSybaseCobrancaDigitalPixRepository
   public async insert(entity: CobrancaDigitalPixDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pix.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
     } catch (error: any) {
       throw new Error(error.message);
@@ -69,7 +69,7 @@ export default class LocalSybaseCobrancaDigitalPixRepository
   public async update(entity: CobrancaDigitalPixDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pix.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -78,7 +78,7 @@ export default class LocalSybaseCobrancaDigitalPixRepository
 
   public async delete(entity: CobrancaDigitalPixDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pix.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 

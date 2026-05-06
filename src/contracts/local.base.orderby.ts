@@ -45,9 +45,18 @@ export class OrderBy {
 
     if (fields.length === 0) return '';
 
+    const FIELD = /^(\[[^\]]+\]|[a-zA-Z_][\w.$#@]*)$/;
+
     const parts = fields.map((field, index) => {
-      const dir = directions[index] || 'ASC';
-      return `${field} ${dir}`;
+      const f = field.trim();
+      if (!FIELD.test(f)) {
+        throw new Error(`ORDER BY: campo não permitido: ${field}`);
+      }
+      const dir = (directions[index] || 'ASC').toUpperCase();
+      if (dir !== 'ASC' && dir !== 'DESC') {
+        throw new Error(`ORDER BY: direção inválida: ${directions[index]}`);
+      }
+      return `${f} ${dir}`;
     });
 
     return parts.join(', ');
@@ -56,11 +65,14 @@ export class OrderBy {
   isValid(): boolean {
     if (!this.orderBy) return false;
 
-    const fields = this.orderBy.split(',').filter(Boolean);
-    const directions = this.orderDirection.split(',').filter(Boolean);
+    const fields = this.orderBy.split(',').map((f) => f.trim()).filter(Boolean);
+    const directions = this.orderDirection.split(',').map((d) => d.trim()).filter(Boolean);
 
     if (fields.length === 0) return false;
     if (fields.length !== directions.length) return false;
+
+    const FIELD = /^(\[[^\]]+\]|[a-zA-Z_][\w.$#@]*)$/;
+    if (!fields.every((f) => FIELD.test(f))) return false;
 
     return directions.every((d) => ['ASC', 'DESC'].includes(d.toUpperCase()));
   }

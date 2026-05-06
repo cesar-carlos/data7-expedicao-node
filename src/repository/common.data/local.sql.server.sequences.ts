@@ -3,6 +3,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerSequences implements LocalBaseRepositorySequenceContract<SequenceDto> {
   private connect = ConnectionSqlServerMssql.getInstance();
@@ -11,7 +12,10 @@ export default class LocalSqlServerSequences implements LocalBaseRepositorySeque
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const sql = `SELECT NEXT VALUE FOR ${name} value`;
+      if (!/^[\w.#\[\]]+$/.test(name) || name.length > 256) {
+        throw new Error('Nome de sequência inválido');
+      }
+      const sql = `SELECT NEXT VALUE FOR ${name} AS value`;
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return undefined;
@@ -21,8 +25,8 @@ export default class LocalSqlServerSequences implements LocalBaseRepositorySeque
       });
 
       return sequence.shift();
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoProgressoSeparacaoConsultaDto from '../../dto/expedicao/expedicao.progresso.separacao.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectPagedWithOrder, executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoProgressoSeparacaoConsultaRepository
   implements LocalBaseConsultaRepositoryContract<ExpedicaoProgressoSeparacaoConsultaDto>
@@ -20,17 +22,19 @@ export default class SqlServerExpedicaoProgressoSeparacaoConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.progresso.separacao.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      // Aplicar paginação se fornecida
-      let sql = select;
+      let result;
       if (pagination) {
-        const paramOrderBy = 'ORDER BY CodEmpresa, CodSepararEstoque';
-        const sqlWithPagination = `${select} ${paramOrderBy} OFFSET ${pagination.offset} ROWS FETCH NEXT ${pagination.limit} ROWS ONLY`;
-        sql = sqlWithPagination;
+        result = await executeSelectPagedWithOrder(
+          pool,
+          select,
+          'ORDER BY CodEmpresa, CodSepararEstoque',
+          pagination,
+        );
+      } else {
+        result = await pool.request().query(select);
       }
-
-      const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -38,8 +42,8 @@ export default class SqlServerExpedicaoProgressoSeparacaoConsultaRepository
       });
 
       return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -52,15 +56,9 @@ export default class SqlServerExpedicaoProgressoSeparacaoConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.progresso.separacao.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -68,8 +66,8 @@ export default class SqlServerExpedicaoProgressoSeparacaoConsultaRepository
       });
 
       return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

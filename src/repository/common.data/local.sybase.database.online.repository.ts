@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import { ConnectionSybase } from '../../infra/connection.sybase';
 
@@ -18,7 +18,7 @@ export default class LocalSybaseDatabaseOnlineRepository<DatabaseOnlineDto>
       const connection = await this.connect.getConnection();
       const pool = await connection.connect();
       const patch = path.resolve(this.basePatchSQL, 'local.database.online.select.sql');
-      const sql = fs.readFileSync(patch).toString();
+      const sql = readSqlFileCached(patch);
       const result = await pool.request().query(sql);
       pool.close();
 

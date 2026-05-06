@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
 
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import { ConnectionPool } from 'mssql';
 import { Params, Pagination } from '../../contracts/local.base.params';
 
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import EstoqueConversaoUnidadeConsultaDto from '../../dto/common.data/estoque.conversao.unidade.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectPaged, executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerEstoqueConversaoUnidadeConsulta
   implements LocalBaseConsultaRepositoryContract<EstoqueConversaoUnidadeConsultaDto>
@@ -20,18 +22,13 @@ export default class LocalSqlServerEstoqueConversaoUnidadeConsulta
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'estoque.conversao.unidada.consulta.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
-      const result = await pool.request().query(sql);
+      const sql = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sql, page);
 
       if (result.recordset.length === 0) return [];
-      const entity = result.recordset.map((item: any) => {
-        return EstoqueConversaoUnidadeConsultaDto.fromObject(item);
-      });
-
-      return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
-    } finally {
+      return result.recordset.map((item: any) => EstoqueConversaoUnidadeConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -40,21 +37,14 @@ export default class LocalSqlServerEstoqueConversaoUnidadeConsulta
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'estoque.conversao.unidada.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const result = await pool.request().query(sql);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
-      const entitys = result.recordset.map((item: any) => {
-        return EstoqueConversaoUnidadeConsultaDto.fromObject(item);
-      });
-
-      return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
-    } finally {
+      return result.recordset.map((item: any) => EstoqueConversaoUnidadeConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

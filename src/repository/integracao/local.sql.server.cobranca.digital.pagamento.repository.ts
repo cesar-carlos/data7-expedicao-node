@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import CobrancaDigitalPagamentoDto from '../../dto/integracao/cobranca.digital.pagamento.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerCobrancaDigitalPagamentoRepository
   implements LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>
@@ -20,7 +22,7 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pagamento.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
       const result = await pool.request().query(select);
 
       if (result.recordset.length === 0) return [];
@@ -29,8 +31,8 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
       });
 
       return logs;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -40,11 +42,9 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pagamento.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const result = await pool.request().query(sql);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
       const logs = result.recordset.map((item: any) => {
@@ -52,8 +52,8 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
       });
 
       return logs;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -61,37 +61,33 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
   public async insert(entity: CobrancaDigitalPagamentoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pagamento.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async update(entity: CobrancaDigitalPagamentoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pagamento.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async delete(entity: CobrancaDigitalPagamentoDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.pagamento.delete.sql');
-    const del = fs.readFileSync(patchSQL).toString();
+    const del = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, del);
   }
 
   private async actonEntity(entity: CobrancaDigitalPagamentoDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('SysId', sql.VarChar(500), entity.sysId)
         .input('Sequencia', sql.Int, entity.sequencia)
         .input('Status', sql.VarChar(1), entity.status)
@@ -102,10 +98,9 @@ export default class LocalSqlServerCobrancaDigitalPagamentoRepository
         .input('Observacao', sql.VarChar(2000), entity.observacao?.substring(0, 2000))
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

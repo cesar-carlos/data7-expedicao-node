@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -10,6 +10,8 @@ import LocalSqlServerItemLiberacaoBloqueioSituacaoRepository from './local.sql.s
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
 import LiberacaoBloqueioDto from '../../dto/common.data/liberacao.bloqueio.dto';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerLiberacaoBloqueioRepository
   implements LocalBaseRepositoryContract<LiberacaoBloqueioDto>
@@ -24,7 +26,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
       const result = await pool.request().query(select);
 
       if (result.recordset?.length === 0) return [];
@@ -64,10 +66,8 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
-      const _params = ParamsCommonRepository.build(params);
-      const sql = `${select} WHERE ${_params}`;
-      const result = await pool.request().query(sql);
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset?.length === 0) return [];
       const liberacoes: LiberacaoBloqueioDto[] = [];
@@ -105,7 +105,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
   public async insert(entity: LiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
 
       entity.itemLiberacaoBloqueio.map(async (item) => {
@@ -123,7 +123,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
   public async update(entity: LiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
 
       entity.itemLiberacaoBloqueio?.map(async (item) => {
@@ -141,7 +141,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
   public async delete(entity: LiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.delete.sql');
-      const delet = fs.readFileSync(patchSQL).toString();
+      const delet = readSqlFileCached(patchSQL);
 
       for (const itemLiberacao of entity.itemLiberacaoBloqueio) {
         await this.itemLiberacaoBloqueioRepository.delete(itemLiberacao);
@@ -154,13 +154,9 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
   }
 
   private async actonEntity(entity: LiberacaoBloqueioDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodEmpresa', sql.Int, entity.codEmpresa)
         .input('CodFilial', sql.Int, entity.codFilial)
         .input('CodLiberacaoBloqueio', sql.Int, entity.codLiberacaoBloqueio)
@@ -173,10 +169,9 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
         .input('EstacaoTrabalhoBloqueio', sql.VarChar(30), entity.estacaoTrabalhoBloqueio.substring(0, 20))
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

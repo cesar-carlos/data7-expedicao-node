@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ExpedicaoCarrinhoPercursoEstagioDto from '../../dto/expedicao/expedicao.carrinho.percurso.estagio.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
   implements LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoEstagioDto>
@@ -20,7 +22,7 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -29,8 +31,8 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
       });
 
       return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -44,15 +46,9 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -60,8 +56,8 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
       });
 
       return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -69,10 +65,10 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
   public async insert(entity: ExpedicaoCarrinhoPercursoEstagioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -81,61 +77,55 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
   ): Promise<ExpedicaoCarrinhoPercursoEstagioDto> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       const result = await this.actonEntityWithReturn(entity, insert);
       return result;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async update(entity: ExpedicaoCarrinhoPercursoEstagioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async delete(entity: ExpedicaoCarrinhoPercursoEstagioDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.estagio.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: ExpedicaoCarrinhoPercursoEstagioDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
-        .input('CodEmpresa', sql.Int, entity.CodEmpresa)
-        .input('CodCarrinhoPercurso', sql.Int, entity.CodCarrinhoPercurso)
-        .input('Item', sql.VarChar(5), entity.Item)
-        .input('Origem', sql.VarChar(6), entity.Origem)
-        .input('CodOrigem', sql.Int, entity.CodOrigem)
-        .input('CodPercursoEstagio', sql.Int, entity.CodPercursoEstagio)
-        .input('CodCarrinho', sql.Int, entity.CodCarrinho)
-        .input('Situacao', sql.VarChar(30), entity.Situacao)
-        .input('DataInicio', sql.Date, entity.DataInicio)
-        .input('HoraInicio', sql.VarChar(8), entity.HoraInicio)
-        .input('CodUsuarioInicio', sql.Int, entity.CodUsuarioInicio)
-        .input('NomeUsuarioInicio', sql.VarChar(20), entity.NomeUsuarioInicio)
-        .input('DataFinalizacao', sql.Date, entity.DataFinalizacao)
-        .input('HoraFinalizacao', sql.VarChar(8), entity.HoraFinalizacao)
-        .input('CodUsuarioFinalizacao', sql.Int, entity.CodUsuarioFinalizacao)
-        .input('NomeUsuarioFinalizacao', sql.VarChar(20), entity.NomeUsuarioFinalizacao)
-        .query(sqlCommand);
-
-      await transaction.commit();
-    } catch (error: any) {
-      console.error('Erro em SqlServerExpedicaoCarrinhoPercursoEstagioRepository.actonEntity:', error.message);
-      transaction.rollback();
-      throw new Error(error.message);
+      await this.connect.executeInTransaction(async (request) => {
+        await request
+          .input('CodEmpresa', sql.Int, entity.CodEmpresa)
+          .input('CodCarrinhoPercurso', sql.Int, entity.CodCarrinhoPercurso)
+          .input('Item', sql.VarChar(5), entity.Item)
+          .input('Origem', sql.VarChar(6), entity.Origem)
+          .input('CodOrigem', sql.Int, entity.CodOrigem)
+          .input('CodPercursoEstagio', sql.Int, entity.CodPercursoEstagio)
+          .input('CodCarrinho', sql.Int, entity.CodCarrinho)
+          .input('Situacao', sql.VarChar(30), entity.Situacao)
+          .input('DataInicio', sql.Date, entity.DataInicio)
+          .input('HoraInicio', sql.VarChar(8), entity.HoraInicio)
+          .input('CodUsuarioInicio', sql.Int, entity.CodUsuarioInicio)
+          .input('NomeUsuarioInicio', sql.VarChar(20), entity.NomeUsuarioInicio)
+          .input('DataFinalizacao', sql.Date, entity.DataFinalizacao)
+          .input('HoraFinalizacao', sql.VarChar(8), entity.HoraFinalizacao)
+          .input('CodUsuarioFinalizacao', sql.Int, entity.CodUsuarioFinalizacao)
+          .input('NomeUsuarioFinalizacao', sql.VarChar(20), entity.NomeUsuarioFinalizacao)
+          .query(sqlCommand);
+      });
+    } catch (error: unknown) {
+      console.error('Erro em SqlServerExpedicaoCarrinhoPercursoEstagioRepository.actonEntity:', error);
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -143,45 +133,39 @@ export default class SqlServerExpedicaoCarrinhoPercursoEstagioRepository
     entity: ExpedicaoCarrinhoPercursoEstagioDto,
     sqlCommand: string,
   ): Promise<ExpedicaoCarrinhoPercursoEstagioDto> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      const result = await transaction
-        .request()
-        .input('CodEmpresa', sql.Int, entity.CodEmpresa)
-        .input('CodCarrinhoPercurso', sql.Int, entity.CodCarrinhoPercurso)
-        .input('Item', sql.VarChar(5), entity.Item)
-        .input('Origem', sql.VarChar(6), entity.Origem)
-        .input('CodOrigem', sql.Int, entity.CodOrigem)
-        .input('CodPercursoEstagio', sql.Int, entity.CodPercursoEstagio)
-        .input('CodCarrinho', sql.Int, entity.CodCarrinho)
-        .input('Situacao', sql.VarChar(30), entity.Situacao)
-        .input('DataInicio', sql.Date, entity.DataInicio)
-        .input('HoraInicio', sql.VarChar(8), entity.HoraInicio)
-        .input('CodUsuarioInicio', sql.Int, entity.CodUsuarioInicio)
-        .input('NomeUsuarioInicio', sql.VarChar(20), entity.NomeUsuarioInicio)
-        .input('DataFinalizacao', sql.Date, entity.DataFinalizacao)
-        .input('HoraFinalizacao', sql.VarChar(8), entity.HoraFinalizacao)
-        .input('CodUsuarioFinalizacao', sql.Int, entity.CodUsuarioFinalizacao)
-        .input('NomeUsuarioFinalizacao', sql.VarChar(20), entity.NomeUsuarioFinalizacao)
-        .query(sqlCommand);
+      return await this.connect.executeInTransaction(async (request) => {
+        const result = await request
+          .input('CodEmpresa', sql.Int, entity.CodEmpresa)
+          .input('CodCarrinhoPercurso', sql.Int, entity.CodCarrinhoPercurso)
+          .input('Item', sql.VarChar(5), entity.Item)
+          .input('Origem', sql.VarChar(6), entity.Origem)
+          .input('CodOrigem', sql.Int, entity.CodOrigem)
+          .input('CodPercursoEstagio', sql.Int, entity.CodPercursoEstagio)
+          .input('CodCarrinho', sql.Int, entity.CodCarrinho)
+          .input('Situacao', sql.VarChar(30), entity.Situacao)
+          .input('DataInicio', sql.Date, entity.DataInicio)
+          .input('HoraInicio', sql.VarChar(8), entity.HoraInicio)
+          .input('CodUsuarioInicio', sql.Int, entity.CodUsuarioInicio)
+          .input('NomeUsuarioInicio', sql.VarChar(20), entity.NomeUsuarioInicio)
+          .input('DataFinalizacao', sql.Date, entity.DataFinalizacao)
+          .input('HoraFinalizacao', sql.VarChar(8), entity.HoraFinalizacao)
+          .input('CodUsuarioFinalizacao', sql.Int, entity.CodUsuarioFinalizacao)
+          .input('NomeUsuarioFinalizacao', sql.VarChar(20), entity.NomeUsuarioFinalizacao)
+          .query(sqlCommand);
 
-      await transaction.commit();
+        if (result.recordset && result.recordset.length > 0) {
+          return ExpedicaoCarrinhoPercursoEstagioDto.fromObject(result.recordset[0]);
+        }
 
-      if (result.recordset && result.recordset.length > 0) {
-        return ExpedicaoCarrinhoPercursoEstagioDto.fromObject(result.recordset[0]);
-      }
-
-      throw new Error('Nenhum registro foi inserido');
-    } catch (error: any) {
+        throw new Error('Nenhum registro foi inserido');
+      });
+    } catch (error: unknown) {
       console.error(
         'Erro em SqlServerExpedicaoCarrinhoPercursoEstagioRepository.actonEntityWithReturn:',
-        error.message,
+        error,
       );
-      transaction.rollback();
-      throw new Error(error.message);
+      throw wrapRepositoryError(error);
     }
   }
 }

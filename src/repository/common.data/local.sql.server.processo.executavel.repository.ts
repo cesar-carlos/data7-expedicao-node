@@ -1,5 +1,5 @@
 import path from 'path';
-import fs from 'fs';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import ProcessoExecutavelDto from '../../dto/common.data/processo.executavel.dto';
 import ParamsCommonRepository from '../common/params.common';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerProcessoExecutavelRepository
   implements LocalBaseRepositoryContract<ProcessoExecutavelDto>
@@ -20,7 +22,7 @@ export default class LocalSqlServerProcessoExecutavelRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'processo.executavel.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -39,10 +41,8 @@ export default class LocalSqlServerProcessoExecutavelRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'processo.executavel.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
-      const _params = ParamsCommonRepository.build(params);
-      const sql = `${select} WHERE ${_params}`;
-      const result = await pool.request().query(sql);
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
       const itensLiberacoes = result.recordset.map((item: any) => {
@@ -59,7 +59,7 @@ export default class LocalSqlServerProcessoExecutavelRepository
   async insert(entity: ProcessoExecutavelDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'processo.executavel.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
     } catch (error: any) {
       throw new Error(error.message);
@@ -69,7 +69,7 @@ export default class LocalSqlServerProcessoExecutavelRepository
   async update(entity: ProcessoExecutavelDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'processo.executavel.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -78,18 +78,14 @@ export default class LocalSqlServerProcessoExecutavelRepository
 
   async delete(entity: ProcessoExecutavelDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'processo.executavel.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: ProcessoExecutavelDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodProcessoExecutavel', sql.BigInt, entity.CodProcessoExecutavel)
         .input('CodEmpresa', sql.Int, entity.CodEmpresa)
         .input('CodFilial', sql.Int, entity.CodFilial)
@@ -109,10 +105,9 @@ export default class LocalSqlServerProcessoExecutavelRepository
         .input('BancoDados', sql.VarChar(60), entity.BancoDados)
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

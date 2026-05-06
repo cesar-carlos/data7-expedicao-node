@@ -34,6 +34,7 @@ export default class App {
   }
 
   public async execute() {
+    await ConnectionSqlServerMssql.getInstance().warmup();
     const appApi = AppApi.getInstance();
     App.listeners = new AppLinstens(appApi.getIO());
     App.listeners.execute();

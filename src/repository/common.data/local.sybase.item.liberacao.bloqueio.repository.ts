@@ -1,5 +1,5 @@
 import path from 'path';
-import fs from 'fs';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import sql from 'mssql';
 
 import { Params } from '../../contracts/local.base.params';
@@ -18,7 +18,7 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
   async select(): Promise<ItemLiberacaoBloqueioDto[]> {
     const pool = await (await this.connect.getConnection()).connect();
     const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.select.sql');
-    const sql = fs.readFileSync(patchSQL).toString();
+    const sql = readSqlFileCached(patchSQL);
     const result = await pool.request().query(sql);
     pool.close();
 
@@ -34,7 +34,7 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
     try {
       const pool = await (await this.connect.getConnection()).connect();
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
       const _params = ParamsCommonRepository.build(params);
       const sql = `${select} WHERE ${_params}`;
@@ -55,7 +55,7 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
   async insert(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
     } catch (error: any) {
       throw new Error(error.message);
@@ -65,7 +65,7 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
   async update(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -74,7 +74,7 @@ export default class LocalSybaseItemLiberacaoBloqueioRepository
 
   async delete(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 

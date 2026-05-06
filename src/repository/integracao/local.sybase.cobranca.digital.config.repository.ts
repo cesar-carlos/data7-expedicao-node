@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import sql from 'mssql';
 
 import { ConnectionSybase } from '../../infra/connection.sybase';
@@ -18,7 +18,7 @@ export default class LocalSybaseCobrancaDigitalConfigRepository
   public async select(): Promise<CobrancaDigitalConfigDto[]> {
     const pool = await (await this.connect.getConnection()).connect();
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.config.select.sql');
-    const select = fs.readFileSync(patchSQL).toString();
+    const select = readSqlFileCached(patchSQL);
     const result = await pool.request().query(select);
     pool.close();
 
@@ -33,7 +33,7 @@ export default class LocalSybaseCobrancaDigitalConfigRepository
   public async selectWhere(params: Params[] = []): Promise<CobrancaDigitalConfigDto[]> {
     const pool = await (await this.connect.getConnection()).connect();
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.config.select.sql');
-    const select = fs.readFileSync(patchSQL).toString();
+    const select = readSqlFileCached(patchSQL);
 
     const _params = ParamsCommonRepository.build(params);
     const sql = _params ? `${select} WHERE ${_params}` : select;
@@ -51,7 +51,7 @@ export default class LocalSybaseCobrancaDigitalConfigRepository
   public async insert(entity: CobrancaDigitalConfigDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.config.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
     } catch (error: any) {
       throw new Error(error.message);
@@ -61,7 +61,7 @@ export default class LocalSybaseCobrancaDigitalConfigRepository
   public async update(entity: CobrancaDigitalConfigDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.config.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -70,7 +70,7 @@ export default class LocalSybaseCobrancaDigitalConfigRepository
 
   public async delete(entity: CobrancaDigitalConfigDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.config.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 

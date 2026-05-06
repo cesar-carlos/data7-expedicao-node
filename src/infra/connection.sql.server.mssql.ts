@@ -72,9 +72,7 @@ export default class ConnectionSqlServerMssql {
         },
         options: {
           ...config.options,
-          trustServerCertificate: true,
           enableArithAbort: true,
-          encrypt: false,
         },
       } as SqlConfig;
 
@@ -487,10 +485,29 @@ export default class ConnectionSqlServerMssql {
     await this.initPool();
   }
 
+  private getHeartbeatIntervalMs(): number {
+    const raw = process.env.SQL_HEARTBEAT_INTERVAL_MS;
+    if (!raw) return 30000;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n >= 5000 ? n : 30000;
+  }
+
+  /** Pré-conecta o pool e valida com SELECT 1 (menos latência na primeira requisição). */
+  async warmup(): Promise<void> {
+    try {
+      await this.getConnection();
+      await this.healthCheck();
+    } catch (e) {
+      this.logError('Warmup do pool falhou; conexão será lazy na primeira operação', e);
+    }
+  }
+
   private startHeartbeat(): void {
     if (this.heartbeatInterval) {
       return; // Já está rodando
     }
+
+    const intervalMs = this.getHeartbeatIntervalMs();
 
     this.heartbeatInterval = setInterval(async () => {
       if (this.pool && this.pool.connected) {
@@ -504,9 +521,9 @@ export default class ConnectionSqlServerMssql {
           }
         }
       }
-    }, 30000); // Check every 30 seconds
+    }, intervalMs);
 
-    this.logInfo('Heartbeat iniciado', { interval: '30s' });
+    this.logInfo('Heartbeat iniciado', { intervalMs });
   }
 
   private stopHeartbeat(): void {

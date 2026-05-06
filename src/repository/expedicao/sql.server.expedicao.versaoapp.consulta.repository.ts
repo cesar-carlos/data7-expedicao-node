@@ -1,6 +1,6 @@
-import fs from 'fs';
 import path from 'path';
 
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoVersaoAppConsultaDto from '../../dto/expedicao/expedicao.versaoapp.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectPaged, executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerExpedicaoVersaoAppConsultaRepository
   implements LocalBaseConsultaRepositoryContract<ExpedicaoVersaoAppConsultaDto>
@@ -20,19 +22,13 @@ export default class LocalSqlServerExpedicaoVersaoAppConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.versaoapp.consulta.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
-      const sqlWithPagination = `${sql} ORDER BY (SELECT NULL) OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const result = await pool.request().query(sqlWithPagination);
+      const sql = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sql, pagination);
 
       if (result.recordset.length === 0) return [];
-      const entity = result.recordset.map((item: any) => {
-        return ExpedicaoVersaoAppConsultaDto.fromObject(item);
-      });
-
-      return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
-    } finally {
+      return result.recordset.map((item: any) => ExpedicaoVersaoAppConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -45,26 +41,14 @@ export default class LocalSqlServerExpedicaoVersaoAppConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.versaoapp.consulta.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      let _params: string = ParamsCommonRepository.build(params);
-
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
-      const entitys = result.recordset.map((item: any) => {
-        return ExpedicaoVersaoAppConsultaDto.fromObject(item);
-      });
-
-      return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
-    } finally {
+      return result.recordset.map((item: any) => ExpedicaoVersaoAppConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

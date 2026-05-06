@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import CobrancaDigitalDataBaseDto from '../../dto/integracao/cobranca.digital.data.base.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerCobrancaDigitalDataBaseRepository
   implements LocalBaseRepositoryContract<CobrancaDigitalDataBaseDto>
@@ -20,7 +22,7 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
       const result = await pool.request().query(select);
 
       if (result.recordset.length === 0) return [];
@@ -29,8 +31,8 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
       });
 
       return dataConfgs;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -41,11 +43,9 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
     try {
       const pool: ConnectionPool = await this.connect.getConnection();
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const result = await pool.request().query(sql);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
       const dataConfgs = result.recordset.map((item: any) => {
@@ -53,8 +53,8 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
       });
 
       return dataConfgs;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -62,37 +62,33 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
   public async insert(entity: CobrancaDigitalDataBaseDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async update(entity: CobrancaDigitalDataBaseDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async delete(entity: CobrancaDigitalDataBaseDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'cobranca.digital.database.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: CobrancaDigitalDataBaseDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodCobrancaDigitalDataBase', sql.Int, entity.codCobrancaDigitalDataBase)
         .input('Provedor', sql.VarChar(30), entity.provedor)
         .input('Usuario', sql.VarChar(30), entity.usuario)
@@ -102,10 +98,9 @@ export default class LocalSqlServerCobrancaDigitalDataBaseRepository
         .input('Porta', sql.Int, entity.porta)
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

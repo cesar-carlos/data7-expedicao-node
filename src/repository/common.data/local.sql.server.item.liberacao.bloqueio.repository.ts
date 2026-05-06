@@ -1,5 +1,5 @@
 import path from 'path';
-import fs from 'fs';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import ItemLiberacaoBloqueioDto from '../../dto/common.data/item.liberacao.bloqueio.dto';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerItemLiberacaoBloqueioRepository
   implements LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>
@@ -20,7 +22,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
       if (result.recordset.length === 0) return [];
@@ -40,10 +42,8 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
-      const _params = ParamsCommonRepository.build(params);
-      const sql = `${select} WHERE ${_params}`;
-      const result = await pool.request().query(sql);
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhere(pool, select, params, undefined, undefined);
 
       if (result.recordset.length === 0) return [];
       const itensLiberacoes = result.recordset.map((item: any) => {
@@ -60,7 +60,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
   async insert(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
     } catch (error: any) {
       throw new Error(error.message);
@@ -70,7 +70,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
   async update(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
@@ -79,18 +79,14 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
 
   async delete(entity: ItemLiberacaoBloqueioDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: ItemLiberacaoBloqueioDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodLiberacaoBloqueio', sql.Int, entity.codLiberacaoBloqueio)
         .input('Item', sql.VarChar(3), entity.item)
         .input('Status', sql.VarChar(1), entity.status.substring(0, 1))
@@ -111,7 +107,7 @@ export default class LocalSqlServerItemLiberacaoBloqueioRepository
         )
         .query(sqlCommand);
 
-      await transaction.commit();
+      });
     } catch (error: any) {
       throw new Error(error.message);
     } finally {

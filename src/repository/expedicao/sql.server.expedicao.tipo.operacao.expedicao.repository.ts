@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -8,6 +8,8 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ExpedicaoTipoOperacaoExpedicaoDto from '../../dto/expedicao/expedicao.tipo.operacao.expedicao.dto';
 import ParamsCommonRepository from '../common/params.common';
+import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
   implements LocalBaseRepositoryContract<ExpedicaoTipoOperacaoExpedicaoDto>
@@ -20,7 +22,7 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.tipo.operacao.expedicao.select.sql');
-      const sql = fs.readFileSync(patchSQL).toString();
+      const sql = readSqlFileCached(patchSQL);
 
       const result = await pool.request().query(sql);
 
@@ -30,8 +32,8 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
       });
 
       return entity;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -45,15 +47,9 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.tipo.operacao.expedicao.select.sql');
-      const select = fs.readFileSync(patchSQL).toString();
+      const select = readSqlFileCached(patchSQL);
 
-      const _params = ParamsCommonRepository.build(params);
-      const paramOrderBy =
-        orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-      const sql = _params ? `${select} WHERE ${_params}` : select;
-      const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-      const result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -61,8 +57,8 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
       });
 
       return entitys;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }
@@ -70,37 +66,33 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
   public async insert(entity: ExpedicaoTipoOperacaoExpedicaoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.tipo.operacao.expedicao.insert.sql');
-      const insert = fs.readFileSync(patchSQL).toString();
+      const insert = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, insert);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async update(entity: ExpedicaoTipoOperacaoExpedicaoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.tipo.operacao.expedicao.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
   public async delete(entity: ExpedicaoTipoOperacaoExpedicaoDto): Promise<void> {
     const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.tipo.operacao.expedicao.delete.sql');
-    const delet = fs.readFileSync(patchSQL).toString();
+    const delet = readSqlFileCached(patchSQL);
     await this.actonEntity(entity, delet);
   }
 
   private async actonEntity(entity: ExpedicaoTipoOperacaoExpedicaoDto, sqlCommand: string): Promise<void> {
-    const pool: ConnectionPool = await this.connect.getConnection();
-    const transaction = new sql.Transaction(pool);
-
     try {
-      await transaction.begin();
-      await transaction
-        .request()
+      await this.connect.executeInTransaction(async (request) => {
+        await request
         .input('CodEmpresa', sql.Int, entity.CodEmpresa)
         .input('CodTipoOperacaoExpedicao', sql.Int, entity.CodTipoOperacaoExpedicao)
         .input('Descricao', sql.VarChar(100), entity.Descricao)
@@ -118,11 +110,9 @@ export default class SqlServerExpedicaoTipoOperacaoExpedicaoRepository
         .input('ControlaNumeroSerie', sql.VarChar(1), entity.ControlaNumeroSerie)
         .query(sqlCommand);
 
-      await transaction.commit();
-    } catch (error: any) {
-      console.error('Erro em SqlServerExpedicaoTipoOperacaoExpedicaoRepository.actonEntity:', error.message);
-      transaction.rollback();
-      throw new Error(error.message);
+      });
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     } finally {
     }
   }

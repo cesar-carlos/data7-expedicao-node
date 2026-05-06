@@ -1,5 +1,5 @@
-import fs from 'fs';
 import path from 'path';
+import { readSqlFileCached } from '../../infra/sql.file.cache';
 import sql from 'mssql';
 
 import { ConnectionSybase } from '../../infra/connection.sybase';
@@ -18,7 +18,7 @@ export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   async select(): Promise<ItemLiberacaoBloqueioSituacaoDto[]> {
     const pool = await (await this.connect.getConnection()).connect();
     const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.select.sql');
-    const sql = fs.readFileSync(patchSQL).toString();
+    const sql = readSqlFileCached(patchSQL);
     const result = await pool.request().query(sql);
     pool.close();
 
@@ -33,7 +33,7 @@ export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   async selectWhere(params: Params[]): Promise<ItemLiberacaoBloqueioSituacaoDto[]> {
     const pool = await (await this.connect.getConnection()).connect();
     const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.select.sql');
-    const select = fs.readFileSync(patchSQL).toString();
+    const select = readSqlFileCached(patchSQL);
 
     const _params = ParamsCommonRepository.build(params);
     const sql = `${select} WHERE ${_params}`;
@@ -55,7 +55,7 @@ export default class LocalSybaseItemLiberacaoBloqueioSituacaoRepository
   async update(entity: ItemLiberacaoBloqueioSituacaoDto): Promise<void> {
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'item.liberacao.bloqueio.situacao.update.sql');
-      const update = fs.readFileSync(patchSQL).toString();
+      const update = readSqlFileCached(patchSQL);
       await this.actonEntity(entity, update);
     } catch (error: any) {
       throw new Error(error.message);
