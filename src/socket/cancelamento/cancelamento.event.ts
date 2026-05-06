@@ -39,6 +39,7 @@ export default class CancelamentoEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'expedicao.cancelamento.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -48,6 +49,7 @@ export default class CancelamentoEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'expedicao.cancelamento.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

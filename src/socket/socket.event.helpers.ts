@@ -29,9 +29,14 @@ type SocketHandlerContext = {
 
 export type { ParsedSocketEventPayload, SocketHandlerContext };
 
-type ConvertSocketMutationOptions = {
+export type ConvertSocketMutationOptions = {
   eventName: string;
   requiredKeys?: string[];
+  /**
+   * Quando true, `Mutation` omitida/ausente (`[]` após normalizeMutation) vira `[]` em vez de erro.
+   * Útil para fluxos em lote (ex.: cancelamento) que disparam o mesmo evento mesmo sem linhas.
+   */
+  allowEmpty?: boolean;
 };
 
 export function parseSocketEventPayload(
@@ -146,6 +151,9 @@ export function convertSocketMutationPayload<T>(
   const normalizedMutations = Array.isArray(mutations) ? mutations : [mutations];
 
   if (normalizedMutations.length === 0) {
+    if (options.allowEmpty === true) {
+      return [];
+    }
     throw new Error(`Invalid mutation payload for ${options.eventName}: expected at least one item`);
   }
 

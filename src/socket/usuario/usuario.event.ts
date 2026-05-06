@@ -47,6 +47,7 @@ export default class UsuarioEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'usuario.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -58,6 +59,7 @@ export default class UsuarioEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'usuario.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

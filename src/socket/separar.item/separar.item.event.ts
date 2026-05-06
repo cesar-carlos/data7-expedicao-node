@@ -65,6 +65,10 @@ export default class SepararItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         const inserteds = await this.repository.insert(itens);
 
         const itensJson = inserteds.map((item) => item.toJson());
@@ -84,6 +88,10 @@ export default class SepararItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.update(itens);
 
         const itensJson = itens.map((item) => item.toJson());
@@ -103,6 +111,10 @@ export default class SepararItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.delete(itens);
 
         const itensJson = itens.map((item) => item.toJson());
@@ -168,7 +180,11 @@ export default class SepararItemEvent {
           ...mutation,
           Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
         }),
-      { eventName: 'separar.item.mutation', requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'CodProduto'] },
+      {
+        eventName: 'separar.item.mutation',
+        requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'CodProduto'],
+        allowEmpty: true,
+      },
     );
   }
 }

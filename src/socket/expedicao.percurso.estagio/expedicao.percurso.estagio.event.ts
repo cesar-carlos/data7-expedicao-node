@@ -33,6 +33,7 @@ export default class ExpedicaoPercursoEstagioEvent {
       convert: (mutation) => this.convert(mutation),
       execute: async (items) => this.repository.update(items),
       responseMap: (item) => item.toJson(),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -40,6 +41,7 @@ export default class ExpedicaoPercursoEstagioEvent {
       convert: (mutation) => this.convert(mutation),
       execute: async (items) => this.repository.delete(items),
       responseMap: (item) => item.toJson(),
+      allowEmptyMutation: true,
     });
   }
 

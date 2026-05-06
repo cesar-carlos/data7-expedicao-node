@@ -53,6 +53,10 @@ export default class CarrinhoPercursoEstagioEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         const inserteds = await this.repository.insert(itens);
         const percursoConsulta = await this.getCarrinhosPercursoEstagioConsulta(inserteds);
         const separarConsulta = await this.loadSepararConsulta(percursoConsulta);
@@ -74,6 +78,10 @@ export default class CarrinhoPercursoEstagioEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.update(itens);
         const carrinhosPercursoEstagioConsulta = await this.getCarrinhosPercursoEstagioConsulta(itens);
         const [separarConsulta, carrinhosPercurso] = await Promise.all([
@@ -108,6 +116,10 @@ export default class CarrinhoPercursoEstagioEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.delete(itens);
         const percursoConsulta = await this.getCarrinhosPercursoEstagioConsulta(itens);
 
@@ -164,6 +176,7 @@ export default class CarrinhoPercursoEstagioEvent {
       {
         eventName: 'carrinho.percurso.estagio.mutation',
         requiredKeys: ['CodEmpresa', 'CodCarrinhoPercurso', 'Origem', 'CodOrigem'],
+        allowEmpty: true,
       },
     );
   }

@@ -37,6 +37,7 @@ export default class TipoOperacaoArmazenagemEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'tipo.operacao.armazenagem.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -46,6 +47,7 @@ export default class TipoOperacaoArmazenagemEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'tipo.operacao.armazenagem.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

@@ -39,6 +39,7 @@ export default class ArmazenarEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'armazenar.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -48,6 +49,7 @@ export default class ArmazenarEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'armazenar.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

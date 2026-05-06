@@ -19,6 +19,11 @@ type MutationHandlerOptions<TMutation, TListen = TMutation> = {
   responseMap: (item: TMutation) => Record<string, unknown>;
   listenChannel?: string;
   listenPayload?: (items: TListen[]) => Record<string, unknown>;
+  /**
+   * Quando true, envelope sem `Mutation` (normalizado para `[]`) responde `Mutation: []` sem chamar execute/listen.
+   * Repositórios já tratam listas vazias como no-op em insert/update/delete.
+   */
+  allowEmptyMutation?: boolean;
 };
 
 export default class SocketCrudRegistrar {
@@ -56,6 +61,14 @@ export default class SocketCrudRegistrar {
           defaultResponseIn: eventName,
         },
         async ({ request, emitMutation, emitListen }) => {
+          if (request.mutation.length === 0) {
+            if (options.allowEmptyMutation === true) {
+              emitMutation([]);
+              return;
+            }
+            throw new Error(`Invalid mutation payload for ${options.eventSuffix}: expected at least one item`);
+          }
+
           const items = options.convert(request.mutation);
           const listenBefore = options.loadListenBeforeExecute && options.loadListen
             ? await options.loadListen(items)

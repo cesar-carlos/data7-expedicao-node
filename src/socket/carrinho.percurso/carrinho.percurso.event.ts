@@ -41,6 +41,10 @@ export default class CarrinhoPercursoEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         const carrinhoPercursos: ExpedicaoCarrinhoPercursoDto[] = [];
         for (const item of itens) {
           const sequence = await this.repository.sequence();
@@ -67,6 +71,10 @@ export default class CarrinhoPercursoEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.update(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
@@ -87,6 +95,10 @@ export default class CarrinhoPercursoEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.delete(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
@@ -105,7 +117,7 @@ export default class CarrinhoPercursoEvent {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => ExpedicaoCarrinhoPercursoDto.fromObject(mutation),
-      { eventName: 'carrinho.percurso.mutation' },
+      { eventName: 'carrinho.percurso.mutation', allowEmpty: true },
     );
   }
 }

@@ -42,6 +42,7 @@ export default class SetorEstoqueEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'setor.estoque.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -53,6 +54,7 @@ export default class SetorEstoqueEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'setor.estoque.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

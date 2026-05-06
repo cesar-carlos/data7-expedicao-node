@@ -37,6 +37,7 @@ export default class ProcessoExecutavelEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'processo.executavel.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -46,6 +47,7 @@ export default class ProcessoExecutavelEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'processo.executavel.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 

@@ -68,6 +68,11 @@ export default class SeparacaoItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itensMutation = this.convert(request.mutation);
+        if (itensMutation.length === 0) {
+          emitMutation([]);
+          return;
+        }
+
         const inserteds = await this.repository.insert(itensMutation);
         const refresh = await this.buildRefreshPayload(inserteds);
 
@@ -96,6 +101,11 @@ export default class SeparacaoItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itensMutation = this.convert(request.mutation);
+        if (itensMutation.length === 0) {
+          emitMutation([]);
+          return;
+        }
+
         await this.updateOneByOne(itensMutation);
         const refresh = await this.buildRefreshPayload(itensMutation);
 
@@ -124,6 +134,11 @@ export default class SeparacaoItemEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itensMutation = this.convert(request.mutation);
+        if (itensMutation.length === 0) {
+          emitMutation([]);
+          return;
+        }
+
         const itensSeparacaoConsulta = await this.loadItensSeparacaoConsulta(itensMutation);
         await this.deleteOneByOne(itensMutation);
         const produtosSeparado = this.buildProdutosSeparado(itensMutation);
@@ -199,6 +214,7 @@ export default class SeparacaoItemEvent {
       {
         eventName: 'separacao.item.mutation',
         requiredKeys: ['CodEmpresa', 'CodSepararEstoque', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso', 'CodProduto'],
+        allowEmpty: true,
       },
     );
   }

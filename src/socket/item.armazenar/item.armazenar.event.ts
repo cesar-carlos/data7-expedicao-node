@@ -45,6 +45,10 @@ export default class ItemArmazenarEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         const inserteds = await this.repository.insert(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
@@ -65,6 +69,10 @@ export default class ItemArmazenarEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.update(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
@@ -85,6 +93,10 @@ export default class ItemArmazenarEvent {
         kind: 'mutation',
       }, async ({ request, emitMutation, emitListen }) => {
         const itens = this.convert(request.mutation);
+        if (itens.length === 0) {
+          emitMutation([]);
+          return;
+        }
         await this.repository.delete(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
@@ -107,7 +119,7 @@ export default class ItemArmazenarEvent {
           ...mutation,
           Item: normalizeExpedicaoItemSequenceKey(mutation.Item),
         }),
-      { eventName: 'armazenar.item.mutation' },
+      { eventName: 'armazenar.item.mutation', allowEmpty: true },
     );
   }
 }

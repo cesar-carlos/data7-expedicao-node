@@ -47,6 +47,7 @@ export default class CarrinhoEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'carrinho.update.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
     registrar.mutation({
@@ -58,6 +59,7 @@ export default class CarrinhoEvent {
       responseMap: (item) => item.toJson(),
       listenChannel: 'carrinho.delete.listen',
       listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 
