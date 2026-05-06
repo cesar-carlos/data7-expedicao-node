@@ -384,23 +384,36 @@ export default class AppSocket {
     });
 
     this.io.on('connection', (socket: Socket) => {
-      this.wrapSocketListeners(socket);
-      logSocketLifecycle('Socket client connected', {
-        socketId: socket.id,
-        status: 'connected',
-      });
-
-      for (const definition of SOCKET_EVENT_DEFINITIONS) {
-        definition.register(this.io, socket);
-      }
-
-      socket.on('disconnect', () => {
-        logSocketLifecycle('Socket client disconnected', {
+      try {
+        this.wrapSocketListeners(socket);
+        logSocketLifecycle('Socket client connected', {
           socketId: socket.id,
-          status: 'disconnected',
+          status: 'connected',
         });
-        socket.removeAllListeners();
-      });
+
+        for (const definition of SOCKET_EVENT_DEFINITIONS) {
+          definition.register(this.io, socket);
+        }
+
+        socket.on('disconnect', () => {
+          logSocketLifecycle('Socket client disconnected', {
+            socketId: socket.id,
+            status: 'disconnected',
+          });
+          socket.removeAllListeners();
+        });
+      } catch (error) {
+        logSocketLifecycle(
+          'Socket connection setup failed',
+          {
+            socketId: socket.id,
+            status: 'error',
+            error: error instanceof Error ? error.message : String(error),
+          },
+          'error',
+        );
+        socket.disconnect(true);
+      }
     });
   }
 

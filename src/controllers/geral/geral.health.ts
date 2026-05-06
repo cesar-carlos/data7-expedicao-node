@@ -1,7 +1,7 @@
-import { Request, Response } from 'express';
+import { handleController } from '../controller.helpers';
 
 export default class GeralHealth {
-  public static async get(req: Request, res: Response) {
+  public static get = handleController(async (_req, res) => {
     res.status(200).send({ status: 'UP' });
-  }
+  });
 }

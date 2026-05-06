@@ -4,71 +4,45 @@ import { ConsultaLoginAppQuery } from '../../validation/consulta.login.app.valid
 import { UpdateLoginAppRequest, UpdateLoginAppQuery } from '../../validation/login.app.validation';
 import ConsultaLoginAppService from '../../services/consulta.login.app.service';
 import LoginAppService from '../../services/login.app.service';
+import AppExpressError from '../../aplication/app.express.error';
+import { handleController } from '../controller.helpers';
 
 export default class LoginAppController {
-  public static async get(req: Request, res: Response): Promise<void> {
-    try {
-      const consultaService = new ConsultaLoginAppService();
-      const { Nome, CodLoginApp, Ativo, Page, Offset, Limit } = (req as any).validatedQuery as ConsultaLoginAppQuery;
+  public static get = handleController(async (req: Request, res: Response): Promise<void> => {
+    const consultaService = new ConsultaLoginAppService();
+    const { Nome, CodLoginApp, Ativo, Page, Offset, Limit } = (req as any).validatedQuery as ConsultaLoginAppQuery;
 
-      let currentPage: number;
+    let currentPage: number;
 
-      if (Offset !== undefined) {
-        currentPage = Math.floor(Offset / Limit) + 1;
-      } else {
-        currentPage = Page;
-      }
+    if (Offset !== undefined) {
+      currentPage = Math.floor(Offset / Limit) + 1;
+    } else {
+      currentPage = Page;
+    }
 
-      const currentLimit = Limit;
+    const currentLimit = Limit;
 
-      let resultado;
+    let resultado;
 
-      if (CodLoginApp) {
-        resultado = await consultaService.consultarPorCodigo(CodLoginApp);
-        if (!resultado) {
-          res.status(404).send({
-            message: 'Usuário não encontrado',
-          });
-          return;
-        }
-
-        res.status(200).send({
-          message: 'Usuário encontrado',
-          data: resultado,
-          total: 1,
+    if (CodLoginApp) {
+      resultado = await consultaService.consultarPorCodigo(CodLoginApp);
+      if (!resultado) {
+        res.status(404).send({
+          message: 'Usuário não encontrado',
         });
         return;
       }
 
-      if (Nome) {
-        resultado = await consultaService.consultarPorNome(Nome, currentPage, currentLimit);
-        res.status(200).send({
-          message: `${resultado.total} usuário(s) encontrado(s)`,
-          data: resultado.data,
-          total: resultado.total,
-          page: resultado.page,
-          limit: resultado.limit,
-          totalPages: resultado.totalPages,
-          offset: resultado.offset,
-        });
-        return;
-      }
+      res.status(200).send({
+        message: 'Usuário encontrado',
+        data: resultado,
+        total: 1,
+      });
+      return;
+    }
 
-      if (Ativo === 'S') {
-        resultado = await consultaService.consultarAtivos(currentPage, currentLimit);
-        res.status(200).send({
-          message: `${resultado.total} usuário(s) ativo(s) encontrado(s)`,
-          data: resultado.data,
-          total: resultado.total,
-          page: resultado.page,
-          limit: resultado.limit,
-          totalPages: resultado.totalPages,
-          offset: resultado.offset,
-        });
-        return;
-      }
-
-      resultado = await consultaService.consultarTodos(currentPage, currentLimit);
+    if (Nome) {
+      resultado = await consultaService.consultarPorNome(Nome, currentPage, currentLimit);
       res.status(200).send({
         message: `${resultado.total} usuário(s) encontrado(s)`,
         data: resultado.data,
@@ -78,14 +52,36 @@ export default class LoginAppController {
         totalPages: resultado.totalPages,
         offset: resultado.offset,
       });
-    } catch (error: any) {
-      res.status(400).send({
-        message: `Erro na consulta: ${error.message}`,
-      });
+      return;
     }
-  }
 
-  public static async post(req: Request, res: Response): Promise<void> {
+    if (Ativo === 'S') {
+      resultado = await consultaService.consultarAtivos(currentPage, currentLimit);
+      res.status(200).send({
+        message: `${resultado.total} usuário(s) ativo(s) encontrado(s)`,
+        data: resultado.data,
+        total: resultado.total,
+        page: resultado.page,
+        limit: resultado.limit,
+        totalPages: resultado.totalPages,
+        offset: resultado.offset,
+      });
+      return;
+    }
+
+    resultado = await consultaService.consultarTodos(currentPage, currentLimit);
+    res.status(200).send({
+      message: `${resultado.total} usuário(s) encontrado(s)`,
+      data: resultado.data,
+      total: resultado.total,
+      page: resultado.page,
+      limit: resultado.limit,
+      totalPages: resultado.totalPages,
+      offset: resultado.offset,
+    });
+  });
+
+  public static post = handleController(async (req: Request, res: Response): Promise<void> => {
     try {
       const loginAppService = new LoginAppService();
       const { Nome, Senha }: LoginRequest = req.body;
@@ -114,12 +110,17 @@ export default class LoginAppController {
         message: 'Login realizado com sucesso',
         user: userResponse,
       });
-    } catch (error: any) {
-      res.status(400).send({ message: error.message });
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      throw new AppExpressError({
+        message,
+        statusCode: 400,
+        code: 'LOGIN_QUERY_ERROR',
+      });
     }
-  }
+  });
 
-  public static async put(req: Request, res: Response): Promise<void> {
+  public static put = handleController(async (req: Request, res: Response): Promise<void> => {
     try {
       const loginAppService = new LoginAppService();
       const queryData = (req as any).validatedQuery as UpdateLoginAppQuery;
@@ -156,20 +157,24 @@ export default class LoginAppController {
         message: 'Usuário atualizado com sucesso',
         user: userResponse,
       });
-    } catch (error: any) {
-      if (error.message.includes('não encontrado') || error.message.includes('já existe')) {
-        res.status(400).send({
-          message: error.message,
-        });
-      } else {
-        res.status(500).send({
-          message: `Erro interno: ${error.message}`,
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      if (message.includes('não encontrado') || message.includes('já existe')) {
+        throw new AppExpressError({
+          message,
+          statusCode: 400,
+          code: 'BAD_REQUEST',
         });
       }
+      throw new AppExpressError({
+        message: `Erro interno: ${message}`,
+        statusCode: 500,
+        code: 'INTERNAL_ERROR',
+      });
     }
-  }
+  });
 
-  public static delete(req: Request, res: Response): void {
+  public static delete = handleController((_req: Request, res: Response) => {
     res.status(404).send({ message: 'not implemented delete' });
-  }
+  });
 }

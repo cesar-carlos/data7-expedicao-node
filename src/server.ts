@@ -1,6 +1,9 @@
 import 'reflect-metadata';
 require('dotenv').config();
+import { registerProcessErrorHandlers } from './infra/process.error.handlers';
 import App from './aplication/app';
+
+registerProcessErrorHandlers();
 
 async function bootstrap() {
   const app = new App();
