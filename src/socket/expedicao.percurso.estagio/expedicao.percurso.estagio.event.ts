@@ -1,72 +1,49 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
-
 import ExpedicaoPercursoEstagioDto from '../../dto/expedicao/expedicao.percurso.estagio.dto';
+import { convertSocketMutationPayload } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
 import ExpedicaoPercursoEstagioRepository from './expedicao.percurso.estagio.repository';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
 
 export default class ExpedicaoPercursoEstagioEvent {
-  private repository = new ExpedicaoPercursoEstagioRepository();
+  private readonly repository = new ExpedicaoPercursoEstagioRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} expedicao.percurso.estagio.select`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} expedicao.percurso.estagio.select`,
-        eventName: 'expedicao.percurso.estagio.select',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'expedicao.percurso.estagio.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} expedicao.percurso.estagio.insert`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} expedicao.percurso.estagio.insert`,
-        eventName: 'expedicao.percurso.estagio.insert',
-        kind: 'mutation',
-      }, async ({ request, emitMutation }) => {
-        const itens = this.convert(request.mutation);
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodPercursoEstagio = sequence?.Valor ?? 0;
-          await this.repository.insert([item]);
+    registrar.mutation({
+      eventSuffix: 'expedicao.percurso.estagio.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          item.CodPercursoEstagio = (await this.repository.sequence())?.Valor ?? 0;
         }
-
-        emitMutation(itens.map((item) => item.toJson()));
-      });
+      },
+      execute: async (items) => this.repository.insert(items),
+      responseMap: (item) => item.toJson(),
     });
 
-    socket.on(`${client} expedicao.percurso.estagio.update`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} expedicao.percurso.estagio.update`,
-        eventName: 'expedicao.percurso.estagio.update',
-        kind: 'mutation',
-      }, async ({ request, emitMutation }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.update(itens);
-
-        emitMutation(itens.map((item) => item.toJson()));
-      });
+    registrar.mutation({
+      eventSuffix: 'expedicao.percurso.estagio.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
     });
 
-    socket.on(`${client} expedicao.percurso.estagio.delete`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} expedicao.percurso.estagio.delete`,
-        eventName: 'expedicao.percurso.estagio.delete',
-        kind: 'mutation',
-      }, async ({ request, emitMutation }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.delete(itens);
-
-        emitMutation(itens.map((item) => item.toJson()));
-      });
+    registrar.mutation({
+      eventSuffix: 'expedicao.percurso.estagio.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoPercursoEstagioDto[] {
+  private convert(mutations: unknown[] | unknown): ExpedicaoPercursoEstagioDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => ExpedicaoPercursoEstagioDto.fromObject(mutation),

@@ -69,7 +69,11 @@ export default class SocketCrudRegistrar {
           emitMutation(items.map((item) => options.responseMap(item)));
 
           if (options.listenChannel && listenItems) {
-            emitListen(this.io, options.listenChannel, options.listenPayload?.(listenItems));
+            if (!options.listenPayload) {
+              throw new Error(`listenPayload is required when listenChannel is configured for ${options.eventSuffix}`);
+            }
+
+            emitListen(this.io, options.listenChannel, options.listenPayload(listenItems));
           }
         },
       );

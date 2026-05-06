@@ -23,11 +23,14 @@ export default class SocketResponseBuilder {
   static error(
     request: Pick<NormalizedSocketRequest, 'session' | 'responseIn'>,
     error: string | string[],
+    metadata?: { code?: string; requestId?: string },
   ) {
     return new ExpedicaoBasicErrorEvent({
       Session: request.session,
       ResponseIn: request.responseIn,
       Error: error,
+      Code: metadata?.code,
+      RequestId: metadata?.requestId,
     }).toJson();
   }
 

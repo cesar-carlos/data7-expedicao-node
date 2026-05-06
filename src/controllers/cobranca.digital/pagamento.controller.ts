@@ -1,13 +1,7 @@
-import CobrancaPixLiberacaoBloqueioService from '../../services/cobranca.pix.liberacao.bloqueio.service';
-import CobrancaPixConsultaPagamentoService from '../../services/cobranca.pix.consulta.pagamento.service';
 import { createNotImplementedHandler, handleController, requireValue } from '../controller.helpers';
 import {
-  createCobrancaDigitalPixRepository,
-  createCobrancaDigitalRepository,
-  createCobrancaDigitalTituloRepository,
-  createItemLiberacaoBloqueioRepository,
-  createOnlineCobrancaRepository,
-  createOnlinePagamentoRepository,
+  createCobrancaPixConsultaPagamentoService,
+  createCobrancaPixLiberacaoBloqueioService,
 } from '../../factory/integracao.pix.factory';
 import AppExpressError from '../../aplication/app.express.error';
 
@@ -27,10 +21,7 @@ export default class PagamentoController {
       });
     }
 
-    const cobrancaPixConsultaPagamentoService = new CobrancaPixConsultaPagamentoService(
-      createCobrancaDigitalPixRepository(),
-      createOnlinePagamentoRepository(),
-    );
+    const cobrancaPixConsultaPagamentoService = createCobrancaPixConsultaPagamentoService();
 
     const result = await cobrancaPixConsultaPagamentoService.execute(String(chave), String(origem), codOrigem);
     if (!result) {
@@ -48,14 +39,7 @@ export default class PagamentoController {
 
   public static put = handleController(async (req, res) => {
     const body = { ...req.body };
-    const cobrancaPixLiberacaoBloqueioService = new CobrancaPixLiberacaoBloqueioService(
-      createCobrancaDigitalRepository(),
-      createCobrancaDigitalTituloRepository(),
-      createCobrancaDigitalPixRepository(),
-      createItemLiberacaoBloqueioRepository(),
-      createOnlineCobrancaRepository(),
-      createOnlinePagamentoRepository(),
-    );
+    const cobrancaPixLiberacaoBloqueioService = createCobrancaPixLiberacaoBloqueioService();
 
     if (body.CodEmpresa && body.CodCobrancaDigital && body.Parcela && body.Tipo === 'LIBERACAO-REGRA') {
       const fromIdLiberacao = await cobrancaPixLiberacaoBloqueioService.fromIdLiberacao(

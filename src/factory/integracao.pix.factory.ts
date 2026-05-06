@@ -13,6 +13,12 @@ import PagamentoPix from '../entities/pagamento.pix';
 import { DI_BIND } from '../di/bind.tokens';
 import { getLocalDbContext, getOnlineDbContext } from '../di/database.context';
 import { resolveDependency, resolveLocalRepository, resolveOnlineRepository } from '../di/dependency.resolver';
+import CancelamentoPixService from '../services/cancelamento.pix.service';
+import CobrancaPixConsultaPagamentoService from '../services/cobranca.pix.consulta.pagamento.service';
+import CobrancaPixLiberacaoBloqueioService from '../services/cobranca.pix.liberacao.bloqueio.service';
+import CobrancaPixListenService from '../services/cobranca.pix.listen.service';
+import DatabaseStatusService from '../services/database.status.service';
+import RegraStatusCobrancaPixService from '../services/regra.status.cobranca.pix.service';
 
 export function createCobrancaDigitalTituloRepository(): LocalBaseRepositoryContract<CobrancaDigitalTituloDto> {
   return resolveLocalRepository<CobrancaDigitalTituloDto>(DI_BIND.LocalBaseRepositoryContract_CobrancaDigitalTituloDto);
@@ -60,4 +66,47 @@ export function createDatabaseStatusRepositories(): DataBaseActiveContract<Datab
       bind: DI_BIND.DataBaseActiveContract_DatabaseOnlineDto,
     }),
   ];
+}
+
+export function createCancelamentoPixService(): CancelamentoPixService {
+  return new CancelamentoPixService(createCobrancaDigitalTituloRepository(), createOnlineCobrancaRepository());
+}
+
+export function createCobrancaPixConsultaPagamentoService(): CobrancaPixConsultaPagamentoService {
+  return new CobrancaPixConsultaPagamentoService(
+    createCobrancaDigitalPixRepository(),
+    createOnlinePagamentoRepository(),
+  );
+}
+
+export function createCobrancaPixLiberacaoBloqueioService(): CobrancaPixLiberacaoBloqueioService {
+  return new CobrancaPixLiberacaoBloqueioService(
+    createCobrancaDigitalRepository(),
+    createCobrancaDigitalTituloRepository(),
+    createCobrancaDigitalPixRepository(),
+    createItemLiberacaoBloqueioRepository(),
+    createOnlineCobrancaRepository(),
+    createOnlinePagamentoRepository(),
+  );
+}
+
+export function createCobrancaPixListenService(): CobrancaPixListenService {
+  return new CobrancaPixListenService(
+    createOnlineCobrancaRepository(),
+    createOnlinePagamentoRepository(),
+    createCobrancaDigitalTituloRepository(),
+    createCobrancaDigitalPagamentoRepository(),
+  );
+}
+
+export function createDatabaseStatusService(): DatabaseStatusService {
+  return new DatabaseStatusService(createDatabaseStatusRepositories());
+}
+
+export function createRegraStatusCobrancaPixService(): RegraStatusCobrancaPixService {
+  return new RegraStatusCobrancaPixService(
+    createItemLiberacaoBloqueioRepository(),
+    createCobrancaDigitalRepository(),
+    createOnlineCobrancaRepository(),
+  );
 }

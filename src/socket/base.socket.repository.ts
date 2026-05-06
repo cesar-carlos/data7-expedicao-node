@@ -23,7 +23,8 @@ export default class BaseSocketRepository<TEntity, TConsulta = TEntity> {
     pagination?: Pagination,
     orderBy?: OrderBy,
   ): Promise<TConsulta[]> {
-    return await this.consultaRepository().selectWhere(params, pagination, orderBy);
+    const repository = this.consultaRepository();
+    return await repository.selectWhere(params, pagination, orderBy);
   }
 
   public async select(
@@ -31,24 +32,28 @@ export default class BaseSocketRepository<TEntity, TConsulta = TEntity> {
     pagination?: Pagination,
     orderBy?: OrderBy,
   ): Promise<TEntity[]> {
-    return await this.repository().selectWhere(params, pagination, orderBy);
+    const repository = this.repository();
+    return await repository.selectWhere(params, pagination, orderBy);
   }
 
   public async insert(models: TEntity[]): Promise<void> {
+    const repository = this.repository();
     for (const model of models) {
-      await this.repository().insert(model);
+      await repository.insert(model);
     }
   }
 
   public async update(models: TEntity[]): Promise<void> {
+    const repository = this.repository();
     for (const model of models) {
-      await this.repository().update(model);
+      await repository.update(model);
     }
   }
 
   public async delete(models: TEntity[]): Promise<void> {
+    const repository = this.repository();
     for (const model of models) {
-      await this.repository().delete(model);
+      await repository.delete(model);
     }
   }
 
@@ -57,7 +62,8 @@ export default class BaseSocketRepository<TEntity, TConsulta = TEntity> {
       return undefined;
     }
 
-    return await this.sequenceRepository().select(this.options.sequenceName);
+    const repository = this.sequenceRepository();
+    return await repository.select(this.options.sequenceName);
   }
 
   protected repository(): LocalBaseRepositoryContract<TEntity> {

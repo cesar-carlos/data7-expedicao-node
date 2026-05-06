@@ -1,12 +1,8 @@
 import { Server as SocketIOServer } from 'socket.io';
 import CobrancaPixListenRefleshService from '../services/cobranca.pix.listen.reflesh.service';
-import CobrancaPixListenService from '../services/cobranca.pix.listen.service';
 import SepararPeriodicListenService from '../services/separar.periodic.listen.service';
 import {
-  createCobrancaDigitalPagamentoRepository,
-  createCobrancaDigitalTituloRepository,
-  createOnlineCobrancaRepository,
-  createOnlinePagamentoRepository,
+  createCobrancaPixListenService,
 } from '../factory/integracao.pix.factory';
 
 export default class AppLinstens {
@@ -25,12 +21,7 @@ export default class AppLinstens {
   }
 
   private async listenCobrancaPix() {
-    new CobrancaPixListenService(
-      createOnlineCobrancaRepository(),
-      createOnlinePagamentoRepository(),
-      createCobrancaDigitalTituloRepository(),
-      createCobrancaDigitalPagamentoRepository(),
-    ).listen();
+    createCobrancaPixListenService().listen();
   }
 
   private listenRefleshCobrancaPix() {

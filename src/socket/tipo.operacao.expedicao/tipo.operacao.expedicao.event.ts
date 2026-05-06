@@ -1,94 +1,55 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
-
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import ExpedicaoTipoOperacaoExpedicaoDto from '../../dto/expedicao/expedicao.tipo.operacao.expedicao.dto';
+import { convertSocketMutationPayload } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
 import TipoOperacaoExpedicaoRepository from './tipo.operacao.expedicao.repository';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
 
 export default class TipoOperacaoExpedicaoEvent {
-  private repository = new TipoOperacaoExpedicaoRepository();
+  private readonly repository = new TipoOperacaoExpedicaoRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} tipo.operacao.expedicao.select`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} tipo.operacao.expedicao.select`,
-        eventName: 'tipo.operacao.expedicao.select',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'tipo.operacao.expedicao.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} tipo.operacao.expedicao.insert`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} tipo.operacao.expedicao.insert`,
-        eventName: 'tipo.operacao.expedicao.insert',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodTipoOperacaoExpedicao = sequence?.Valor ?? 0;
-          await this.repository.insert([item]);
+    registrar.mutation({
+      eventSuffix: 'tipo.operacao.expedicao.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          item.CodTipoOperacaoExpedicao = (await this.repository.sequence())?.Valor ?? 0;
         }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'tipo.operacao.expedicao.insert.listen', basicEvent.toJson());
-      });
+      },
+      execute: async (items) => this.repository.insert(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'tipo.operacao.expedicao.insert.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} tipo.operacao.expedicao.update`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} tipo.operacao.expedicao.update`,
-        eventName: 'tipo.operacao.expedicao.update',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.update(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'tipo.operacao.expedicao.update.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'tipo.operacao.expedicao.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'tipo.operacao.expedicao.update.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} tipo.operacao.expedicao.delete`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} tipo.operacao.expedicao.delete`,
-        eventName: 'tipo.operacao.expedicao.delete',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'tipo.operacao.expedicao.delete.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'tipo.operacao.expedicao.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'tipo.operacao.expedicao.delete.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoTipoOperacaoExpedicaoDto[] {
+  private convert(mutations: unknown[] | unknown): ExpedicaoTipoOperacaoExpedicaoDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => ExpedicaoTipoOperacaoExpedicaoDto.fromObject(mutation),

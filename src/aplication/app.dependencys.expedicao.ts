@@ -1,6 +1,6 @@
 import { DI_BIND } from '../di/bind.tokens';
+import { registerDependencies, type DependencyRegistration } from '../di/dependency.registration';
 import { eContext } from '../dependency/container.dependency';
-import ContainerDependency from '../dependency/container.dependency';
 
 import SqlServerExpedicaoPercursoEstagioRepository from '../repository/expedicao/sql.server.expedicao.percurso.estagio.repository';
 import SqlServerExpedicaoConferirRepository from '../repository/expedicao/sql.server.expedicao.conferir.repository';
@@ -44,252 +44,216 @@ import SqlServerExpedicaoSeparacaoUsuarioSetorConsultaRepository from '../reposi
 import LocalSqlServerExpedicaoVersaoAppConsultaRepository from '../repository/expedicao/sql.server.expedicao.versaoapp.consulta.repository';
 import SqlServerExpedicaoItemImpressoConsultaRepository from '../repository/expedicao/sql.server.expedicao.item.impresso.consulta.repository';
 
+const registrations: DependencyRegistration[] = [
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCancelamentoDto,
+    create: () => new SqlServerCancelamentoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSetorEstoqueDto,
+    create: () => new SqlServerExpedicaoSetorEstoqueRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoPrioridadeDto,
+    create: () => new SqlServerExpedicaoPrioridadeRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoMotivoRecusaDto,
+    create: () => new SqlServerExpedicaoMotivoRecusaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoDto,
+    create: () => new SqlServerExpedicaoCarrinhoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoTipoOperacaoExpedicaoDto,
+    create: () => new SqlServerExpedicaoTipoOperacaoExpedicaoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoTipoOperacaoArmazenagemDto,
+    create: () => new SqlServerExpedicaoTipoOperacaoArmazenagemRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoArmazenarDto,
+    create: () => new SqlServerExpedicaoArmazenarRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemArmazenarDto,
+    create: () => new SqlServerExpedicaoItemArmazenarRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemArmazenarConsultaDto,
+    create: () => new SqlServerExpedicaoItemArmazenarConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSepararDto,
+    create: () => new SqlServerExpedicaoSepararRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoConferirDto,
+    create: () => new SqlServerExpedicaoConferirRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSepararDto,
+    create: () => new SqlServerExpedicaoItemSepararRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemConferirDto,
+    create: () => new SqlServerExpedicaoItemConferirRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamento,
+    create: () => new SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSeparacaoDto,
+    create: () => new SqlServerExpedicaoItemSeparacaoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemConferenciaDto,
+    create: () => new SqlServerExpedicaoItemConferenciaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoDto,
+    create: () => new SqlServerExpedicaoCarrinhoPercursoRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoEstagioDto,
+    create: () => new SqlServerExpedicaoCarrinhoPercursoEstagioRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoPercursoEstagioDto,
+    create: () => new SqlServerExpedicaoPercursoEstagioRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSeparacaoUsuarioSetorDto,
+    create: () => new SqlServerExpedicaoSeparacaoUsuarioSetorRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto,
+    create: () => new SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConsultaDto,
+    create: () => new SqlServerExpedicaoCarrinhoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoProgressoSeparacaoConsultaDto,
+    create: () => new SqlServerExpedicaoProgressoSeparacaoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSeparacaoUsuarioSetorConsultaDto,
+    create: () => new SqlServerExpedicaoSeparacaoUsuarioSetorConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSepararConsultaDto,
+    create: () => new SqlServerExpedicaoSepararConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoConferirConsultaDto,
+    create: () => new SqlServerExpedicaoConferirConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConferirConsultaDto,
+    create: () => new SqlServerExpedicaoCarrinhoConferirConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararConsultaDto,
+    create: () => new SqlServerExpedicaoSepararItemConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararUnidadeMedidaConsultaDto,
+    create: () => new SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirConsultaDto,
+    create: () => new SqlServerExpedicaoItemConferirConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirUnidadeMedidaConsultaDto,
+    create: () => new SqlServerExpedicaoItemConferirUnidadeMedidaConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConferirConsultaDto,
+    create: () => new SqlServerExpedicaoItemConferirSeparacaoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConsultaDto,
+    create: () => new SqlServerExpedicaoItemSeparacaoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoResumoConsultaDto,
+    create: () => new SqlServerExpedicaoItemSeparacaoResumoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferenciaConsultaDto,
+    create: () => new SqlServerExpedicaoItemConferenciaConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamentoConsulta,
+    create: () => new SqlServerExpedicaoCarrinhoPercursoAgrupamentoConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoLoginAppDto,
+    create: () => new SqlServerExpedicaoLoginAppRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoLoginAppConsultaDto,
+    create: () => new SqlServerExpedicaoLoginAppConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoVersaoAppConsultaDto,
+    create: () => new LocalSqlServerExpedicaoVersaoAppConsultaRepository(),
+  },
+  {
+    context: eContext.sql_server,
+    bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemImpressoConsultaDto,
+    create: () => new SqlServerExpedicaoItemImpressoConsultaRepository(),
+  },
+];
+
 export default class AppDependencysExpedicao {
   public static load() {
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCancelamentoDto,
-      instance: new SqlServerCancelamentoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSetorEstoqueDto,
-      instance: new SqlServerExpedicaoSetorEstoqueRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoPrioridadeDto,
-      instance: new SqlServerExpedicaoPrioridadeRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoMotivoRecusaDto,
-      instance: new SqlServerExpedicaoMotivoRecusaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoDto,
-      instance: new SqlServerExpedicaoCarrinhoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoTipoOperacaoExpedicaoDto,
-      instance: new SqlServerExpedicaoTipoOperacaoExpedicaoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoTipoOperacaoArmazenagemDto,
-      instance: new SqlServerExpedicaoTipoOperacaoArmazenagemRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoArmazenarDto,
-      instance: new SqlServerExpedicaoArmazenarRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemArmazenarDto,
-      instance: new SqlServerExpedicaoItemArmazenarRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemArmazenarConsultaDto,
-      instance: new SqlServerExpedicaoItemArmazenarConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSepararDto,
-      instance: new SqlServerExpedicaoSepararRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoConferirDto,
-      instance: new SqlServerExpedicaoConferirRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSepararDto,
-      instance: new SqlServerExpedicaoItemSepararRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemConferirDto,
-      instance: new SqlServerExpedicaoItemConferirRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamento,
-      instance: new SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemSeparacaoDto,
-      instance: new SqlServerExpedicaoItemSeparacaoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoItemConferenciaDto,
-      instance: new SqlServerExpedicaoItemConferenciaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoDto,
-      instance: new SqlServerExpedicaoCarrinhoPercursoRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoEstagioDto,
-      instance: new SqlServerExpedicaoCarrinhoPercursoEstagioRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoPercursoEstagioDto,
-      instance: new SqlServerExpedicaoPercursoEstagioRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSeparacaoUsuarioSetorDto,
-      instance: new SqlServerExpedicaoSeparacaoUsuarioSetorRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto,
-      instance: new SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConsultaDto,
-      instance: new SqlServerExpedicaoCarrinhoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoProgressoSeparacaoConsultaDto,
-      instance: new SqlServerExpedicaoProgressoSeparacaoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSeparacaoUsuarioSetorConsultaDto,
-      instance: new SqlServerExpedicaoSeparacaoUsuarioSetorConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSepararConsultaDto,
-      instance: new SqlServerExpedicaoSepararConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoConferirConsultaDto,
-      instance: new SqlServerExpedicaoConferirConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConferirConsultaDto,
-      instance: new SqlServerExpedicaoCarrinhoConferirConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararConsultaDto,
-      instance: new SqlServerExpedicaoSepararItemConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararUnidadeMedidaConsultaDto,
-      instance: new SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirConsultaDto,
-      instance: new SqlServerExpedicaoItemConferirConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirUnidadeMedidaConsultaDto,
-      instance: new SqlServerExpedicaoItemConferirUnidadeMedidaConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConferirConsultaDto,
-      instance: new SqlServerExpedicaoItemConferirSeparacaoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConsultaDto,
-      instance: new SqlServerExpedicaoItemSeparacaoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoResumoConsultaDto,
-      instance: new SqlServerExpedicaoItemSeparacaoResumoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferenciaConsultaDto,
-      instance: new SqlServerExpedicaoItemConferenciaConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamentoConsulta,
-      instance: new SqlServerExpedicaoCarrinhoPercursoAgrupamentoConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoLoginAppDto,
-      instance: new SqlServerExpedicaoLoginAppRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoLoginAppConsultaDto,
-      instance: new SqlServerExpedicaoLoginAppConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoVersaoAppConsultaDto,
-      instance: new LocalSqlServerExpedicaoVersaoAppConsultaRepository(),
-    });
-
-    ContainerDependency.instance.register({
-      context: eContext.sql_server,
-      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemImpressoConsultaDto,
-      instance: new SqlServerExpedicaoItemImpressoConsultaRepository(),
-    });
+    registerDependencies(registrations);
   }
 }

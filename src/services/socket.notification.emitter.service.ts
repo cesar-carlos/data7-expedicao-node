@@ -3,7 +3,7 @@ import ExpedicaoBasicListenEvent from '../model/expedicao.basic.listen.event';
 import ExpedicaoMutationListenEvent from '../model/expedicao.mutation.listen.event';
 
 export default class SocketNotificationEmitterService {
-  constructor(private readonly io?: SocketIOServer) {}
+  constructor(private readonly ioProvider: SocketIOServer | (() => SocketIOServer)) {}
 
   public emitMutation(channel: string, mutation: Record<string, unknown>[]): void {
     this.getIO().emit(
@@ -28,14 +28,6 @@ export default class SocketNotificationEmitterService {
   }
 
   private getIO(): SocketIOServer {
-    if (this.io) {
-      return this.io;
-    }
-
-    const AppApi = require('../aplication/app.api').default as {
-      getInstance: () => { getIO: () => SocketIOServer };
-    };
-
-    return AppApi.getInstance().getIO();
+    return typeof this.ioProvider === 'function' ? this.ioProvider() : this.ioProvider;
   }
 }

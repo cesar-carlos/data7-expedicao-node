@@ -1,7 +1,6 @@
 import CancelamentoPixService from '../services/cancelamento.pix.service';
 import {
-  createCobrancaDigitalTituloRepository,
-  createOnlineCobrancaRepository,
+  createCancelamentoPixService,
 } from '../factory/integracao.pix.factory';
 
 export default class AppCancelarCobranca {
@@ -14,10 +13,7 @@ export default class AppCancelarCobranca {
   }
 
   public async execute(): Promise<void> {
-    const cancelamentoPixService = new CancelamentoPixService(
-      createCobrancaDigitalTituloRepository(),
-      createOnlineCobrancaRepository(),
-    );
+    const cancelamentoPixService: CancelamentoPixService = createCancelamentoPixService();
     await cancelamentoPixService.execute({ sysId: this.sysId, status: this.requerente });
   }
 }

@@ -222,7 +222,16 @@ export function emitSocketError(
   const messages = normalizeSocketError(error);
   socket.emit(
     responseIn,
-    SocketResponseBuilder.serialize(SocketResponseBuilder.error({ responseIn, session }, messages)),
+    SocketResponseBuilder.serialize(
+      SocketResponseBuilder.error(
+        { responseIn, session },
+        messages,
+        {
+          code: errorCode,
+          requestId,
+        },
+      ),
+    ),
   );
 
   logSocketError('Socket handler failed', {

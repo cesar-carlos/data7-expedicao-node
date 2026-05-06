@@ -1,25 +1,25 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodSchema, ZodError } from 'zod';
+import AppExpressError from '../aplication/app.express.error';
 
-/**
- * Middleware para validação de dados usando Zod
- */
 export const validateBody = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
+    void res;
+
     try {
       const validatedData = schema.parse(req.body);
       (req as any).validatedBody = validatedData;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({
-          message: 'Dados inválidos',
-          errors: error.issues.map((issue: any) => ({
-            field: issue.path.join('.'),
-            message: issue.message,
-            received: issue.received,
-          })),
-        });
+        next(
+          new AppExpressError({
+            message: 'Dados inválidos',
+            statusCode: 400,
+            code: 'VALIDATION_ERROR',
+            details: mapZodIssues(error),
+          }),
+        );
         return;
       }
 
@@ -28,54 +28,62 @@ export const validateBody = (schema: ZodSchema) => {
   };
 };
 
-/**
- * Middleware para validação de query parameters
- */
 export const validateQuery = (schema: ZodSchema) => {
   return (req: Request, res: Response, next: NextFunction): void => {
+    void res;
+
     try {
       const validatedData = schema.parse(req.query);
-      // Adiciona os dados validados em uma propriedade customizada
       (req as any).validatedQuery = validatedData;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        res.status(400).json({
-          message: 'Parâmetros de consulta inválidos',
-          errors: error.issues.map((issue: any) => ({
-            field: issue.path.join('.'),
-            message: issue.message,
-            received: issue.received,
-          })),
-        });
+        next(
+          new AppExpressError({
+            message: 'Parâmetros de consulta inválidos',
+            statusCode: 400,
+            code: 'VALIDATION_ERROR',
+            details: mapZodIssues(error),
+          }),
+        );
         return;
       }
+
       next(error);
     }
   };
 };
 
-/**
- * Middleware para validação de parâmetros da URL
- */
 export const validateParams = (schema: ZodSchema) => {
-  return (req: Request, res: Response, next: NextFunction) => {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    void res;
+
     try {
       const validatedData = schema.parse(req.params);
       (req as any).validatedParams = validatedData;
       next();
     } catch (error) {
       if (error instanceof ZodError) {
-        return res.status(400).json({
-          message: 'Parâmetros da URL inválidos',
-          errors: error.issues.map((issue: any) => ({
-            field: issue.path.join('.'),
-            message: issue.message,
-            received: issue.received,
-          })),
-        });
+        next(
+          new AppExpressError({
+            message: 'Parâmetros da URL inválidos',
+            statusCode: 400,
+            code: 'VALIDATION_ERROR',
+            details: mapZodIssues(error),
+          }),
+        );
+        return;
       }
+
       next(error);
     }
   };
 };
+
+function mapZodIssues(error: ZodError): Array<{ field: string; message: string; received: unknown }> {
+  return error.issues.map((issue: any) => ({
+    field: issue.path.join('.'),
+    message: issue.message,
+    received: issue.received,
+  }));
+}

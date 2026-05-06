@@ -1,185 +1,75 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Params } from '../../contracts/local.base.params';
-
 import UsuarioDto from '../../dto/common.data/usuario';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
 import UsuarioConsultaDto from '../../dto/common.data/usuario.consulta.dto';
+import { convertSocketMutationPayload } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
 import UsuarioRepository from './usuario.repository';
-import { convertSocketMutationPayload, emitSocketError, getSocketPayloadOrEmitError } from '../socket.event.helpers';
 
 export default class UsuarioEvent {
-  private repository = new UsuarioRepository();
+  private readonly repository = new UsuarioRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} usuario.consulta`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
-        defaultResponseIn: `${client} usuario.consulta`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, where, pagination, orderBy } = payload;
-
-      try {
-        const result = await this.repository.consulta(where as Params[], pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+    registrar.query({
+      eventSuffix: 'usuario.consulta',
+      execute: (where, pagination, orderBy) => this.repository.consulta(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} usuario.select`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
-        defaultResponseIn: `${client} usuario.select`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, where, pagination, orderBy } = payload;
-
-      try {
-        const result = await this.repository.select(where as Params[], pagination, orderBy);
-        const jsonData = result.map((item) => item.toJson());
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: jsonData,
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+    registrar.query({
+      eventSuffix: 'usuario.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} usuario.insert`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
-        defaultResponseIn: `${client} usuario.insert`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, mutation } = payload;
-
-      try {
-        const itens = this.convert(mutation);
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodUsuario = sequence?.Valor ?? 0;
-          await this.repository.insert([item]);
+    registrar.mutation({
+      eventSuffix: 'usuario.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          item.CodUsuario = (await this.repository.sequence())?.Valor ?? 0;
         }
-
-        const usuarioConsulta: UsuarioConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodUsuario', item.CodUsuario)]);
-          usuarioConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventUsuarioConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: usuarioConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('usuario.insert.listen', JSON.stringify(basicEventUsuarioConsulta.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+      },
+      execute: async (items) => this.repository.insert(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'usuario.insert.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} usuario.update`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
-        defaultResponseIn: `${client} usuario.update`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, mutation } = payload;
-
-      try {
-        const itens = this.convert(mutation);
-        await this.repository.update(itens);
-
-        const usuarioConsulta: UsuarioConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodUsuario', item.CodUsuario)]);
-          usuarioConsulta.push(...result);
-        }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventUsuaroConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: usuarioConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('usuario.update.listen', JSON.stringify(basicEventUsuaroConsulta.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+    registrar.mutation({
+      eventSuffix: 'usuario.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'usuario.update.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
 
-    socket.on(`${client} usuario.delete`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
-        defaultResponseIn: `${client} usuario.delete`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, mutation } = payload;
-
-      try {
-        const itens = this.convert(mutation);
-
-        const usuarioConsulta: UsuarioConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([Params.equals('CodUsuario', item.CodUsuario)]);
-          usuarioConsulta.push(...result);
-        }
-
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        const basicEventUsuarioConsulta = new ExpedicaoMutationBasicEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Mutation: usuarioConsulta.map((item) => item.toJson()),
-        });
-
-        socket.emit(responseIn, JSON.stringify(basicEvent.toJson()));
-        io.emit('usuario.delete.listen', JSON.stringify(basicEventUsuarioConsulta.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+    registrar.mutation({
+      eventSuffix: 'usuario.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      loadListen: async (items) => this.loadConsulta(items),
+      loadListenBeforeExecute: true,
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'usuario.delete.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
     });
   }
 
-  private convert(mutations: any[] | any): UsuarioDto[] {
+  private async loadConsulta(items: UsuarioDto[]): Promise<UsuarioConsultaDto[]> {
+    const results = await Promise.all(
+      items.map((item) => this.repository.consulta([Params.equals('CodUsuario', item.CodUsuario)])),
+    );
+
+    return results.flat();
+  }
+
+  private convert(mutations: unknown[] | unknown): UsuarioDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => UsuarioDto.fromObject(mutation),

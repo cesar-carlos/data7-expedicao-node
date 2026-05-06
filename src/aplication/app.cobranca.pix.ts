@@ -20,11 +20,9 @@ import CreatePixService from '../services/create.pix.service';
 import CobrancaPixLiberacaoBloqueioService from '../services/cobranca.pix.liberacao.bloqueio.service';
 import {
   createCobrancaDigitalPixRepository,
-  createCobrancaDigitalRepository,
-  createCobrancaDigitalTituloRepository,
+  createCobrancaPixLiberacaoBloqueioService,
   createItemLiberacaoBloqueioRepository,
   createOnlineCobrancaRepository,
-  createOnlinePagamentoRepository,
   createPixApiContract,
 } from '../factory/integracao.pix.factory';
 
@@ -44,10 +42,7 @@ export default class AppCobrancaPix {
 
   private readonly localRepositoryItemLiberacaoBloqueio = createItemLiberacaoBloqueioRepository();
   private readonly localRepositoryCobrancaDigitalPix = createCobrancaDigitalPixRepository();
-  private readonly localRepositoryCobrancaDigital = createCobrancaDigitalRepository();
-  private readonly localRepositoryCobrancaDigitalTitulo = createCobrancaDigitalTituloRepository();
   private readonly onlineRepository = createOnlineCobrancaRepository();
-  private readonly onlineDataPagamentoPix = createOnlinePagamentoRepository();
 
   public async execute(input: requestCobrancaDTO[]): Promise<ProcessInfo> {
     try {
@@ -112,14 +107,7 @@ export default class AppCobrancaPix {
   }
 
   private createLiberacaoBloqueioService(): CobrancaPixLiberacaoBloqueioService {
-    return new CobrancaPixLiberacaoBloqueioService(
-      this.localRepositoryCobrancaDigital,
-      this.localRepositoryCobrancaDigitalTitulo,
-      this.localRepositoryCobrancaDigitalPix,
-      this.localRepositoryItemLiberacaoBloqueio,
-      this.onlineRepository,
-      this.onlineDataPagamentoPix,
-    );
+    return createCobrancaPixLiberacaoBloqueioService();
   }
 
   private resolvePixApi(): CreatePixApiContract {
