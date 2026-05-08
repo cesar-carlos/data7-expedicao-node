@@ -1,0 +1,15 @@
+SELECT CodEmpresa,
+  CodSepararEstoque,
+  Item,
+  CodSetorEstoque,
+  Origem,
+  CodOrigem,
+  ItemOrigem,
+  CodLocalArmazenagem,
+  CodProduto,
+  CodUnidadeMedida,
+  Quantidade,
+  QuantidadeInterna,
+  QuantidadeExterna,
+  QuantidadeSeparacao
+FROM Expedicao.ItemSepararEstoque

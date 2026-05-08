@@ -2,6 +2,7 @@ import CobrancaLiberacaoKey from './cobranca.liberacao.key';
 
 export default class CobrancaParcela {
   readonly sysId: string;
+  public status: string;
   readonly origem: string;
   readonly codOrigem: number;
   readonly liberacaoKey: CobrancaLiberacaoKey;
@@ -16,6 +17,7 @@ export default class CobrancaParcela {
 
   constructor(param: {
     sysId: string;
+    status: string;
     origem: string;
     codOrigem: number;
     liberacaoKey: CobrancaLiberacaoKey;
@@ -29,6 +31,7 @@ export default class CobrancaParcela {
     observacao: string;
   }) {
     this.sysId = param.sysId;
+    this.status = param.status ?? 'A';
     this.origem = param.origem;
     this.codOrigem = param.codOrigem;
     this.liberacaoKey = param.liberacaoKey;
@@ -44,6 +47,7 @@ export default class CobrancaParcela {
 
   static create = (param: {
     sysId: string;
+    status: string;
     origem: string;
     codOrigem: number;
     liberacaoKey: CobrancaLiberacaoKey;
@@ -62,6 +66,7 @@ export default class CobrancaParcela {
   static fromObject = (object: any) => {
     return new CobrancaParcela({
       sysId: object.SysId,
+      status: object.Status ?? 'A',
       origem: object.Origem,
       codOrigem: object.CodOrigem,
       liberacaoKey: CobrancaLiberacaoKey.fromObject(object.LiberacaoKey),

@@ -1,0 +1,98 @@
+/**
+ * Bind strings for ContainerDependency (context + bind composite key).
+ * Single source of truth to avoid typos between registration and resolve sites.
+ */
+export const DI_BIND = {
+  CreatePixApiContract: 'CreatePixApiContract',
+
+  ContractBaseRepository_CobrancaPix: 'ContractBaseRepository<CobrancaPix>',
+  ContractBaseRepository_PagamentoPix: 'ContractBaseRepository<PagamentoPix>',
+
+  DataBaseActiveContract_DatabaseOnlineDto: 'DataBaseActiveContract<DatabaseOnlineDto>',
+
+  LocalBaseRepositorySequenceContract_SequenceDto: 'LocalBaseRepositorySequenceContract<SequenceDto>',
+
+  LocalBaseRepositoryContract_ItemLiberacaoBloqueioDto: 'LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>',
+  LocalBaseRepositoryContract_CobrancaDigitalPixDto: 'LocalBaseRepositoryContract<CobrancaDigitalPixDto>',
+  LocalBaseRepositoryContract_CobrancaDigitalTituloDto: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
+  LocalBaseRepositoryContract_CobrancaDigitalPagamentoDto: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
+  LocalBaseRepositoryContract_CobrancaDigitalDto: 'LocalBaseRepositoryContract<CobrancaDigitalDto>',
+  LocalBaseRepositoryContract_EstoqueProdutoDto: 'LocalBaseRepositoryContract<EstoqueProdutoDto>',
+  LocalBaseRepositoryContract_ProcessoExecutavelDto: 'LocalBaseRepositoryContract<ProcessoExecutavelDto>',
+  LocalBaseRepositoryContract_UsuarioDto: 'LocalBaseRepositoryContract<UsuarioDto>',
+  LocalBaseRepositoryContract_EstoqueConversaoUnidadeDto: 'LocalBaseRepositoryContract<EstoqueConversaoUnidadeDto>',
+
+  LocalBaseConsultaRepositoryContract_EstoqueProdutoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<EstoqueProdutoConsultaDto>',
+  LocalBaseConsultaRepositoryContract_EstoqueConversaoUnidadeConsultaDto:
+    'LocalBaseConsultaRepositoryContract<EstoqueConversaoUnidadeConsultaDto>',
+  LocalBaseConsultaRepositoryContract_UsuarioConsultaDto: 'LocalBaseConsultaRepositoryContract<UsuarioConsultaDto>',
+
+  LocalBaseRepositoryContract_ExpedicaoCancelamentoDto: 'LocalBaseRepositoryContract<ExpedicaoCancelamentoDto>',
+  LocalBaseRepositoryContract_ExpedicaoSetorEstoqueDto: 'LocalBaseRepositoryContract<ExpedicaoSetorEstoqueDto>',
+  LocalBaseRepositoryContract_ExpedicaoPrioridadeDto: 'LocalBaseRepositoryContract<ExpedicaoPrioridadeDto>',
+  LocalBaseRepositoryContract_ExpedicaoMotivoRecusaDto: 'LocalBaseRepositoryContract<ExpedicaoMotivoRecusaDto>',
+  LocalBaseRepositoryContract_ExpedicaoCarrinhoDto: 'LocalBaseRepositoryContract<ExpedicaoCarrinhoDto>',
+  LocalBaseRepositoryContract_ExpedicaoTipoOperacaoExpedicaoDto:
+    'LocalBaseRepositoryContract<ExpedicaoTipoOperacaoExpedicaoDto>',
+  LocalBaseRepositoryContract_ExpedicaoTipoOperacaoArmazenagemDto:
+    'LocalBaseRepositoryContract<ExpedicaoTipoOperacaoArmazenagemDto>',
+  LocalBaseRepositoryContract_ExpedicaoArmazenarDto: 'LocalBaseRepositoryContract<ExpedicaoArmazenarDto>',
+  LocalBaseRepositoryContract_ExpedicaoItemArmazenarDto: 'LocalBaseRepositoryContract<ExpedicaoItemArmazenarDto>',
+  LocalBaseRepositoryContract_ExpedicaoSepararDto: 'LocalBaseRepositoryContract<ExpedicaoSepararDto>',
+  LocalBaseRepositoryContract_ExpedicaoConferirDto: 'LocalBaseRepositoryContract<ExpedicaoConferirDto>',
+  LocalBaseRepositoryContract_ExpedicaoItemSepararDto: 'LocalBaseRepositoryContract<ExpedicaoItemSepararDto>',
+  LocalBaseRepositoryContract_ExpedicaoItemConferirDto: 'LocalBaseRepositoryContract<ExpedicaoItemConferirDto>',
+  LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamento:
+    'LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoAgrupamento>',
+  LocalBaseRepositoryContract_ExpedicaoItemSeparacaoDto: 'LocalBaseRepositoryContract<ExpedicaoItemSeparacaoDto>',
+  LocalBaseRepositoryContract_ExpedicaoItemConferenciaDto: 'LocalBaseRepositoryContract<ExpedicaoItemConferenciaDto>',
+  LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoDto: 'LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoDto>',
+  LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoEstagioDto:
+    'LocalBaseRepositoryContract<ExpedicaoCarrinhoPercursoEstagioDto>',
+  LocalBaseRepositoryContract_ExpedicaoPercursoEstagioDto: 'LocalBaseRepositoryContract<ExpedicaoPercursoEstagioDto>',
+  LocalBaseRepositoryContract_ExpedicaoSeparacaoUsuarioSetorDto:
+    'LocalBaseRepositoryContract<ExpedicaoSeparacaoUsuarioSetorDto>',
+  LocalBaseRepositoryContract_ExpedicaoLoginAppDto: 'LocalBaseRepositoryContract<ExpedicaoLoginAppDto>',
+
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemArmazenarConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemArmazenarConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoPercursoEstagioConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoProgressoSeparacaoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoProgressoSeparacaoConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoSeparacaoUsuarioSetorConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoSeparacaoUsuarioSetorConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoSepararConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoSepararConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoConferirConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoConferirConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoConferirConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoConferirConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemSepararConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemSepararUnidadeMedidaConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemSepararUnidadeMedidaConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemConferirConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemConferirUnidadeMedidaConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemConferirUnidadeMedidaConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConferirConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoConferirConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoResumoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemSeparacaoResumoConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemConferenciaConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemConferenciaConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoAgrupamentoConsulta:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoPercursoAgrupamentoConsulta>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoLoginAppConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoLoginAppConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoVersaoAppConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoVersaoAppConsultaDto>',
+  LocalBaseConsultaRepositoryContract_ExpedicaoItemImpressoConsultaDto:
+    'LocalBaseConsultaRepositoryContract<ExpedicaoItemImpressoConsultaDto>',
+} as const;

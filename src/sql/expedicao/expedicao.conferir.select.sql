@@ -1,0 +1,17 @@
+SELECT CodEmpresa,
+  CodConferir,
+  Origem,
+  CodOrigem,
+  CodPrioridade,
+  Situacao,
+  Data,
+  Hora,
+  Historico,
+  Observacao,
+  CodMotivoCancelamento,
+  DataCancelamento,
+  HoraCancelamento,
+  CodUsuarioCancelamento,
+  NomeUsuarioCancelamento,
+  ObservacaoCancelamento
+FROM Expedicao.Conferir

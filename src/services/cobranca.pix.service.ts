@@ -1,90 +1,73 @@
-import { ProcessInfoStatusType } from '../type/process.info.status.type';
 import { STATUS } from '../type/status';
 
 import Cobranca from '../entities/cobranca';
 import CobrancaPix from '../entities/cobranca.pix';
+
 import ProcessInfo from '../entities/process.info';
-import CreateGnPixService from './create.gn.pix.service';
-import CreateGnQrcodeService from './create.gn.qrcode.service';
+import CreatePixService from './create.pix.service';
+import CobrancaPixInputDTO from '../dto/integracao/cobranca.pix.input.dto';
+import CobrancaDigitalPixDto from '../dto/integracao/cobranca.digital.pix.dto';
 import ContractBaseRepository from '../contracts/base.repository.contract';
-import CobrancaLiberacaoKey from '../entities/cobranca.liberacao.key';
-import CobrancaDigitalPixDto from '../dto/cobranca.digital.pix.dto';
 import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
 
 export default class CobrancaPixService {
   constructor(
     readonly localRepository: LocalBaseRepositoryContract<CobrancaDigitalPixDto>,
     readonly onlineRepository: ContractBaseRepository<CobrancaPix>,
+    readonly createPixService: CreatePixService,
   ) {}
 
-  public async execute(cobranca: Cobranca): Promise<ProcessInfo | CobrancaPix[]> {
+  public async execute(cobranca: Cobranca): Promise<ProcessInfo> {
     try {
-      const infoStatusErro: ProcessInfoStatusType = { status: 'error' };
-      const infoStatusSuccess: ProcessInfoStatusType = { status: 'success' };
+      for (let i = 0; i < cobranca.parcelas.length; i++) {
+        const parcela = cobranca.parcelas[i];
 
-      //CREATE COBRANCA
-      const createGnPixService = new CreateGnPixService(cobranca.chave);
-      const pgtoPendenteOrProcessInfo = await createGnPixService.execute(cobranca);
-      if (pgtoPendenteOrProcessInfo instanceof ProcessInfo) {
-        return pgtoPendenteOrProcessInfo;
-      }
-
-      //CREATE COBRANCA PIX QR CODE
-      const processInfoQrcode = [];
-      const cobrancaPix: CobrancaPix[] = [];
-
-      const createGnQrcodeService = new CreateGnQrcodeService();
-      for (const item of pgtoPendenteOrProcessInfo) {
-        const pgtoQrCodeOrProcessInfo = await createGnQrcodeService.execute(item);
-        if (pgtoQrCodeOrProcessInfo instanceof ProcessInfo) {
-          processInfoQrcode.push(pgtoQrCodeOrProcessInfo);
-        } else {
-          const cobParcela = cobranca.parcelas.filter((p) => p.sysId === item.sysId).shift();
-          if (!cobParcela) return new ProcessInfo(infoStatusErro, 'Parcela não encontrada');
-
-          const cobPix = new CobrancaPix({
-            sysId: cobParcela.sysId,
-            txId: item.txid,
-            locId: item.loc.id,
-            STATUS: STATUS.ATIVO,
-            datacriacao: item.criacao,
-            parcela: cobParcela.numeroParcela,
-            valor: cobParcela.valorParcela,
-            linkQrCode: pgtoQrCodeOrProcessInfo.qrcode,
-            imagemQrcode: pgtoQrCodeOrProcessInfo.imagemQrcode,
-            nomeCliente: cobranca.cliente.nomeCliente,
-            telefone: cobranca.cliente.telefone || '',
-            eMail: cobranca.cliente.eMail || '',
-            liberacaoKey: new CobrancaLiberacaoKey({ ...cobParcela.liberacaoKey }),
-          });
-
-          this.onlineRepository.insert(cobPix);
-          cobrancaPix.push(cobPix);
-        }
-      }
-
-      //LOCAL REPOSITORY
-      let sequencia = 1;
-      cobrancaPix.forEach((item) => {
-        const cobrancaDigitalPixDto = new CobrancaDigitalPixDto({
-          sysId: item.sysId,
-          sequencia: sequencia++,
-          txId: item.txId,
-          locId: item.locId.toString(),
-          dataCriacao: item.datacriacao,
-          dataExpiracao: item.datacriacao,
-          qrCode: item.linkQrCode,
-          imagemQrcode: item.imagemQrcode,
-          valor: item.valor,
+        const input = new CobrancaPixInputDTO({
+          id: parcela.sysId,
+          expiracao: 3600,
+          cnpj_cpf: cobranca.cliente.cnpj_cpf,
+          nome: cobranca.cliente.nomeCliente,
+          valor: parcela.valorParcela,
+          solicitacaoPagador: parcela.observacao,
+          infoAdicionais: [],
         });
 
-        this.localRepository.insert(cobrancaDigitalPixDto);
-      });
+        const result = await this.createPixService.execute(input);
+        if (result instanceof ProcessInfo) return result;
 
-      return cobrancaPix;
+        const localData = new CobrancaDigitalPixDto({
+          sysId: parcela.sysId,
+          sequencia: i + 1,
+          txId: result.txId,
+          dataCriacao: result.criacao,
+          dataExpiracao: result.expiracao,
+          qrCode: result.qrcode || '',
+          imagemQrcode: result.imagemQrcode || '',
+          valor: result.valor,
+        });
+
+        const onlineData = new CobrancaPix({
+          sysId: parcela.sysId,
+          txId: result.txId,
+          STATUS: STATUS.AGUARDANDO,
+          datacriacao: result.criacao,
+          parcela: parcela.numeroParcela,
+          valor: result.valor,
+          linkQrCode: result.qrcode || '',
+          imagemQrcode: result.imagemQrcode || '',
+          nomeCliente: cobranca.cliente.nomeCliente,
+          telefone: cobranca.cliente.telefone,
+          eMail: cobranca.cliente.eMail,
+          liberacaoKey: parcela.liberacaoKey,
+        });
+
+        await this.localRepository.insert(localData);
+        await this.onlineRepository.insert(onlineData);
+      }
+
+      return new ProcessInfo({ status: 'success' }, '', '');
     } catch (error: any) {
-      const infoStatusErro: ProcessInfoStatusType = { status: 'error' };
-      return new ProcessInfo(infoStatusErro, 'CobrancaPixService', error.message);
+      return new ProcessInfo({ status: 'error' }, error.message);
     }
   }
 }

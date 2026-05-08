@@ -1,0 +1,2 @@
+DELETE ProcessoExecutavel
+WHERE CodProcessoExecutavel = @CodProcessoExecutavel

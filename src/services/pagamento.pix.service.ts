@@ -1,7 +1,7 @@
 import PagamentoPix from '../entities/pagamento.pix';
 import ContractBaseRepository from '../contracts/base.repository.contract';
 import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
-import CobrancaDigitalPagamentoDto from '../dto/cobranca.digital.pagamento.dto';
+import CobrancaDigitalPagamentoDto from '../dto/integracao/cobranca.digital.pagamento.dto';
 
 export default class PagamentoPixService {
   private localRepository: LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>;

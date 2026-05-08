@@ -1,10 +1,30 @@
 {
-  "editor.fontSize": 13,
-  "window.zoomLevel": 0,
-  "editor.codeActionsOnSave": {
-    "source.fixAll": true
-  },
-  "code-runner.executorMap": {
-    "typescript": "clear && npx ts-node --files --transpile-only",
+  // Dart & Flutter settings
+  "dart.lineLength": 120,
+  "dart.flutterSdkPath": null,
+  "dart.enableSdkFormatter": true,
+
+    // Explorer settings
+    "explorer.compactFolders": false,
+
+  // Editor settings
+  "editor.rulers": [120],
+  "editor.wordWrap": "off",
+  "editor.formatOnSave": true,
+
+  // Debug settings
+  "debug.toolBarLocation": "commandCenter",
+
+  // Dart-specific formatting (defaultFormatter evita formatação inconsistente ao salvar)
+  "[dart]": {
+    "editor.defaultFormatter": "Dart-Code.dart-code",
+    "editor.formatOnSave": true,
+    "editor.formatOnType": true,
+    "editor.rulers": [120],
+    "editor.selectionHighlight": false,
+    "editor.suggest.snippetsPreventQuickSuggestions": false,
+    "editor.suggestSelection": "first",
+    "editor.tabCompletion": "onlySnippets",
+    "editor.wordBasedSuggestions": "off"
   }
 }

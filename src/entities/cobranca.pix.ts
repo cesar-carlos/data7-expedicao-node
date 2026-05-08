@@ -4,7 +4,6 @@ import CobrancaLiberacaoKey from './cobranca.liberacao.key';
 export default class CobrancaPix {
   readonly sysId: string;
   readonly txId: string;
-  readonly locId: number;
   public STATUS: STATUS;
   readonly datacriacao: Date;
   readonly parcela: string;
@@ -19,7 +18,6 @@ export default class CobrancaPix {
   constructor(params: {
     sysId: string;
     txId: string;
-    locId: number;
     STATUS: STATUS;
     datacriacao: Date;
     parcela: string;
@@ -33,7 +31,6 @@ export default class CobrancaPix {
   }) {
     this.sysId = params.sysId;
     this.txId = params.txId;
-    this.locId = params.locId;
     this.STATUS = params.STATUS;
     this.datacriacao = params.datacriacao;
     this.parcela = params.parcela;
@@ -49,7 +46,6 @@ export default class CobrancaPix {
   static create(params: {
     sysId: string;
     txId: string;
-    locId: number;
     STATUS: STATUS;
     datacriacao: Date;
     parcela: string;

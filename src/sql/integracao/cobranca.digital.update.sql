@@ -1,0 +1,25 @@
+UPDATE integracao.CobrancaDigital
+SET BloqueioKey = @BloqueioKey,
+  Origem = @Origem,
+  CodOrigem = @CodOrigem,
+  Situacao = @Situacao,
+  CodCliente = @CodCliente,
+  NomeCliente = @NomeCliente,
+  CNPJ_CPF = @CNPJ_CPF,
+  Telefone = @Telefone,
+  Email = @Email,
+  Endereco = @Endereco,
+  Numero = @Numero,
+  Complemento = @Complemento,
+  Bairro = @Bairro,
+  CEP = @CEP,
+  CodigoMunicipio = @CodigoMunicipio,
+  NomeMunicipio = @NomeMunicipio,
+  UFMunicipio = @UFMunicipio,
+  CodUsuario = @CodUsuario,
+  NomeUsuario = @NomeUsuario,
+  EstacaoTrabalho = @EstacaoTrabalho,
+  Ip = @Ip
+WHERE CodEmpresa = @CodEmpresa
+  AND CodFilial = @CodFilial
+  AND CodCobrancaDigital = @CodCobrancaDigital

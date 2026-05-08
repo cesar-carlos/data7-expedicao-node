@@ -1,57 +1,59 @@
-import { eContext } from '../dependency/container.dependency';
-
-import CobrancaPix from '../entities/cobranca.pix';
-import PagamentoPix from '../entities/pagamento.pix';
-
-import AppDependencys from './app.dependencys';
-import ContractBaseRepository from '../contracts/base.repository.contract';
-import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
-import CobrancaDigitalPagamentoDto from '../dto/cobranca.digital.pagamento.dto';
-import CobrancaDigitalTituloDto from '../dto/cobranca.digital.titulo.dto';
-import CobrancaPixListenService from '../services/cobranca.pix.listen.service';
+import { Server as SocketIOServer } from 'socket.io';
 import CobrancaPixListenRefleshService from '../services/cobranca.pix.listen.reflesh.service';
+import SepararPeriodicListenService from '../services/separar.periodic.listen.service';
+import { resolveSepararPeriodicListenConfig } from '../services/separar.periodic.listen.config';
+import {
+  createCobrancaPixListenService,
+} from '../factory/integracao.pix.factory';
 
 export default class AppLinstens {
-  execute() {
+  private separarPeriodicListen: SepararPeriodicListenService | null = null;
+
+  constructor(private readonly io: SocketIOServer) {}
+
+  start() {
     this.listenCobrancaPix();
     this.listenRefleshCobrancaPix();
+    this.listenSepararPeriodic();
+  }
+
+  execute() {
+    this.start();
   }
 
   private async listenCobrancaPix() {
-    const locaDataBase = process.env.DATABASE || '';
-    const firebaseCobrancaPixRepository = AppDependencys.resolve<ContractBaseRepository<CobrancaPix>>({
-      context: eContext.fireBase,
-      bind: 'ContractBaseRepository<CobrancaPix>',
-    });
-
-    const firebasePagamentoPixRepository = AppDependencys.resolve<ContractBaseRepository<PagamentoPix>>({
-      context: eContext.fireBase,
-      bind: 'ContractBaseRepository<PagamentoPix>',
-    });
-
-    const localCobrancaDigitalTituloRepository = AppDependencys.resolve<
-      LocalBaseRepositoryContract<CobrancaDigitalTituloDto>
-    >({
-      context: locaDataBase.toLocaleLowerCase() === 'sybase' ? eContext.sybase : eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
-    });
-
-    const localCobrancaDigitalPagamentoRepository = AppDependencys.resolve<
-      LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>
-    >({
-      context: locaDataBase.toLocaleLowerCase() === 'sybase' ? eContext.sybase : eContext.sql_server,
-      bind: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
-    });
-
-    new CobrancaPixListenService(
-      firebaseCobrancaPixRepository,
-      firebasePagamentoPixRepository,
-      localCobrancaDigitalTituloRepository,
-      localCobrancaDigitalPagamentoRepository,
-    ).listen();
+    createCobrancaPixListenService().listen();
   }
 
   private listenRefleshCobrancaPix() {
     new CobrancaPixListenRefleshService().listen();
+  }
+
+  /**
+   * Poll periódico da consulta de separação (`separar.consulta.listen`).
+   * Desligue com `SEPARAR_LISTEN_ENABLED=false`. Em várias réplicas Node, cada processo roda o próprio timer.
+   */
+  private listenSepararPeriodic() {
+    const cfg = resolveSepararPeriodicListenConfig();
+    if (!cfg.enabled) {
+      console.log('[AppLinstens] Emissão periódica de Separar desabilitada (SEPARAR_LISTEN_ENABLED)');
+      return;
+    }
+
+    this.separarPeriodicListen = new SepararPeriodicListenService(this.io, {
+      intervalMs: cfg.intervalMs,
+      limit: cfg.limit,
+      debug: cfg.debug,
+    });
+    this.separarPeriodicListen.start();
+    console.log('Serviço de emissão periódica de Separar iniciado automaticamente');
+  }
+
+  /**
+   * Encerra listeners periódicos (ex.: antes de fechar pool / processo).
+   */
+  stopPeriodicListeners(): void {
+    this.separarPeriodicListen?.stop();
+    this.separarPeriodicListen = null;
   }
 }

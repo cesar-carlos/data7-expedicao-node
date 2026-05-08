@@ -47,22 +47,27 @@ export class Request {
       const sql = this.inputs.reduce((acc: string, input: any) => {
         if (input.type.toString().includes('Date')) {
           const value = `'${new Date(input.value).toISOString().slice(0, 19).replace('T', ' ')}'`;
-          return acc.replace(`@${input.name}`, value);
+          const _input = value === undefined ? 'NULL' : value;
+          return acc.replace(`@${input.name}`, _input);
         } else {
-          const value = typeof input.value === 'string' ? (input.value = `'${input.value}'`) : input.value;
-          return acc.replace(`@${input.name}`, value);
+          const value =
+            typeof input.value === 'string'
+              ? `'${String(input.value).replace(/'/g, "''")}'`
+              : input.value;
+          const _input = value === undefined ? 'NULL' : value;
+          return acc.replace(`@${input.name}`, _input);
         }
       }, command);
 
-      const Pool = this.pool;
       try {
-        const RetData = await new Promise((resolve, reject) => {
-          Pool.query(sql, function (err: any, data: any) {
+        const data = await new Promise((resolve, reject) => {
+          this.pool.query(sql, (err: any, data: any) => {
             if (err) return reject(err);
             return resolve(data);
           });
         });
-        resolve(RetData);
+
+        resolve(data);
       } catch (err) {
         reject(err);
       }

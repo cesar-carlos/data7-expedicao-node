@@ -1,0 +1,19 @@
+description: "Universal testing strategy"
+globs: ["test/**/*.ts", "**/*.test.ts", "**/*.spec.ts"]
+alwaysApply: true
+---
+
+# Testing Standards
+
+- This is a universal rule file. Transport-specific test requirements live in the HTTP, WebSocket, and security rule files.
+- The primary test runner is `vitest`.
+- Mirror the source structure in `test/` so the target module is obvious.
+- Unit-test validation, middleware, helpers, services, and domain logic in isolation whenever practical.
+- Add targeted integration tests for repositories, database-facing behavior, and external adapter seams when refactors touch them.
+- Add transport-level tests for critical HTTP routes and socket event contracts when their behavior changes.
+- Use fixtures and assets under `test/` for large request, response, or socket payload samples.
+- Every intentional compatibility shim or legacy contract exception must have a regression test so the exception stays localized.
+- Update or add tests whenever behavior, contracts, or compatibility shims change.
+- Use descriptive test names such as `should return 400 when query parameters are invalid`.
+- Reset data and mocks between tests; no test may depend on execution order.
+- For high-risk legacy refactors, prefer adding a narrow characterization test before moving code.

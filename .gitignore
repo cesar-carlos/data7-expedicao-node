@@ -2,10 +2,15 @@
 # Edit at https://www.toptal.com/developers/gitignore?templates=node
 
 ### LOCAL APP ###
-config.ts
-config.pix.ts
+mocks
+src/assets
+assets
+assets.loja
+assets.fabrica
 LocalStorage
 certificates
+certificates.fabrica
+certificates.loja
 local.storage
 public
 web
@@ -22,6 +27,8 @@ yarn-error.log*
 lerna-debug.log*
 node_modules
 .env
+.env.loja
+.env.fabrica
 key
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
@@ -99,6 +106,8 @@ typings/
 # Nuxt.js build / generate output
 .nuxt
 dist
+dist.loja
+dist.fabrica
 
 # Gatsby files
 .cache/

@@ -1,0 +1,16 @@
+description: "Project-specific domain, service, and repository boundary guidelines"
+globs: ["src/domain/**/*.ts", "src/entities/**/*.ts", "src/aplication/**/*.ts", "src/services/**/*.ts", "src/contracts/**/*.ts", "src/repository/**/*.ts"]
+alwaysApply: true
+---
+
+# Domain, Service, and Repository Guidelines
+
+- This repository already has legacy folders such as `domain`, `entities`, `services`, `contracts`, `dto`, and `repository`. Use them intentionally instead of introducing new parallel layers without a migration plan.
+- `src/domain/` and `src/entities/` should hold business concepts, value objects, and invariant-heavy logic. Keep them free from Express, Socket.IO, MSSQL, Firebase, and direct environment access.
+- `src/services/` should hold reusable business flows and orchestration that can be shared by HTTP controllers and socket events.
+- `src/aplication/` is the application composition layer for startup, dependency registration, and cross-cutting orchestration. Do not move HTTP parsing or raw SQL concerns into it.
+- `src/contracts/` should define explicit contracts between layers when a boundary needs to stay stable across implementations.
+- `src/repository/` implements persistence and external data access. Keep query details and integration-specific mapping there instead of in controllers, socket events, or generic helpers.
+- `src/dto/`, `src/types/`, and `src/type/` are transport and integration-facing data shapes. Do not let them become the domain model by default.
+- Prefer moving new business rules toward `domain` or `services` rather than adding more decision-making inside controllers, routes, or socket event classes.
+- When legacy code mixes layers, new changes should reduce coupling and clarify ownership instead of expanding the mixed pattern.

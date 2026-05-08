@@ -1,0 +1,22 @@
+SELECT
+  CodEmpresa,
+  CodSepararEstoque,
+  Origem,
+  CodOrigem,
+  CodTipoOperacaoExpedicao,
+  TipoEntidade,
+  CodEntidade,
+  NomeEntidade,
+  Situacao,
+  Data,
+  Hora,
+  CodPrioridade,
+  Historico,
+  Observacao,
+  CodMotivoCancelamento,
+  DataCancelamento,
+  HoraCancelamento,
+  CodUsuarioCancelamento,
+  NomeUsuarioCancelamento,
+  ObservacaoCancelamento
+FROM Expedicao.SepararEstoque

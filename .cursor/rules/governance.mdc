@@ -1,0 +1,26 @@
+description: "Universal rule governance and verification workflow"
+globs: ["src/**/*.ts", "test/**/*.ts"]
+alwaysApply: true
+---
+
+# Rule Governance
+
+- This is a universal rule file. It owns rule precedence, exception policy, architectural enforcement, and task-completion verification.
+- Organize rule files into three groups: `universal`, `stack-specific`, and `project-specific`.
+- Keep TypeScript, Node.js, Express, Socket.IO, or library-specific guidance out of universal files unless the point cannot be expressed generically.
+- Resolve rule conflicts in this order: `security` -> `architecture` and `project_structure` -> transport-specific rules (`express_api`, `websocket_api`) -> `typescript` -> `testing` -> `coding_standards`.
+- Keep each rule file focused on one concern. Prefer pointing to the owning rule rather than restating detailed guidance in multiple files.
+- When two rules can both be satisfied, choose the stricter option instead of weakening the higher-priority rule.
+- Legacy compatibility is allowed only through narrow adapters, serializers, route aliases, or migration shims.
+- Every intentional exception must be local, named, covered by tests, and documented with its reason plus a removal condition.
+- Avoid spreading one compatibility concern across multiple layers.
+- Prefer static enforcement in CI for architectural boundaries when the project adopts linting or boundary tooling, but do not invent scripts that the repository does not have yet.
+- Before concluding a refactor that changes behavior, run the relevant automated tests with `npm test`.
+- Run `npx tsc --noEmit` when the change affects shared types, multiple modules, or architectural boundaries.
+- If tests or type-checking cannot be run, or if failures remain outside the current scope, say so explicitly in the final handoff.
+- Do not create Git branches (local or remote) unless the collaborator explicitly asks to create a branch. Work on the current branch, or only suggest branch names without running `git checkout -b`, `git branch`, or equivalent.
+- Do not perform large folder renames as incidental cleanup. In particular, treat `src/aplication/` as the current canonical path until a dedicated migration is approved.
+- `src/domain` and `src/entities` must not import `controllers`, `route`, `socket`, `middleware`, or framework libraries.
+- `src/services` and `src/aplication` must not depend on `controllers` or `route`.
+- `src/controllers` and `src/socket` must not read SQL files or open database connections directly when a repository or service boundary already exists.
+- Tests may use helpers or fixtures that cross boundaries when necessary, but production code must keep the architectural imports clean.

@@ -11,7 +11,6 @@ export default class PagamentoQrCode {
     );
   }
 
-  //create method to json
   toJson(): any {
     return {
       id: this.id,
@@ -21,7 +20,6 @@ export default class PagamentoQrCode {
     };
   }
 
-  //create method from object
   static fromObject(obj: any): PagamentoQrCode {
     return new PagamentoQrCode(
       obj.id || obj.Id,

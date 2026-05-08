@@ -1,0 +1,91 @@
+description: "Socket.IO and WebSocket-specific conventions for real-time communication"
+globs: ["src/aplication/app.socket.config.ts", "src/socket/**/*.ts"]
+alwaysApply: true
+---
+
+# WebSocket Conventions
+
+- This is a stack-specific rule file for the WebSocket transport.
+- `src/aplication/app.socket.config.ts` owns global socket registration and connection lifecycle wiring.
+- Keep each feature class under `src/socket/<feature>/` focused on registering and handling only its own events.
+- Keep event handlers thin: validate inbound payloads, resolve trusted context, call the service or repository boundary, and emit or acknowledge the result.
+- Define event names and payload contracts close to the feature instead of scattering string literals across controllers, helpers, and tests.
+- Reuse the same business flow behind HTTP when the action is the same; do not fork business rules only because the transport is different.
+- Authenticate on connection when the event family depends on user, setor, carrinho, ou other scoped data, and authorize room joins or broadcasts explicitly.
+- Clean up listeners and per-socket resources on disconnect.
+- Preserve existing event names and payload formats during refactors unless the task explicitly includes a contract migration.
+- When acknowledgements or callback responses are part of the protocol, keep the success and error shape consistent within that event family.
+- Guard against slow consumers and oversized payloads when an event streams lists, progress updates, or repeated notifications.
+
+## Testing
+
+- Use `vitest` to cover critical event behavior, including validation, emissions, repository calls, and disconnect cleanup.
+- Add contract-style tests when a socket event has a stable payload format that other clients depend on.
+
+## Legacy Protocol
+
+- The public wire contract remains legacy-compatible in this project. Do not introduce a public `ProtocolVersion` field or require `RequestId` from clients during this rollout.
+- Request channels stay in the current physical format: `${socket.id} <eventSuffix>`.
+- Server-side request parsing must go through `src/socket/socket.event.helpers.ts` and `src/socket/protocol/socket.protocol.adapter.ts`.
+- The normalized internal request shape is private to the server and may include internal-only fields such as `requestId`, `eventName`, and inferred `kind`.
+
+### Accepted Request Envelope
+
+- Accepted request keys are:
+  - `Session`
+  - `ResponseIn`
+  - `Where`
+  - `Mutation`
+  - `Pagination`
+  - `OrderBy`
+- `ResponseIn` is optional. When omitted, the server must fall back to the default response channel for that event.
+- `Mutation` may arrive as a single object or array. Normalize internally, but preserve the visible legacy response shape.
+- Invalid payloads must still respond on the best available `ResponseIn` fallback instead of failing silently.
+
+### Emitted Response Envelope
+
+- Query responses must keep the legacy shape:
+  - `Session`
+  - `ResponseIn`
+  - `Data`
+- Mutation responses must keep the legacy shape:
+  - `Session`
+  - `ResponseIn`
+  - `Mutation`
+- Error responses must keep the legacy shape:
+  - `Session`
+  - `ResponseIn`
+  - `Error`
+- `Error` must be emitted as `string[]`, even when the source error was a single string or thrown `Error`.
+
+### Listen Conventions
+
+- Broadcast channels keep the current `*.listen` naming.
+- Mutation-related broadcasts must preserve their existing payload family. Some channels emit `ExpedicaoMutationBasicEvent`, others emit `ExpedicaoMutationListenEvent`; do not unify them publicly unless a client migration is part of the task.
+- Preserve existing cross-feature broadcasts such as `separar.update.listen`, `conferir.item.update.listen`, and `separar.item.consulta.update.listen`.
+
+### Internal Error Codes
+
+- Internal socket error classification should use:
+  - `INVALID_PAYLOAD`
+  - `UNAUTHORIZED`
+  - `NOT_FOUND`
+  - `BUSINESS_RULE_VIOLATION`
+  - `INTERNAL_ERROR`
+- These codes are for logging, observability, and server-side branching. Do not expose them as a breaking public contract by default.
+
+### Observability
+
+- Log at least:
+  - authentication failures in the handshake
+  - invalid payload errors
+  - handler failures
+  - slow events above the configured threshold
+- Include when available:
+  - `event`
+  - `socketId`
+  - `responseIn`
+  - internal `requestId`
+  - `durationMs`
+  - `status`
+  - `listenCount`

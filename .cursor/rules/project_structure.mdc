@@ -1,0 +1,20 @@
+description: "Project-specific folder structure conventions for this backend"
+globs: ["src/**/*.ts"]
+alwaysApply: true
+---
+
+# Project Structure
+
+- This is a project-specific rule file. It defines where code lives in this repository, not a universal folder layout for all projects.
+- Keep process bootstrap, dependency wiring, and runtime composition in `src/aplication/`.
+- Keep HTTP route registration in `src/route/` and controller implementations in `src/controllers/`.
+- Keep Socket.IO event classes and per-feature socket handlers in `src/socket/<feature>/`.
+- Keep input validation in `src/validation/` and validation middleware in `src/middleware/`.
+- Keep persistence and external data access in `src/repository/`; keep lower-level connections and adapters in `src/infra/` and `src/dependency/`.
+- Keep SQL assets in `src/sql/`.
+- Keep data contracts and transport shapes in `src/contracts/`, `src/dto/`, `src/type/`, and `src/types/`.
+- Keep reusable domain concepts in `src/domain/` and `src/entities/`.
+- `src/helper/` and `src/utils/` should contain only generic helpers. If a utility is specific to one feature, move it closer to that feature.
+- Preserve legacy folder names unless a task explicitly performs the migration. Do not create both `application` and `aplication`, or both `routes` and `route`, in parallel.
+- New files should follow the existing naming conventions of this codebase, including `*.controller.ts`, `*.route.ts`, `*.router.ts`, `*.repository.ts`, `*.validation.ts`, and `*.event.ts`.
+- Keep `test/` aligned with the `src/` areas being protected by tests.

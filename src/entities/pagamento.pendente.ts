@@ -1,23 +1,50 @@
+import { STATUS } from '../type/status';
 import PagamentoAdicionais from './pagamento.adicionais';
-import PagamentoLoc from './pagamento.loc';
 
 export type devedor = {
-  cpf: string;
-  nome: string;
+  cnpj_cpf?: string;
+  nome?: string;
 };
 
 export default class PagamentoPendente {
-  constructor(
-    readonly txid: string,
-    readonly sysId: string,
-    readonly chave: string,
-    readonly status: string,
-    readonly devedor: devedor,
-    readonly criacao: Date,
-    readonly expiracao: Date,
-    readonly valor: string,
-    readonly solicitacaoPagador: string,
-    readonly loc: PagamentoLoc,
-    readonly adicionais?: PagamentoAdicionais[],
-  ) {}
+  sysId: string;
+  chave: string;
+  txId: string;
+  status: STATUS;
+  devedor: devedor;
+  criacao: Date;
+  expiracao: Date;
+  valor: number;
+  solicitacaoPagador: string;
+  adicionais?: PagamentoAdicionais[];
+  qrcode?: string;
+  imagemQrcode?: string;
+
+  constructor(params: {
+    sysId: string;
+    chave: string;
+    txId: string;
+    status: STATUS;
+    devedor: devedor;
+    criacao: Date;
+    expiracao: Date;
+    valor: number;
+    solicitacaoPagador: string;
+    adicionais?: PagamentoAdicionais[];
+    qrcode?: string;
+    imagemQrcode?: string;
+  }) {
+    this.sysId = params.sysId;
+    this.chave = params.chave;
+    this.txId = params.txId;
+    this.status = params.status;
+    this.devedor = params.devedor;
+    this.criacao = params.criacao;
+    this.expiracao = params.expiracao;
+    this.valor = params.valor;
+    this.solicitacaoPagador = params.solicitacaoPagador;
+    this.adicionais = params.adicionais;
+    this.qrcode = params.qrcode;
+    this.imagemQrcode = params.imagemQrcode;
+  }
 }

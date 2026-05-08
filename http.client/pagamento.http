@@ -1,7 +1,0 @@
-
-GET http://localhost:3000/pagamento/9ee8695928bc4d2897b9a676b1ed9244 HTTP/1.1
-
-###
-
-POST http://localhost:3000/pagamento HTTP/1.1
-content-type: application/json

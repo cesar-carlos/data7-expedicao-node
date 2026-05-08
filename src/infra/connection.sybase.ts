@@ -4,12 +4,26 @@ import config from '../assets/config.sybase';
 import ConnectionBaseSqlContract from '../contracts/connection.base.sql.contract';
 
 export class ConnectionSybase implements ConnectionBaseSqlContract<DriverConnectionSybase> {
-  async getConnection(): Promise<DriverConnectionSybase> {
-    const pool = new DriverConnectionSybase(config);
-    return pool;
+  private static instance: ConnectionSybase;
+  private pool: DriverConnectionSybase;
+
+  private constructor() {
+    this.pool = new DriverConnectionSybase(config);
   }
 
-  async closeConnection(pool: DriverConnectionSybase): Promise<void> {
-    await pool.close();
+  public static getInstance(): ConnectionSybase {
+    if (!ConnectionSybase.instance) {
+      ConnectionSybase.instance = new ConnectionSybase();
+    }
+
+    return ConnectionSybase.instance;
+  }
+
+  async getConnection(): Promise<DriverConnectionSybase> {
+    return this.pool;
+  }
+
+  async closeConnection(): Promise<void> {
+    this.pool.close();
   }
 }

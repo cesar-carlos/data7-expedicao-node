@@ -1,0 +1,2 @@
+DELETE Expedicao.PercursoEstagio
+WHERE CodPercursoEstagio = @CodPercursoEstagio
