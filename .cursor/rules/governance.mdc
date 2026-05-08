@@ -18,6 +18,7 @@ alwaysApply: true
 - Before concluding a refactor that changes behavior, run the relevant automated tests with `npm test`.
 - Run `npx tsc --noEmit` when the change affects shared types, multiple modules, or architectural boundaries.
 - If tests or type-checking cannot be run, or if failures remain outside the current scope, say so explicitly in the final handoff.
+- Do not create Git branches (local or remote) unless the collaborator explicitly asks to create a branch. Work on the current branch, or only suggest branch names without running `git checkout -b`, `git branch`, or equivalent.
 - Do not perform large folder renames as incidental cleanup. In particular, treat `src/aplication/` as the current canonical path until a dedicated migration is approved.
 - `src/domain` and `src/entities` must not import `controllers`, `route`, `socket`, `middleware`, or framework libraries.
 - `src/services` and `src/aplication` must not depend on `controllers` or `route`.
