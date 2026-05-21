@@ -21,7 +21,7 @@ export default class SqlServerExpedicaoItemConferirUnidadeMedidaConsultaReposito
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.Conferir.unidade.medida.consulta.sql');
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferir.unidade.medida.consulta.sql');
       const sql = readSqlFileCached(patchSQL);
       const result = await pool.request().query(sql);
 
@@ -46,7 +46,7 @@ export default class SqlServerExpedicaoItemConferirUnidadeMedidaConsultaReposito
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.Conferir.unidade.medida.consulta.sql');
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferir.unidade.medida.consulta.sql');
       const select = readSqlFileCached(patchSQL);
 
       const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
