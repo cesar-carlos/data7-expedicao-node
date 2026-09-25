@@ -1,5 +1,6 @@
 import 'reflect-metadata';
-require('dotenv').config();
+const { loadEnv } = require('./infra/load.env') as typeof import('./infra/load.env');
+loadEnv(__dirname);
 import { registerProcessErrorHandlers } from './infra/process.error.handlers';
 import App from './aplication/app';
 

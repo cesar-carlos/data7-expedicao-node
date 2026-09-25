@@ -1,6 +1,6 @@
 import { ConnectionPool, config as SqlConfig, Transaction, Request } from 'mssql';
 
-import config from '../assets/config.msql';
+import createMssqlConfig from '../assets/config.msql';
 
 export default class ConnectionSqlServerMssql {
   private static instance: ConnectionSqlServerMssql;
@@ -60,6 +60,7 @@ export default class ConnectionSqlServerMssql {
         attempt: this.connectionMetrics.totalConnections + 1,
       });
 
+      const config = createMssqlConfig();
       const poolConfig: SqlConfig = {
         ...config,
         connectionTimeout: 30000,

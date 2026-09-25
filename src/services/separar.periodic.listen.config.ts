@@ -51,7 +51,7 @@ function parseDebug(raw: string | undefined): boolean {
 
 /**
  * Lê variáveis de ambiente para o poll periódico de `separar.consulta.listen`.
- * Chamado na subida da aplicação (após `dotenv.config()`).
+ * Chamado na subida da aplicação (após `loadEnv()`).
  */
 export function resolveSepararPeriodicListenConfig(): SepararPeriodicListenResolvedConfig {
   return {

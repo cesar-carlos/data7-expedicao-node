@@ -1,4 +1,5 @@
-import dotenv from 'dotenv';
+import path from 'path';
+import { loadEnv } from '../infra/load.env';
 import AppApi from './app.api';
 import AppLinstens from './app.linstens';
 import ConnectionSqlServerMssql from '../infra/connection.sql.server.mssql';
@@ -20,7 +21,7 @@ export default class App {
       return;
     }
 
-    dotenv.config();
+    loadEnv(path.resolve(__dirname, '..'));
     await AppFirebase.load();
     AppDependencys.load();
     this.initialized = true;
