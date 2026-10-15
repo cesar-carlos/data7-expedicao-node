@@ -1,9 +1,9 @@
 import fs from 'fs';
 import os from 'os';
 import path from 'path';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 
-import { resolveEnvPath } from '../../../src/infra/load.env';
+import { loadEnv, resolveEnvPath } from '../../../src/infra/load.env';
 
 describe('resolveEnvPath', () => {
   const created: string[] = [];
@@ -39,5 +39,27 @@ describe('resolveEnvPath', () => {
     fs.rmSync(path.join(root, '.env'));
     fs.writeFileSync(path.join(cwd, '.env'), 'SERVER_PORT=3001\n');
     expect(resolveEnvPath(entryDir, cwd)).toBe(path.join(cwd, '.env'));
+  });
+
+  it('does not treat a missing env file as a failure when the process already received the environment', () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+    const previous = process.env.EXPEDICAO_DESKTOP;
+    const previousCwd = process.cwd();
+    process.env.EXPEDICAO_DESKTOP = '1';
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'env-loader-'));
+    created.push(root);
+    try {
+      process.chdir(root);
+      expect(loadEnv(path.join(root, 'missing'))).toBeUndefined();
+      expect(error).not.toHaveBeenCalled();
+    } finally {
+      process.chdir(previousCwd);
+      if (previous === undefined) {
+        delete process.env.EXPEDICAO_DESKTOP;
+      } else {
+        process.env.EXPEDICAO_DESKTOP = previous;
+      }
+      error.mockRestore();
+    }
   });
 });

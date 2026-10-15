@@ -1,11 +1,10 @@
 import AppDependencys from '../aplication/app.dependencys';
-import ContractBaseRepository from '../contracts/base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../contracts/local.base.consulta.repository.contract';
 import LocalBaseRepositoryContract from '../contracts/local.base.repository.contract';
 import LocalBaseRepositorySequenceContract from '../contracts/local.base.repository.sequence.contract';
 import SequenceDto from '../dto/common.data/sequence.dto';
 import { DI_BIND } from './bind.tokens';
-import { getLocalDbContext, getOnlineDbContext } from './database.context';
+import { getLocalDbContext } from './database.context';
 
 export function resolveDependency<T>(params: { context: string; bind: string }): T {
   return AppDependencys.resolve<T>(params);
@@ -32,9 +31,3 @@ export function resolveLocalSequenceRepository(): LocalBaseRepositorySequenceCon
   });
 }
 
-export function resolveOnlineRepository<T>(bind: string): ContractBaseRepository<T> {
-  return resolveDependency<ContractBaseRepository<T>>({
-    context: getOnlineDbContext(),
-    bind,
-  });
-}

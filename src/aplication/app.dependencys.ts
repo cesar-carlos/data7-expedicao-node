@@ -1,7 +1,6 @@
 import { FindDepedecy } from '../dependency/container.dependency';
 
 import AppDependencysGeral from './app.dependencys.geral';
-import AppDependencysIntegracaoPix from './app.dependencys.integracao.pix';
 import ContainerDependency from '../dependency/container.dependency';
 import AppDependencysExpedicao from './app.dependencys.expedicao';
 import { validateDatabaseContexts } from '../di/database.context';
@@ -16,7 +15,6 @@ export default class AppDependencys {
 
     validateDatabaseContexts();
     AppDependencysGeral.load();
-    AppDependencysIntegracaoPix.load();
     AppDependencysExpedicao.load();
     this.loaded = true;
   }

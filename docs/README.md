@@ -1,104 +1,30 @@
-# 📚 Documentação - Data7 API PIX
+# Documentação
 
-Bem-vindo à documentação do sistema Data7 API PIX. Esta pasta contém toda a documentação técnica e guias de uso do projeto.
+Servidor de expedição em Node.js 26.12 e TypeScript. A API atende HTTP e Socket.IO. O banco local é o SQL Server.
 
-## 📋 Índice da Documentação
+Cobrança PIX, Firebase e Sybase não fazem parte desta versão.
 
-### 🔐 Autenticação e Segurança
+## Guias
 
-- [**CRIPTOGRAFIA_SENHAS.md**](./CRIPTOGRAFIA_SENHAS.md) - Sistema de criptografia de senhas com bcrypt
+- [Login do aplicativo](./login-app.md) — criar, autenticar, consultar e atualizar o login, incluindo senha e foto
+- [Consulta de usuários](./usuario-consulta.md) — `GET /usuarios`
+- [Escuta de separação](./escuta-separacao.md) — evento periódico `separar.consulta.listen`
+- [Parâmetros de consulta SQL](./params-common.md) — formatos aceitos por `ParamsCommonRepository.build`
 
-### 👥 Gestão de Usuários
+## Configuração
 
-- [**CONSULTA_LOGIN_APP.md**](./CONSULTA_LOGIN_APP.md) - API de consulta de usuários do sistema
+O processo lê o `.env`. O modelo está em `.env.exemple`.
 
-### ✅ Validação de Dados
+| Variável | Uso |
+| --- | --- |
+| `LOCAL_DATABASE` | `sql_server` |
+| `DATABASE_HOST`, `DATABASE_PORT`, `DATABASE_NAME` | SQL Server |
+| `USER_DATABASE`, `PASSWORD_DATABASE` | Credencial do banco |
+| `SERVER_PORT` | Porta HTTP. Sem a variável, a API usa 3000 |
+| `SEPARAR_LISTEN_ENABLED` | Opcional. Padrão ligado |
+| `SEPARAR_LISTEN_INTERVAL_MS` | Opcional. Padrão 8000, entre 1000 e 86400000 |
+| `SEPARAR_LISTEN_LIMIT` | Opcional. Padrão 20, entre 1 e 500 |
+| `SEPARAR_LISTEN_DEBUG` | Opcional. Padrão desligado |
+| `SQL_HEARTBEAT_INTERVAL_MS` | Opcional. Padrão 30000, mínimo 5000 |
 
-- [**EXEMPLO_USO_ZOD.md**](./EXEMPLO_USO_ZOD.md) - Implementação e uso do Zod para validação
-
-## 🚀 Funcionalidades Implementadas
-
-### Sistema de Login e Usuários
-
-- ✅ Criação de usuários com validação
-- ✅ Autenticação segura com bcrypt
-- ✅ Consulta de usuários com filtros
-- ✅ Validação de dados com Zod
-- ✅ Upload de fotos de usuário (varbinary)
-
-### Endpoints Principais
-
-#### Criação de Usuário
-
-```http
-POST /expedicao/create-login-app
-```
-
-- Cria novo usuário com senha criptografada
-- Validação completa dos dados de entrada
-- Suporte a foto do usuário
-
-#### Autenticação
-
-```http
-POST /expedicao/login-app
-```
-
-- Login seguro com verificação bcrypt
-- Retorna dados do usuário (sem senha)
-
-#### Consulta de Usuários
-
-```http
-GET /expedicao/login-app
-```
-
-- Consultar todos os usuários
-- Filtros por nome, código ou status
-- DTO otimizado para performance
-
-## 🛠️ Tecnologias Utilizadas
-
-- **Node.js** + **TypeScript**
-- **Express.js** - Framework web
-- **Zod** - Validação de esquemas
-- **bcryptjs** - Criptografia de senhas
-- **mssql** - Conexão SQL Server
-- **Buffer** - Manipulação de dados binários
-
-## 📁 Estrutura do Projeto
-
-```
-src/
-├── controllers/     # Controladores HTTP
-├── services/       # Lógica de negócio
-├── dto/           # Objetos de transferência de dados
-├── validation/    # Esquemas de validação Zod
-├── middleware/    # Middlewares Express
-├── helper/        # Utilitários e helpers
-├── repository/    # Acesso a dados
-└── routes/        # Definição de rotas
-```
-
-## 🔍 Como Navegar na Documentação
-
-1. **Para desenvolvedores iniciantes**: Comece pelo `EXEMPLO_USO_ZOD.md`
-2. **Para implementar autenticação**: Consulte `CRIPTOGRAFIA_SENHAS.md`
-3. **Para consultas de dados**: Veja `CONSULTA_LOGIN_APP.md`
-
-## 🤝 Contribuindo
-
-Ao adicionar novas funcionalidades:
-
-1. Crie documentação na pasta `docs/`
-2. Atualize este README.md
-3. Inclua exemplos práticos de uso
-4. Documente endpoints e validações
-
-## 📞 Suporte
-
-Para dúvidas sobre a documentação ou implementação, consulte os arquivos específicos de cada funcionalidade nesta pasta.
-
----
-
-_Última atualização: Setembro 2025_
+O aplicativo Windows instala em `C:\Program Files\Data7 Expedicao`. Se já houver uma cópia, o instalador remove o programa antigo e grava a nova no mesmo lugar. A configuração fica em `%ProgramData%\data7-expedicao\config.json`, compartilhada por todos os usuários, e essa pasta não é apagada na atualização nem na desinstalação. A senha do banco não volta para a tela depois de gravada. HTTP e Socket.IO aceitam qualquer origem e não exigem token.

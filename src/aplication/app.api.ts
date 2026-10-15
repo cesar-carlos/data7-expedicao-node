@@ -20,31 +20,19 @@ export default class AppApi {
   readonly io: SocketIOServer;
 
   private constructor() {
-    const allowedOrigins = this.getAllowedOrigins();
-
     this.app = express();
     this.httpServer = http.createServer(this.app);
     this.io = new SocketIOServer(this.httpServer, {
-      cors: allowedOrigins
-        ? { origin: allowedOrigins, methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] }
-        : { origin: '*', methods: ['GET', 'POST'] },
+      cors: { origin: '*', methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] },
     });
 
     this.initialize();
   }
 
   private initialize() {
-    const allowedOrigins = this.getAllowedOrigins();
     const morganFormat = process.env.NODE_ENV === 'production' ? 'combined' : 'dev';
 
-    this.app.use(
-      allowedOrigins
-        ? cors({
-            origin: allowedOrigins,
-            methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-          })
-        : cors(),
-    );
+    this.app.use(cors());
     this.app.use(logger(morganFormat));
     this.app.use(express.json());
     this.app.use(express.urlencoded({ extended: true }));
@@ -52,18 +40,6 @@ export default class AppApi {
     this.app.use(ApiRoute.router);
     this.app.use(appErrorMiddleware);
     new AppSocket(this.io);
-  }
-
-  private getAllowedOrigins(): string[] | null {
-    const allowedOrigins = process.env.CORS_ORIGINS?.split(',')
-      .map((origin) => origin.trim())
-      .filter(Boolean);
-
-    if (!allowedOrigins || allowedOrigins.length === 0) {
-      return null;
-    }
-
-    return allowedOrigins;
   }
 
   public async start(): Promise<void> {

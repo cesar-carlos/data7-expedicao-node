@@ -26,9 +26,9 @@
     "moduleDetection": "auto" /* Control what method is used to detect module-format JS files. */,
 
     /* Modules */
-    "module": "CommonJS" /* Specify what module code is generated. */,
+    "module": "Node16" /* Emite CommonJS quando o package.json não declara "type": "module". */,
     "rootDir": "./" /* Com include só em src/, o emit preserva src/ embaixo de outDir (ex.: dist.loja/src/server.js). */,
-    "moduleResolution": "node" /* Specify how TypeScript looks up a file from a given module specifier. */,
+    "moduleResolution": "node16" /* Node 16+ resolution. O alias antigo "node" (node10) saiu no TypeScript 7. */,
     // "baseUrl": "./",                                  /* Specify the base directory to resolve non-relative module names. */
     // "paths": {},                                      /* Specify a set of entries that re-map imports to additional lookup locations. */
     // "rootDirs": [],                                   /* Allow multiple folders to be treated as one when resolving modules. */

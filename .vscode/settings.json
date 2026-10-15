@@ -7,6 +7,16 @@
     // Explorer settings
     "explorer.compactFolders": false,
 
+  "vetur.validation.template": false,
+  "vetur.validation.script": false,
+  "vetur.validation.interpolation": false,
+  "vetur.validation.style": false,
+  "vetur.validation.templateProps": false,
+  "vetur.format.enable": false,
+  "[vue]": {
+    "editor.defaultFormatter": "Vue.volar"
+  },
+
   // Editor settings
   "editor.rulers": [120],
   "editor.wordWrap": "off",

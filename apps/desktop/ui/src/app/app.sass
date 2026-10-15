@@ -1,0 +1,117 @@
+body
+  background: #eef3f7
+
+.pad-page
+  padding: var(--space-page)
+
+.page-head
+  margin-bottom: var(--space-stack)
+
+.page-lead
+  max-width: 62rem
+  margin: var(--space-inline) 0 0
+  color: #5c7080
+
+.page-body
+  min-height: 0
+
+.space-stack
+  margin-top: var(--space-stack)
+
+.space-below
+  margin-bottom: var(--space-stack)
+
+.gap-inline
+  gap: var(--space-inline)
+
+.field-grid
+  display: flex
+  flex-wrap: wrap
+  gap: var(--space-field)
+
+.field-grid > *
+  min-width: 0
+  max-width: 100%
+
+.span-6
+  flex: 1 1 16rem
+
+.span-4
+  flex: 1 1 12rem
+
+.span-12
+  flex: 1 1 100%
+
+.bar
+  padding-left: var(--space-page)
+  padding-right: var(--space-page)
+  gap: var(--space-inline)
+
+.save-bar
+  position: sticky
+  bottom: 0
+  z-index: 2
+  background: #fff
+  padding-top: var(--space-stack)
+  padding-bottom: var(--space-xs)
+
+.q-field--outlined.q-field--dense
+  .q-field__control
+    height: var(--space-input-height)
+    padding-left: var(--space-input-x)
+    padding-right: var(--space-input-x)
+
+  .q-field__marginal
+    height: var(--space-input-height)
+
+  .q-field__before,
+  .q-field__prepend
+    padding-right: var(--space-inline)
+
+  .q-field__after,
+  .q-field__append
+    padding-left: var(--space-inline)
+
+  .q-field__label
+    top: calc((var(--space-input-height) - 1.25em) / 2)
+
+  &.q-field--float .q-field__label,
+  .q-field__label:has(+ :is(.q-field__native, .q-field__input):is(:-webkit-autofill, [type="color"], [type="date"], [type="datetime-local"], [type="month"], [type="time"], [type="week"]))
+    transform: translateY(-60%) scale(.75)
+
+  &.q-field--labeled
+    .q-field__native,
+    .q-field__prefix,
+    .q-field__suffix
+      padding-top: var(--space-input-value-top)
+      padding-bottom: var(--space-input-value-bottom)
+
+.q-btn.q-btn--dense
+  padding: var(--space-button-y) var(--space-button-x)
+
+.save-progress
+  margin-bottom: var(--space-stack)
+
+.nav-active
+  background: #e5f3f8
+  color: #0e6f96
+  font-weight: 600
+
+.log-area
+  height: 100%
+  min-height: var(--space-log-min)
+  background: #0c2433
+  color: #d7e6ef
+  border-radius: var(--space-inline)
+
+.log-line
+  padding: var(--space-log-y) var(--space-log-x)
+  font-family: Consolas, "Cascadia Mono", monospace
+  font-size: 12px
+  line-height: 1.45
+  white-space: pre-wrap
+  word-break: break-word
+
+.log-line.stderr,
+.log-line.err
+  color: #ffb4b4

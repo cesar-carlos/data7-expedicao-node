@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { emitSocketError, logSocketAuthFailure, resolveSocketErrorContext } from '../socket/socket.event.helpers';
+import { emitSocketError, resolveSocketErrorContext } from '../socket/socket.event.helpers';
 import SocketErrorCode from '../socket/protocol/socket.error.code';
 import { type SocketEventDefinition } from '../socket/protocol/socket.event.definition';
 import { logSocketLifecycle } from '../socket/protocol/socket.logger';
@@ -360,28 +360,6 @@ export default class AppSocket {
   }
 
   private initialize() {
-    this.io.use((socket, next) => {
-      const expectedToken = process.env.SOCKET_AUTH_TOKEN?.trim();
-      if (!expectedToken) {
-        next();
-        return;
-      }
-
-      const handshakeToken = typeof socket.handshake.auth?.token === 'string' ? socket.handshake.auth.token : '';
-      const authHeader = typeof socket.handshake.headers.authorization === 'string'
-        ? socket.handshake.headers.authorization
-        : '';
-      const bearerToken = authHeader.toLowerCase().startsWith('bearer ') ? authHeader.slice(7).trim() : '';
-      const token = handshakeToken || bearerToken;
-
-      if (token !== expectedToken) {
-        logSocketAuthFailure(socket, 'Unauthorized socket connection');
-        next(new Error('Unauthorized socket connection'));
-        return;
-      }
-
-      next();
-    });
 
     this.io.on('connection', (socket: Socket) => {
       try {

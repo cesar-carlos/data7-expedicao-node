@@ -11,7 +11,7 @@ function normalizedEnv(value: string | undefined): string | undefined {
 /**
  * Valida variáveis de ambiente usadas como contexto do ContainerDependency.
  * Chamar no boot após `loadEnv` (ex.: início de `AppDependencys.load`).
- * Valores permitidos: mesmos literais de `eContext` (`sql_server`, `sybase`, `firebase`, etc.).
+ * Valores permitidos: mesmos literais de `eContext` (`sql_server`, `sybase`).
  */
 export function validateDatabaseContexts(): void {
   const local = normalizedEnv(process.env.LOCAL_DATABASE);
@@ -25,25 +25,9 @@ export function validateDatabaseContexts(): void {
       `LOCAL_DATABASE inválido: "${process.env.LOCAL_DATABASE}". Esperado um valor de eContext (ex.: sql_server, sybase).`,
     );
   }
-  const online = normalizedEnv(process.env.ONLINE_DATABASE);
-  if (online === undefined) {
-    throw new Error(
-      `ONLINE_DATABASE ausente. O .env não foi carregado neste processo (cwd=${process.cwd()}).`,
-    );
-  }
-  if (!allowedContexts.has(online)) {
-    throw new Error(
-      `ONLINE_DATABASE inválido: "${process.env.ONLINE_DATABASE}". Esperado um valor de eContext (ex.: firebase).`,
-    );
-  }
 }
 
 /** Same semantics as previous inline env reads (LOCAL_DATABASE). */
 export function getLocalDbContext(): eContext {
   return process.env.LOCAL_DATABASE?.toLocaleLowerCase() as eContext;
-}
-
-/** Same semantics as previous inline env reads (ONLINE_DATABASE). */
-export function getOnlineDbContext(): eContext {
-  return process.env.ONLINE_DATABASE?.toLocaleLowerCase() as eContext;
 }

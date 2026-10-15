@@ -13,7 +13,6 @@ describe('socket runtime', () => {
       app = null;
     }
 
-    delete process.env.SOCKET_AUTH_TOKEN;
   });
 
   test('should emit legacy error payload for invalid mutation body', async () => {
@@ -54,30 +53,6 @@ describe('socket runtime', () => {
     expect(payload.Error).toBeInstanceOf(Array);
     expect(payload.Error[0]).toMatch(/invalid mutation payload/i);
 
-    socket.close();
-  }, 15000);
-
-  test('should reject socket connection without auth token when configured', async () => {
-    const testPort = String(5200 + Math.floor(Math.random() * 1000));
-    process.env.SERVER_PORT = testPort;
-    process.env.SOCKET_AUTH_TOKEN = 'socket-secret';
-    app = new App();
-    await app.execute();
-
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    const socket: Socket = io(`http://localhost:${testPort}`, {
-      reconnection: false,
-      forceNew: true,
-    });
-
-    const error = await new Promise<Error>((resolve) => {
-      socket.on('connect_error', (connectError) => {
-        resolve(connectError);
-      });
-    });
-
-    expect(error.message).toBe('Unauthorized socket connection');
     socket.close();
   }, 15000);
 });

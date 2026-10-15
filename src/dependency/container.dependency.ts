@@ -3,9 +3,6 @@ import { container, InjectionToken } from 'tsyringe';
 export enum eContext {
   sql_server = 'sql_server',
   sybase = 'sybase',
-  firebase = 'firebase',
-  sicredi = 'sicredi',
-  gerencianet = 'gerencianet',
 }
 
 export interface Depedecy<T> {

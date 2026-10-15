@@ -7,17 +7,16 @@ import dotenv from 'dotenv';
  * O build copia `.env` para `dist.loja/src/`; o PM2 costuma iniciar com outro cwd.
  */
 export function resolveEnvPath(baseDir: string, cwd: string = process.cwd()): string | undefined {
-  const candidates = [
-    path.resolve(baseDir, '.env'),
-    path.resolve(baseDir, '..', '.env'),
-    path.resolve(cwd, '.env'),
-  ];
+  const candidates = [path.resolve(baseDir, '.env'), path.resolve(baseDir, '..', '.env'), path.resolve(cwd, '.env')];
   return candidates.find((candidate) => fs.existsSync(candidate));
 }
 
 export function loadEnv(baseDir: string): string | undefined {
   const envPath = resolveEnvPath(baseDir);
   if (!envPath) {
+    if (process.env.EXPEDICAO_DESKTOP === '1' || process.env.LOCAL_DATABASE) {
+      return undefined;
+    }
     console.error('[env] Nenhum arquivo .env encontrado', {
       baseDir,
       cwd: process.cwd(),

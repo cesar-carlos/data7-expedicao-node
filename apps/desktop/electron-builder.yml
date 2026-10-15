@@ -1,0 +1,27 @@
+appId: com.se7e.data7expedicao
+productName: Data7 Expedicao
+executableName: Data7Expedicao
+asar: true
+directories:
+  output: dist
+files:
+  - dist-electron/**/*
+  - dist-ui/**/*
+  - package.json
+extraResources:
+  - from: assets/icon.ico
+    to: icon.ico
+  - from: assets/icon.png
+    to: icon.png
+  - from: staging/node
+    to: node
+  - from: staging/server
+    to: server
+    filter:
+      - "**/*"
+      - "**/node_modules/**"
+win:
+  icon: assets/icon.png
+  target:
+    - dir
+  signAndEditExecutable: true

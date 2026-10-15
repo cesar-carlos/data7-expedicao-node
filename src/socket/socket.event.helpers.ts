@@ -1,7 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import SocketErrorCode from './protocol/socket.error.code';
-import { logSocketDuration, logSocketError, logSocketLifecycle } from './protocol/socket.logger';
+import { logSocketDuration, logSocketError } from './protocol/socket.logger';
 import type { NormalizedSocketRequest } from './protocol/normalized.socket.request';
 import SocketProtocolAdapter, { type LegacySocketRequestDefaults } from './protocol/socket.protocol.adapter';
 import SocketResponseBuilder from './protocol/socket.response.builder';
@@ -262,14 +262,6 @@ export function resolveSocketErrorContext(
   defaultResponseIn: string,
 ): { responseIn: string; session: string } {
   return SocketProtocolAdapter.resolveLegacyErrorContext(data, defaultResponseIn);
-}
-
-export function logSocketAuthFailure(socket: Socket, reason: string): void {
-  logSocketLifecycle('Socket authentication failed', {
-    socketId: socket.id,
-    status: 'unauthorized',
-    reason,
-  }, 'warn');
 }
 
 function normalizeSocketError(error: unknown): string[] {

@@ -1,42 +1,15 @@
-# data7-api-pix
+# Data7 Expedição
 
-Sistema de API para gestão PIX com funcionalidades de autenticação e gestão de usuários.
+Servidor Node.js 26.12 da expedição. A API atende HTTP e Socket.IO no SQL Server.
 
-## 📚 Documentação
-
-Toda a documentação técnica está organizada na pasta [`docs/`](./docs/):
-
-- [**📋 Índice Completo**](./docs/README.md) - Navegação por toda a documentação
-- [**🔐 Criptografia de Senhas**](./docs/CRIPTOGRAFIA_SENHAS.md) - Sistema de segurança bcrypt
-- [**👥 Consulta de Usuários**](./docs/CONSULTA_LOGIN_APP.md) - API de consultas
-- [**✅ Validação com Zod**](./docs/EXEMPLO_USO_ZOD.md) - Implementação de validações
-
-## 🚀 Início Rápido
-
-### Instalação
+A documentação fica em [`docs/`](./docs/README.md).
 
 ```bash
 npm install
-```
-
-### Configuração
-
-Configure as variáveis de ambiente e banco de dados conforme necessário.
-
-### Executar
-
-```bash
+npm test
 npm start
 ```
 
-## 🔧 Principais Funcionalidades
+O `npm start` compila com `tsc` e sobe `dist.loja`. Em desenvolvimento, `npm run dev` sobe o TypeScript direto. As variáveis ficam no `.env`; o modelo é `.env.exemple`.
 
-- ✅ Autenticação segura com bcrypt
-- ✅ Validação de dados com Zod
-- ✅ Consulta de usuários com filtros
-- ✅ Upload de fotos (varbinary)
-- ✅ API RESTful completa
-
-## 📖 Mais Informações
-
-Consulte a [documentação completa](./docs/README.md) para detalhes de implementação, exemplos de uso e guias técnicos.
+O aplicativo Windows está em `apps/desktop`. Ele administra o mesmo servidor e não abre o banco pela tela.

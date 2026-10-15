@@ -1,2 +1,0 @@
-DELETE integracao.CobrancaDigitalDataBase
-WHERE CodCobrancaDigitalDataBase = @CodCobrancaDigitalDataBase

@@ -1,11 +1,18 @@
 import { ISqlType } from 'mssql';
 
-const Sybase = require('sybase');
+function loadSybase(): new (host: string, port: number, dbname: string, username: string, password: string) => any {
+  try {
+    return require('sybase');
+  } catch {
+    throw new Error('O driver Sybase não está instalado. Esta base foi descontinuada.');
+  }
+}
 
 export class DriverConnectionSybase {
   private conn;
 
   constructor(private config: any) {
+    const Sybase = loadSybase();
     this.conn = new Sybase(
       this.config.host,
       this.config.port,

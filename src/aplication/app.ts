@@ -4,7 +4,6 @@ import AppApi from './app.api';
 import AppLinstens from './app.linstens';
 import ConnectionSqlServerMssql from '../infra/connection.sql.server.mssql';
 import AppDependencys from './app.dependencys';
-import AppFirebase from './app.firebase';
 
 export default class App {
   private static activeApp: App | null = null;
@@ -22,7 +21,6 @@ export default class App {
     }
 
     loadEnv(path.resolve(__dirname, '..'));
-    await AppFirebase.load();
     AppDependencys.load();
     this.initialized = true;
   }

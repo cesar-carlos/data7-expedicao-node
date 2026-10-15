@@ -3,20 +3,9 @@
  * Single source of truth to avoid typos between registration and resolve sites.
  */
 export const DI_BIND = {
-  CreatePixApiContract: 'CreatePixApiContract',
-
-  ContractBaseRepository_CobrancaPix: 'ContractBaseRepository<CobrancaPix>',
-  ContractBaseRepository_PagamentoPix: 'ContractBaseRepository<PagamentoPix>',
-
-  DataBaseActiveContract_DatabaseOnlineDto: 'DataBaseActiveContract<DatabaseOnlineDto>',
-
   LocalBaseRepositorySequenceContract_SequenceDto: 'LocalBaseRepositorySequenceContract<SequenceDto>',
 
   LocalBaseRepositoryContract_ItemLiberacaoBloqueioDto: 'LocalBaseRepositoryContract<ItemLiberacaoBloqueioDto>',
-  LocalBaseRepositoryContract_CobrancaDigitalPixDto: 'LocalBaseRepositoryContract<CobrancaDigitalPixDto>',
-  LocalBaseRepositoryContract_CobrancaDigitalTituloDto: 'LocalBaseRepositoryContract<CobrancaDigitalTituloDto>',
-  LocalBaseRepositoryContract_CobrancaDigitalPagamentoDto: 'LocalBaseRepositoryContract<CobrancaDigitalPagamentoDto>',
-  LocalBaseRepositoryContract_CobrancaDigitalDto: 'LocalBaseRepositoryContract<CobrancaDigitalDto>',
   LocalBaseRepositoryContract_EstoqueProdutoDto: 'LocalBaseRepositoryContract<EstoqueProdutoDto>',
   LocalBaseRepositoryContract_ProcessoExecutavelDto: 'LocalBaseRepositoryContract<ProcessoExecutavelDto>',
   LocalBaseRepositoryContract_UsuarioDto: 'LocalBaseRepositoryContract<UsuarioDto>',
