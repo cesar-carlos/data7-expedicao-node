@@ -13,9 +13,26 @@ import LiberacaoBloqueioDto from '../../dto/common.data/liberacao.bloqueio.dto';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
+type LiberacaoBloqueioRow = {
+  CodEmpresa: number;
+  CodFilial: number;
+  CodLiberacaoBloqueio: number;
+  Origem: string;
+  CodOrigem: number;
+  CodCliente: number;
+  DataHoraBloqueio: Date;
+  CodUsuarioBloqueio: number;
+  NomeUsuarioBloqueio: string;
+  EstacaoTrabalhoBloqueio: string;
+};
+
+type LiberacaoChild = { codLiberacaoBloqueio: number };
+
 export default class LocalSqlServerLiberacaoBloqueioRepository
   implements LocalBaseRepositoryContract<LiberacaoBloqueioDto>
 {
+  private static readonly liberacaoIdChunk = 400;
+
   private connect = ConnectionSqlServerMssql.getInstance();
   private itemLiberacaoBloqueioRepository = new LocalSqlServerItemLiberacaoBloqueioRepository();
   private itemLiberacaoBloqueioSituacaoRepository = new LocalSqlServerItemLiberacaoBloqueioSituacaoRepository();
@@ -28,33 +45,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.select.sql');
       const select = readSqlFileCached(patchSQL);
       const result = await pool.request().query(select);
-
-      if (result.recordset?.length === 0) return [];
-      const liberacoes: LiberacaoBloqueioDto[] = [];
-      for (const item of result.recordset) {
-        const params = [{ key: 'CodLiberacaoBloqueio', value: item.CodLiberacaoBloqueio }];
-        const itemLiberacaoBloqueio = await this.itemLiberacaoBloqueioRepository.selectWhere(params);
-        const itemLiberacaoBloqueioSituacao = await this.itemLiberacaoBloqueioSituacaoRepository.selectWhere(params);
-
-        const liberacao = new LiberacaoBloqueioDto({
-          codEmpresa: item.codEmpresa,
-          codFilial: item.Codfilial,
-          codLiberacaoBloqueio: item.CodLiberacaoBloqueio,
-          origem: item.Origem,
-          codOrigem: item.CodOrigem,
-          codCliente: item.CodCliente,
-          dataHoraBloqueio: item.DataHoraBloqueio,
-          codUsuarioBloqueio: item.CodUsuarioBloqueio,
-          nomeUsuarioBloqueio: item.NomeUsuarioBloqueio,
-          estacaoTrabalhoBloqueio: item.EstacaoTrabalhoBloqueio,
-          itemLiberacaoBloqueio: itemLiberacaoBloqueio ? itemLiberacaoBloqueio : [],
-          itemLiberacaoBloqueioSituacao: itemLiberacaoBloqueioSituacao ? itemLiberacaoBloqueioSituacao : [],
-        });
-
-        liberacoes.push(liberacao);
-      }
-
-      return liberacoes;
+      return await this.hydrate((result.recordset ?? []) as LiberacaoBloqueioRow[]);
     } catch (error: any) {
       throw new Error(error.message);
     } finally {
@@ -68,34 +59,7 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
       const patchSQL = path.resolve(this.basePatchSQL, 'liberacao.bloqueio.select.sql');
       const select = readSqlFileCached(patchSQL);
       const result = await executeSelectWhere(pool, select, params, undefined, undefined);
-
-      if (result.recordset?.length === 0) return [];
-      const liberacoes: LiberacaoBloqueioDto[] = [];
-
-      for (const item of result.recordset) {
-        const params = [{ key: 'CodLiberacaoBloqueio', value: item.CodLiberacaoBloqueio }];
-        const itemLiberacaoBloqueio = await this.itemLiberacaoBloqueioRepository.selectWhere(params);
-        const itemLiberacaoBloqueioSituacao = await this.itemLiberacaoBloqueioSituacaoRepository.selectWhere(params);
-
-        const liberacao = new LiberacaoBloqueioDto({
-          codEmpresa: item.CodEmpresa,
-          codFilial: item.CodFilial,
-          codLiberacaoBloqueio: item.CodLiberacaoBloqueio,
-          origem: item.Origem,
-          codOrigem: item.CodOrigem,
-          codCliente: item.CodCliente,
-          dataHoraBloqueio: item.DataHoraBloqueio,
-          codUsuarioBloqueio: item.CodUsuarioBloqueio,
-          nomeUsuarioBloqueio: item.NomeUsuarioBloqueio,
-          estacaoTrabalhoBloqueio: item.EstacaoTrabalhoBloqueio,
-          itemLiberacaoBloqueio: itemLiberacaoBloqueio ? itemLiberacaoBloqueio : [],
-          itemLiberacaoBloqueioSituacao: itemLiberacaoBloqueioSituacao ? itemLiberacaoBloqueioSituacao : [],
-        });
-
-        liberacoes.push(liberacao);
-      }
-
-      return liberacoes;
+      return await this.hydrate((result.recordset ?? []) as LiberacaoBloqueioRow[]);
     } catch (error: any) {
       throw new Error(error.message);
     } finally {
@@ -157,6 +121,56 @@ export default class LocalSqlServerLiberacaoBloqueioRepository
     } catch (error: any) {
       throw new Error(error.message);
     }
+  }
+
+  private async hydrate(rows: readonly LiberacaoBloqueioRow[]): Promise<LiberacaoBloqueioDto[]> {
+    if (rows.length === 0) return [];
+
+    const ids = rows.map((item) => Number(item.CodLiberacaoBloqueio));
+    const [itensPorId, situacoesPorId] = await Promise.all([
+      this.loadByLiberacaoIds(ids, (chunk) => this.itemLiberacaoBloqueioRepository.selectWhere(chunk)),
+      this.loadByLiberacaoIds(ids, (chunk) => this.itemLiberacaoBloqueioSituacaoRepository.selectWhere(chunk)),
+    ]);
+
+    return rows.map((item) => {
+      const id = Number(item.CodLiberacaoBloqueio);
+      return new LiberacaoBloqueioDto({
+        codEmpresa: item.CodEmpresa,
+        codFilial: item.CodFilial,
+        codLiberacaoBloqueio: item.CodLiberacaoBloqueio,
+        origem: item.Origem,
+        codOrigem: item.CodOrigem,
+        codCliente: item.CodCliente,
+        dataHoraBloqueio: item.DataHoraBloqueio,
+        codUsuarioBloqueio: item.CodUsuarioBloqueio,
+        nomeUsuarioBloqueio: item.NomeUsuarioBloqueio,
+        estacaoTrabalhoBloqueio: item.EstacaoTrabalhoBloqueio,
+        itemLiberacaoBloqueio: itensPorId.get(id) ?? [],
+        itemLiberacaoBloqueioSituacao: situacoesPorId.get(id) ?? [],
+      });
+    });
+  }
+
+  private async loadByLiberacaoIds<T extends LiberacaoChild>(
+    ids: readonly number[],
+    selectWhere: (params: Params[]) => Promise<T[]>,
+  ): Promise<Map<number, T[]>> {
+    const grouped = new Map<number, T[]>();
+    const uniqueIds = [...new Set(ids.filter((id) => Number.isFinite(id)))];
+    const chunkSize = LocalSqlServerLiberacaoBloqueioRepository.liberacaoIdChunk;
+
+    for (let offset = 0; offset < uniqueIds.length; offset += chunkSize) {
+      const chunk = uniqueIds.slice(offset, offset + chunkSize);
+      const children = await selectWhere([Params.in('CodLiberacaoBloqueio', chunk)]);
+      for (const child of children) {
+        const id = Number(child.codLiberacaoBloqueio);
+        const current = grouped.get(id);
+        if (current) current.push(child);
+        else grouped.set(id, [child]);
+      }
+    }
+
+    return grouped;
   }
 
   private async actonEntity(entity: LiberacaoBloqueioDto, sqlCommand: string): Promise<void> {

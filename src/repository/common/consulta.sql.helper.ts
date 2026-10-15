@@ -5,6 +5,20 @@ import { Param, Params, Pagination, OrderBy } from '../../contracts/local.base.p
 import ParamsCommonRepository from './params.common';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
+/**
+ * ORDER BY explícito quando o cliente pediu.
+ * ORDER BY (SELECT NULL) só existe para o OFFSET/FETCH, que o SQL Server recusa sem ordenação.
+ * Consulta sem página não ganha essa cláusula: o conjunto de linhas permanece o mesmo e o plano evita um sort à toa.
+ */
+export function applySelectOrdering(baseSql: string, orderBy: OrderBy | undefined, paginate: boolean): string {
+  const explicitOrder =
+    orderBy?.isValid() && orderBy.getFullOrderBy() ? `ORDER BY ${orderBy.getFullOrderBy()}` : '';
+
+  if (explicitOrder) return `${baseSql} ${explicitOrder}`;
+  if (paginate) return `${baseSql} ORDER BY (SELECT NULL)`;
+  return baseSql;
+}
+
 export async function executeSelectWhere(
   pool: ConnectionPool,
   selectSql: string,
@@ -14,11 +28,6 @@ export async function executeSelectWhere(
   expedicaoSepararConsulta?: boolean,
 ): Promise<{ recordset: any[] }> {
   try {
-    const orderClause =
-      orderBy?.isValid() && orderBy.getFullOrderBy()
-        ? `ORDER BY ${orderBy.getFullOrderBy()}`
-        : 'ORDER BY (SELECT NULL)';
-
     let baseSql: string;
     let applyToRequest: (req: Request) => void;
 
@@ -39,7 +48,8 @@ export async function executeSelectWhere(
       applyToRequest = pw.apply;
     }
 
-    let sqlText = `${baseSql} ${orderClause}`;
+    const sqlTextBase = applySelectOrdering(baseSql, orderBy, Boolean(pagination));
+    let sqlText = sqlTextBase;
     const req = pool.request();
     applyToRequest(req);
 
