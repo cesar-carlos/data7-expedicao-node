@@ -3,6 +3,8 @@ import { emitSocketError, resolveSocketErrorContext } from '../socket/socket.eve
 import SocketErrorCode from '../socket/protocol/socket.error.code';
 import { type SocketEventDefinition } from '../socket/protocol/socket.event.definition';
 import { logSocketLifecycle } from '../socket/protocol/socket.logger';
+import { instrumentServer, instrumentSocket } from '../socket/monitor/socket.monitor.instrument';
+import { getSocketMonitor, type SocketMonitor } from '../socket/monitor/socket.monitor';
 
 import UsuarioEvent from '../socket/usuario/usuario.event';
 import CarrinhoEvent from '../socket/carrinho/carrinho.event';
@@ -356,31 +358,40 @@ const SOCKET_EVENT_DEFINITIONS: SocketEventDefinition[] = [
 export default class AppSocket {
   constructor(private readonly io: SocketIOServer) {
     this.validateDefinitions();
+    instrumentServer(this.io, getSocketMonitor());
     this.initialize();
   }
 
   private initialize() {
+    const monitor = getSocketMonitor();
 
     this.io.on('connection', (socket: Socket) => {
+      let detach = (): void => undefined;
       try {
-        this.wrapSocketListeners(socket);
+        this.wrapSocketListeners(socket, monitor);
+        detach = instrumentSocket(socket, monitor);
         logSocketLifecycle('Socket client connected', {
           socketId: socket.id,
           status: 'connected',
         });
 
-        for (const definition of SOCKET_EVENT_DEFINITIONS) {
-          definition.register(this.io, socket);
-        }
-
-        socket.on('disconnect', () => {
+        socket.on('disconnect', (reason: unknown) => {
+          detach();
+          monitor.disconnect(socket.id, disconnectReason(reason));
           logSocketLifecycle('Socket client disconnected', {
             socketId: socket.id,
             status: 'disconnected',
+            reason: disconnectReason(reason),
           });
           socket.removeAllListeners();
         });
+
+        for (const definition of SOCKET_EVENT_DEFINITIONS) {
+          definition.register(this.io, socket);
+        }
       } catch (error) {
+        detach();
+        monitor.disconnect(socket.id, 'error');
         logSocketLifecycle(
           'Socket connection setup failed',
           {
@@ -395,15 +406,23 @@ export default class AppSocket {
     });
   }
 
-  private wrapSocketListeners(socket: Socket) {
+  private wrapSocketListeners(socket: Socket, monitor: SocketMonitor) {
     const originalOn = socket.on.bind(socket);
 
     socket.on = ((eventName: string, listener: (...args: unknown[]) => unknown) => {
       return originalOn(eventName, async (...args: unknown[]) => {
+        const startedAt = Date.now();
+        const skip = eventName === 'disconnect' || eventName === 'disconnecting';
         try {
           await listener(...args);
+          if (!skip) {
+            monitor.noteInbound(socket.id, eventName, args[0], startedAt, Date.now() - startedAt, false);
+          }
         } catch (error) {
-          if (eventName === 'disconnect') {
+          if (!skip) {
+            monitor.noteInbound(socket.id, eventName, args[0], startedAt, Date.now() - startedAt, true);
+          }
+          if (eventName === 'disconnect' || eventName === 'disconnecting') {
             logSocketLifecycle('Disconnect listener failed', {
               socketId: socket.id,
               status: 'error',
@@ -443,4 +462,11 @@ export default class AppSocket {
       }
     }
   }
+}
+
+function disconnectReason(reason: unknown): string {
+  if (typeof reason === 'string' && reason.trim().length > 0) {
+    return reason;
+  }
+  return 'unknown';
 }

@@ -10,7 +10,9 @@ const emptyStatus = (): ServerStatus => ({
   port: 0,
   message: 'Aguardando.',
   attempt: 0,
+  retryAt: null,
   restartRequired: false,
+  pendingChanges: [],
 });
 
 export const useMonitorStore = defineStore('monitor', {

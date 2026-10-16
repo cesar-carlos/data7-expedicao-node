@@ -1,19 +1,73 @@
 body
   background: #eef3f7
+  color: #163044
+
+h1, h2, h3, h4, h5, h6
+  line-height: 1.25
 
 .pad-page
   padding: var(--space-page)
 
 .page-head
-  margin-bottom: var(--space-stack)
+  display: flex
+  flex-wrap: nowrap
+  align-items: flex-start
+  justify-content: space-between
+  gap: var(--space-inline)
+  margin-bottom: var(--space-inline)
+
+.page-copy
+  min-width: 0
+  flex: 1 1 auto
+
+.page-title
+  margin: 0
+  font-size: 22px
+  font-weight: 600
+  letter-spacing: -0.01em
+  color: #163044
 
 .page-lead
-  max-width: 62rem
-  margin: var(--space-inline) 0 0
+  max-width: 40rem
+  margin: 4px 0 0
   color: #5c7080
+  line-height: 1.45
+
+.page-actions
+  display: flex
+  flex-wrap: wrap
+  align-items: center
+  gap: var(--space-inline)
 
 .page-body
   min-height: 0
+  width: 100%
+  flex-wrap: nowrap
+  overflow: auto
+
+.form-column
+  width: 100%
+  max-width: 720px
+
+.form-column > * + *
+  margin-top: var(--space-stack)
+
+.panel
+  background: #fff
+  border: 1px solid #d5e1ea
+  border-radius: 12px
+  padding: 20px
+
+.section-title
+  margin: 0 0 12px
+  font-size: 12px
+  font-weight: 700
+  letter-spacing: 0.06em
+  text-transform: uppercase
+  color: #6d8190
+
+.section-gap
+  margin-top: 20px
 
 .space-stack
   margin-top: var(--space-stack)
@@ -42,18 +96,170 @@ body
 .span-12
   flex: 1 1 100%
 
+.field-narrow
+  width: 100%
+  max-width: 16rem
+
+.shell-header
+  border-bottom: 1px solid #d5e1ea
+
+.brand-title
+  font-size: 15px
+  font-weight: 600
+  letter-spacing: 0
+  color: #163044
+
 .bar
   padding-left: var(--space-page)
   padding-right: var(--space-page)
   gap: var(--space-inline)
 
-.save-bar
-  position: sticky
-  bottom: 0
-  z-index: 2
-  background: #fff
-  padding-top: var(--space-stack)
-  padding-bottom: var(--space-xs)
+.status-pill
+  display: inline-flex
+  align-items: center
+  gap: 8px
+  height: 28px
+  padding: 0 12px
+  border-radius: 999px
+  background: #eef2f5
+  color: #5c7080
+  font-size: 13px
+  font-weight: 600
+
+.status-pill.running
+  background: #e5f6ec
+  color: #1f8a4c
+
+.status-pill.starting
+  background: #fff4df
+  color: #9a6408
+
+.status-pill.failed
+  background: #fdecec
+  color: #c23b3b
+
+.status-dot
+  width: 8px
+  height: 8px
+  border-radius: 50%
+  background: currentColor
+
+.restart-chip
+  display: inline-flex
+  align-items: center
+  height: 28px
+  padding: 0 12px
+  border-radius: 999px
+  background: #fff4df
+  color: #8a5a00
+  font-size: 13px
+  font-weight: 600
+
+.status-message
+  margin: 12px 0 0
+  font-size: 15px
+  color: #163044
+
+.status-meta
+  margin: 4px 0 0
+  color: #5c7080
+  font-size: 13px
+
+.restart-note
+  margin: 12px 0 0
+  padding: 10px 12px
+  border-radius: 8px
+  background: #fff4df
+  color: #6d4a08
+  font-size: 13px
+  line-height: 1.45
+
+.restart-note p
+  margin: 0
+
+.restart-list
+  margin: 8px 0 0
+  padding-left: 18px
+
+.restart-list li + li
+  margin-top: 4px
+
+.probe-result
+  margin: 12px 0 0
+  font-size: 13px
+  line-height: 1.45
+
+.probe-result.ok
+  color: #1f8a4c
+
+.probe-result.fail
+  color: #c23b3b
+
+.status-actions
+  margin-top: 16px
+  flex-wrap: wrap
+
+.config-block
+  margin-top: 20px
+  padding-top: 20px
+  border-top: 1px solid #e6eef3
+
+.setup-note
+  margin: 0
+  padding: 10px 12px
+  border-radius: 8px
+  background: #e7f4fa
+  color: #0c4f6c
+  font-size: 13px
+  line-height: 1.45
+
+.nav-drawer
+  background: #f7fafc
+
+.nav-group
+  margin-top: 8px
+  padding: 14px 22px 4px
+  font-size: 11px
+  font-weight: 700
+  letter-spacing: 0.06em
+  text-transform: uppercase
+  color: #7d90a0
+
+.nav-drawer .q-item
+  margin: 1px 10px
+  border-radius: 8px
+  min-height: 40px
+  color: #243848
+
+.nav-drawer .q-item:hover
+  background: #e8f1f6
+
+.nav-drawer .q-item.nav-active,
+.nav-drawer .q-item.nav-active:hover
+  background: #e5f3f8
+  color: #0e6f96
+  font-weight: 600
+
+.option-list .q-item
+  padding: 12px 0
+  min-height: 0
+
+.option-list .q-item + .q-item
+  border-top: 1px solid #e6eef3
+
+.option-list .q-item__label--caption
+  color: #5c7080
+  white-space: normal
+  line-height: 1.4
+
+.q-field--outlined .q-field__control
+  border-radius: 8px
+
+.q-field--outlined .q-field__control:before
+  border-color: #c5d3de
+
+.q-btn
+  border-radius: 8px
 
 .q-field--outlined.q-field--dense
   .q-field__control
@@ -89,29 +295,361 @@ body
 .q-btn.q-btn--dense
   padding: var(--space-button-y) var(--space-button-x)
 
-.save-progress
-  margin-bottom: var(--space-stack)
+.q-dialog__inner--minimized > .q-card
+  border-radius: 12px
+  min-width: 320px
 
-.nav-active
-  background: #e5f3f8
-  color: #0e6f96
-  font-weight: 600
+.log-count
+  color: #5c7080
+  font-size: 13px
 
-.log-area
+.log-toolbar
+  display: flex
+  flex-wrap: nowrap
+  align-items: center
+  gap: var(--space-inline)
+  margin-bottom: var(--space-inline)
+
+.log-search
+  flex: 1 1 16rem
+  min-width: 12rem
+
+.log-shell
+  display: flex
+  flex-direction: column
   height: 100%
   min-height: var(--space-log-min)
   background: #0c2433
-  color: #d7e6ef
-  border-radius: var(--space-inline)
+  border: 1px solid #d5e1ea
+  border-radius: 12px
+  overflow: hidden
+
+.log-scroll
+  flex: 1 1 auto
+  height: 100%
+  min-height: 0
+
+.log-empty
+  flex: 1 1 auto
+  display: flex
+  align-items: center
+  justify-content: center
+  min-height: var(--space-log-min)
+  color: #8eacbd
+  font-size: 14px
 
 .log-line
+  display: flex
+  gap: 12px
   padding: var(--space-log-y) var(--space-log-x)
+  color: #d7e6ef
   font-family: Consolas, "Cascadia Mono", monospace
   font-size: 12px
   line-height: 1.45
+
+.log-time
+  flex: 0 0 auto
+  color: #7f9aab
+  font-variant-numeric: tabular-nums
+
+.log-text
+  min-width: 0
   white-space: pre-wrap
   word-break: break-word
 
-.log-line.stderr,
-.log-line.err
+.log-line.stderr .log-text,
+.log-line.err .log-text
   color: #ffb4b4
+
+.metric-strip
+  display: grid
+  grid-template-columns: repeat(7, minmax(0, 1fr))
+  gap: var(--space-inline)
+  width: 100%
+  margin-bottom: var(--space-inline)
+
+.metric
+  background: #fff
+  border: 1px solid #d5e1ea
+  border-radius: 12px
+  padding: 8px 10px
+  min-width: 0
+
+.metric-value
+  font-size: 16px
+  font-weight: 600
+  font-variant-numeric: tabular-nums
+  color: #163044
+  white-space: nowrap
+  overflow: hidden
+  text-overflow: ellipsis
+
+.metric-label
+  margin-top: 2px
+  color: #5c7080
+  font-size: 12px
+
+.connections-scroll
+  flex: 1 1 auto
+  width: 100%
+  min-width: 0
+  min-height: 0
+  overflow: auto
+
+.connections-table
+  background: #fff
+  border-radius: 12px
+
+.connection-row
+  cursor: pointer
+
+.connections-table .connection-selected td:first-child
+  box-shadow: inset 3px 0 0 #0c4f6c
+
+.connections-table .connection-selected:not(.connection-warn):not(.connection-bad) td
+  background: #e5f3f8
+
+.connections-table .connection-warn td
+  background: #fff4df
+
+.connections-table .connection-bad td
+  background: #fdecec
+
+.q-dialog__inner--minimized > .trace-dialog
+  max-width: min(760px, calc(100vw - 48px))
+
+.trace-dialog
+  display: flex
+  flex-direction: column
+  width: min(760px, calc(100vw - 48px))
+  max-height: min(640px, calc(100vh - 48px))
+  border-radius: 12px
+  background: #fff
+
+.trace-dialog-head
+  display: flex
+  align-items: flex-start
+  justify-content: space-between
+  gap: 12px
+  padding: 16px 8px 12px 16px
+
+.trace-dialog-copy
+  min-width: 0
+
+.trace-kicker
+  margin: 0
+  font-size: 11px
+  font-weight: 700
+  letter-spacing: 0.06em
+  text-transform: uppercase
+  color: #6d8190
+
+.trace-dialog-title
+  margin: 2px 0 0
+  font-size: 20px
+  font-weight: 600
+  color: #163044
+
+.trace-identity
+  display: flex
+  flex-wrap: wrap
+  gap: 6px
+  margin-top: 8px
+
+.trace-identity span
+  border-radius: 999px
+  padding: 2px 8px
+  background: #eef3f7
+  color: #5c7080
+  font-size: 12px
+
+.trace-facts
+  display: grid
+  grid-template-columns: repeat(6, minmax(0, 1fr))
+  gap: 8px
+  padding: 0 16px 12px
+
+.trace-fact
+  min-width: 0
+  padding: 8px 10px
+  border-radius: 10px
+  background: #f4f8fb
+
+.trace-fact-value
+  overflow: hidden
+  color: #163044
+  font-size: 15px
+  font-weight: 600
+  font-variant-numeric: tabular-nums
+  white-space: nowrap
+  text-overflow: ellipsis
+
+.trace-fact-label
+  margin-top: 2px
+  color: #5c7080
+  font-size: 11px
+
+.trace-fact.warn .trace-fact-value
+  color: #9a6408
+
+.trace-fact.bad .trace-fact-value
+  color: #c23b3b
+
+.trace-dialog-body
+  display: flex
+  flex-direction: column
+  min-height: 0
+  padding: 12px 16px 16px
+  overflow: auto
+  border-top: 1px solid #e6eef3
+
+.trace-section-head
+  display: flex
+  align-items: baseline
+  justify-content: space-between
+  gap: 12px
+
+.trace-section-head h3
+  margin: 0
+  color: #163044
+  font-size: 13px
+  font-weight: 700
+
+.trace-section-head p
+  margin: 0
+  color: #5c7080
+  font-size: 12px
+  text-align: right
+
+.trace-empty
+  margin: 0
+  padding: 28px 8px
+  color: #5c7080
+  font-size: 13px
+  text-align: center
+
+.trace-dialog .trace-list
+  display: flex
+  flex-direction: column
+  gap: 8px
+  max-height: none
+  margin-top: 12px
+  overflow: visible
+
+.trace-entry
+  padding: 10px 12px
+  border: 1px solid #e6eef3
+  border-left-width: 3px
+  border-radius: 10px
+
+.trace-entry.in
+  border-left-color: #0e6f96
+
+.trace-entry.out
+  border-left-color: #1f8a4c
+
+.trace-entry-top
+  display: flex
+  flex-wrap: wrap
+  align-items: center
+  gap: 8px
+
+.trace-pill
+  border-radius: 999px
+  padding: 1px 8px
+  font-size: 11px
+  font-weight: 700
+
+.trace-pill.in
+  background: #e7f4fa
+  color: #0c4f6c
+
+.trace-pill.out
+  background: #e5f6ec
+  color: #1f8a4c
+
+.trace-entry-meta
+  color: #5c7080
+  font-size: 12px
+  font-variant-numeric: tabular-nums
+
+.trace-entry .trace-time
+  margin-left: auto
+
+.trace-dialog .trace-preview
+  margin: 8px 0 0
+  padding: 8px 10px
+  border-radius: 8px
+  background: #f4f8fb
+
+.trace-list,
+.disconnect-list
+  margin: 12px 0 0
+  padding: 0
+  list-style: none
+
+.trace-list
+  max-height: 320px
+  overflow: auto
+
+.trace-item + .trace-item,
+.disconnect-list li + li
+  border-top: 1px solid #e6eef3
+
+.trace-item,
+.disconnect-list li
+  padding: 8px 0
+  font-size: 13px
+  color: #163044
+
+.trace-head
+  display: flex
+  flex-wrap: wrap
+  align-items: center
+  gap: 8px
+
+.trace-time
+  color: #5c7080
+  font-variant-numeric: tabular-nums
+
+.trace-direction
+  font-weight: 600
+
+.trace-direction.in
+  color: #0e6f96
+
+.trace-direction.out
+  color: #1f8a4c
+
+.trace-event
+  font-weight: 600
+
+.trace-meta
+  color: #5c7080
+
+.trace-flag
+  border-radius: 999px
+  padding: 1px 8px
+  font-size: 11px
+  font-weight: 700
+
+.trace-flag.slow
+  background: #fff4df
+  color: #8a5a00
+
+.trace-flag.error
+  background: #fde8e8
+  color: #9d2c2c
+
+.trace-flag.broadcast
+  background: #e7f4fa
+  color: #0c4f6c
+
+.trace-preview
+  margin: 6px 0 0
+  white-space: pre-wrap
+  word-break: break-word
+  font-family: Consolas, "Cascadia Mono", monospace
+  font-size: 12px
+  line-height: 1.45
+  color: #163044

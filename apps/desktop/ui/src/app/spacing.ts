@@ -5,7 +5,7 @@ export class Spacing {
   static readonly md = 16;
   static readonly lg = 24;
 
-  static readonly page = Spacing.md;
+  static readonly page = Spacing.lg;
   static readonly inline = Spacing.sm;
   static readonly stack = Spacing.md;
   static readonly field = Spacing.md;

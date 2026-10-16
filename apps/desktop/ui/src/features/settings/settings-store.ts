@@ -1,5 +1,6 @@
 import type { DesktopConfig, PublicDesktopConfig } from '@shared/config-schema';
 import { defaultDesktopConfig } from '@shared/config-schema';
+import type { DatabaseProbeResult } from '@shared/ipc-contract';
 import { defineStore } from 'pinia';
 
 import { desktop, ipcError } from '../../shared/ipc/client';
@@ -24,6 +25,7 @@ export const useSettingsStore = defineStore('settings', {
     saving: false,
     savingId: 0,
     testing: false,
+    probe: null as DatabaseProbeResult | null,
     committed: '',
   }),
   actions: {
@@ -93,7 +95,9 @@ export const useSettingsStore = defineStore('settings', {
     async testConnection(): Promise<void> {
       const api = desktop();
       if (!api) {
-        notifyError('Abra o aplicativo para testar a conexão.');
+        const message = 'Abra o aplicativo para testar a conexão.';
+        this.probe = { ok: false, message };
+        notifyError(message);
         return;
       }
       this.testing = true;
@@ -102,13 +106,16 @@ export const useSettingsStore = defineStore('settings', {
           ...this.draft,
           databasePassword: this.password,
         });
+        this.probe = result;
         if (result.ok) {
           notifyOk(result.message);
           return;
         }
         notifyError(result.message);
       } catch (error) {
-        notifyError(ipcError(error));
+        const message = ipcError(error);
+        this.probe = { ok: false, message };
+        notifyError(message);
       } finally {
         this.testing = false;
       }

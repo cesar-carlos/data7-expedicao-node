@@ -1,5 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router';
 
+import ConnectionsPage from '../features/monitor/ConnectionsPage.vue';
 import ErrorLog from '../features/monitor/ErrorLog.vue';
 import LiveLog from '../features/monitor/LiveLog.vue';
 import DatabasePage from '../features/settings/DatabasePage.vue';
@@ -41,16 +42,25 @@ export const router = createRouter({
           meta: { title: 'Janela', lead: 'Estas opções não reiniciam a API. Iniciar com o Windows vale para todos os usuários.' },
         },
         {
+          path: 'conexoes',
+          name: 'connections',
+          component: ConnectionsPage,
+          meta: {
+            title: 'Conexões',
+            lead: 'Coletores ligados agora. A trilha mostra só o cliente aberto, com o texto cortado.',
+          },
+        },
+        {
           path: 'console',
           name: 'console',
           component: LiveLog,
-          meta: { title: 'Console' },
+          meta: { title: 'Console', lead: 'Saída ao vivo do processo do servidor.' },
         },
         {
           path: 'erros',
           name: 'errors',
           component: ErrorLog,
-          meta: { title: 'Erros' },
+          meta: { title: 'Erros', lead: 'Falhas gravadas nesta instalação.' },
         },
       ],
     },

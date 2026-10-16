@@ -9,6 +9,20 @@ const ERROR_VIEW_LIMIT = 500;
 const MAX_ERROR_BYTES = 2 * 1024 * 1024;
 const ROTATED_FILES = 3;
 
+const STORED_ERROR_LINE = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,3})?Z) (.*)$/;
+
+/** Separa o instante gravado no arquivo do texto da falha. */
+export function splitStoredErrorLine(raw: string): { at: string; text: string } {
+  const match = STORED_ERROR_LINE.exec(raw);
+  if (!match?.[1] || match[2] === undefined) {
+    return { at: '', text: raw };
+  }
+  if (Number.isNaN(new Date(match[1]).getTime())) {
+    return { at: '', text: raw };
+  }
+  return { at: match[1], text: match[2] };
+}
+
 function isErrorText(stream: 'out' | 'err', text: string): boolean {
   if (stream === 'err') {
     return true;
@@ -78,7 +92,7 @@ export class LogBuffer {
   }
 
   exportText(): string {
-    return this.errors.map((line) => `${line.at} ${line.text}`).join('\n');
+    return this.errors.map((line) => (line.at ? `${line.at} ${line.text}` : line.text)).join('\n');
   }
 
   private push(stream: 'out' | 'err', text: string): LogLine {
@@ -145,12 +159,13 @@ export class LogBuffer {
         .split(/\r?\n/)
         .filter((line) => line.trim().length > 0);
       const tail = lines.slice(-ERROR_VIEW_LIMIT);
-      for (const text of tail) {
+      for (const raw of tail) {
+        const stored = splitStoredErrorLine(raw);
         this.errors.push({
           id: this.nextId++,
-          at: '',
+          at: stored.at,
           stream: 'err',
-          text,
+          text: stored.text,
           error: true,
         });
       }

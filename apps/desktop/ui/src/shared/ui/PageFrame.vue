@@ -15,8 +15,13 @@ function pageStyle(offset: number): { minHeight: string; height: string } {
 <template>
   <q-page class="column pad-page" :style-fn="pageStyle">
     <div class="page-head">
-      <h1 class="text-h5 text-weight-medium q-my-none">{{ title }}</h1>
-      <p v-if="lead" class="page-lead">{{ lead }}</p>
+      <div class="page-copy">
+        <h1 class="page-title">{{ title }}</h1>
+        <p v-if="lead" class="page-lead">{{ lead }}</p>
+      </div>
+      <div v-if="$slots.actions" class="page-actions">
+        <slot name="actions" />
+      </div>
     </div>
     <div class="column col page-body">
       <slot />

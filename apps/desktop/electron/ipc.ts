@@ -2,6 +2,7 @@ import fs from 'fs';
 
 import { BrowserWindow, dialog, ipcMain } from 'electron';
 
+import { readSocketDetail, readSocketSnapshot, stoppedSocketDetailView, stoppedSocketMonitorView } from './socket-monitor-client';
 import type { DesktopConfig } from '../shared/config-schema';
 import { toPublicConfig } from '../shared/config-schema';
 import { importExistingEnv, readConfig, readSnapshot, saveIncomingConfig, type StoredSnapshot } from './config-store';
@@ -76,5 +77,24 @@ export function registerIpc(deps: IpcDeps): void {
     }
     fs.writeFileSync(result.filePath, deps.logs.exportText(), 'utf8');
     return result.filePath;
+  });
+
+  ipcMain.handle('sockets:snapshot', () => {
+    const status = deps.supervisor.current();
+    if (!status.portOpen) {
+      return stoppedSocketMonitorView();
+    }
+    return readSocketSnapshot(status.port);
+  });
+
+  ipcMain.handle('sockets:detail', (_event, socketId: unknown) => {
+    const status = deps.supervisor.current();
+    if (!status.portOpen) {
+      return stoppedSocketDetailView();
+    }
+    if (typeof socketId !== 'string') {
+      return stoppedSocketDetailView('Cliente inválido.');
+    }
+    return readSocketDetail(status.port, socketId);
   });
 }

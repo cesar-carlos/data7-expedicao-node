@@ -9,6 +9,7 @@ const showPassword = ref(false);
 </script>
 
 <template>
+  <h2 class="section-title">Endereço</h2>
   <div class="field-grid">
     <div class="span-6">
       <q-input v-model="store.draft.databaseHost" outlined dense hide-bottom-space label="Host" @blur="store.saveOnExit()" />
@@ -25,16 +26,18 @@ const showPassword = ref(false);
         @blur="store.saveOnExit()"
       />
     </div>
-    <div class="span-6">
+    <div class="span-12">
       <q-input v-model="store.draft.databaseName" outlined dense hide-bottom-space label="Banco" @blur="store.saveOnExit()" />
     </div>
+  </div>
+  <h2 class="section-title section-gap">Acesso</h2>
+  <div class="field-grid">
     <div class="span-6">
       <q-input v-model="store.draft.databaseUser" outlined dense hide-bottom-space label="Usuário" @blur="store.saveOnExit()" />
     </div>
-    <div class="span-12 row items-center gap-inline">
+    <div class="span-6">
       <q-input
         v-model="store.password"
-        class="col"
         :type="showPassword ? 'text' : 'password'"
         outlined
         dense
@@ -45,23 +48,22 @@ const showPassword = ref(false);
         @blur="store.saveOnExit()"
       >
         <template #append>
-          <q-icon
-            :name="showPassword ? 'visibility_off' : 'visibility'"
-            class="cursor-pointer"
-            @click="showPassword = !showPassword"
-          />
+          <q-icon :name="showPassword ? 'visibility_off' : 'visibility'" class="cursor-pointer" @click="showPassword = !showPassword" />
         </template>
       </q-input>
-      <q-btn
-        type="button"
-        dense
-        no-caps
-        outline
-        color="primary"
-        label="Testar conexão"
-        :loading="store.testing"
-        @click="store.testConnection()"
-      />
     </div>
+  </div>
+  <div class="section-gap">
+    <q-btn
+      type="button"
+      dense
+      no-caps
+      outline
+      color="primary"
+      label="Testar conexão"
+      :loading="store.testing"
+      @click="store.testConnection()"
+    />
+    <p v-if="store.probe" class="probe-result" :class="store.probe.ok ? 'ok' : 'fail'">{{ store.probe.message }}</p>
   </div>
 </template>

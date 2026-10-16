@@ -2,7 +2,7 @@
 import { computed, onMounted, ref } from 'vue';
 
 import brandIcon from '../assets/icon.png';
-import { statusColor, statusLabel } from '../features/monitor/status-label';
+import StatusPill from '../features/monitor/StatusPill.vue';
 import { useMonitorStore } from '../features/monitor/monitor-store';
 import { useSettingsStore } from '../features/settings/settings-store';
 import { notifyError } from '../shared/ui/notify';
@@ -24,6 +24,7 @@ const groups = [
   {
     label: 'Acompanhamento',
     pages: [
+      { name: 'connections', label: 'Conexões', icon: 'hub' },
       { name: 'console', label: 'Console', icon: 'terminal' },
       { name: 'errors', label: 'Erros', icon: 'error_outline' },
     ],
@@ -48,23 +49,25 @@ onMounted(() => {
 
 <template>
   <q-layout view="hHh lpR fff">
-    <q-header elevated class="bg-primary text-white">
+    <q-header class="bg-white text-dark shell-header">
       <q-toolbar class="bar">
         <q-avatar rounded size="28px">
           <img :src="brandIcon" alt="" />
         </q-avatar>
-        <q-toolbar-title class="text-weight-medium">Data7 Expedição Servidor</q-toolbar-title>
+        <q-toolbar-title class="brand-title">Data7 Expedição Servidor</q-toolbar-title>
         <q-space />
-        <q-badge :color="statusColor[monitor.status.state]">{{ statusLabel[monitor.status.state] }}</q-badge>
-        <q-badge v-if="monitor.status.restartRequired" color="warning" text-color="dark">Reinicie para aplicar</q-badge>
+        <span v-if="monitor.status.restartRequired" class="restart-chip" :title="monitor.status.pendingChanges.join('\n')">
+          Reinicie para aplicar
+        </span>
+        <StatusPill :state="monitor.status.state" />
       </q-toolbar>
+      <q-linear-progress v-if="settings.saving" indeterminate color="primary" size="2px" class="absolute-bottom" />
     </q-header>
 
-    <q-drawer v-model="drawer" behavior="desktop" bordered :width="248">
-      <q-list padding>
-        <template v-for="(group, index) in groups" :key="group.label">
-          <q-separator v-if="index > 0" />
-          <q-item-label header>{{ group.label }}</q-item-label>
+    <q-drawer v-model="drawer" class="nav-drawer" behavior="desktop" bordered :width="240">
+      <q-list>
+        <template v-for="group in groups" :key="group.label">
+          <q-item-label header class="nav-group">{{ group.label }}</q-item-label>
           <q-item
             v-for="page in group.pages"
             :key="page.name"

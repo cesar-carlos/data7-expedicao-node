@@ -8,6 +8,7 @@ import {
   redactText,
   retryDelayMs,
   serviceConfigChanged,
+  serviceConfigDiff,
   toProcessEnv,
   toPublicConfig,
 } from '../../../apps/desktop/shared/config-schema';
@@ -80,6 +81,14 @@ describe('desktop config schema', () => {
     const previous = { ...defaultDesktopConfig, databaseName: 'Estacao', databaseUser: 'sa' };
     expect(serviceConfigChanged(previous, { ...previous, closeToTray: false })).toBe(false);
     expect(serviceConfigChanged(previous, { ...previous, serverPort: 3010 })).toBe(true);
+    expect(serviceConfigDiff(previous, { ...previous, closeToTray: false })).toEqual([]);
+    expect(serviceConfigDiff(previous, { ...previous, serverPort: 3010, databasePassword: 'nova' })).toEqual([
+      'Porta: 3001 → 3010',
+      'Senha',
+    ]);
+    expect(
+      serviceConfigDiff(previous, { ...previous, separarListenEnabled: false }).some((line) => line.includes('ligada → desligada')),
+    ).toBe(true);
   });
 
   it('stops retrying after repeated failures and redacts secrets', () => {

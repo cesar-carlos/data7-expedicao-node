@@ -7,12 +7,13 @@ const store = useSettingsStore();
 
 <template>
   <PageFrame>
-    <q-form @submit.prevent="store.saveOnExit()">
-      <q-linear-progress v-if="store.saving" indeterminate color="primary" class="save-progress" />
-      <q-banner v-if="store.needsSetup" rounded class="bg-blue-1 text-dark space-below">
+    <div class="form-column">
+      <p v-if="store.needsSetup" class="setup-note">
         Os campos gravam ao sair. Se havia um .env da loja, os valores já vieram preenchidos.
-      </q-banner>
-      <slot />
-    </q-form>
+      </p>
+      <q-form class="panel" @submit.prevent="store.saveOnExit()">
+        <slot />
+      </q-form>
+    </div>
   </PageFrame>
 </template>

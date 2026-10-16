@@ -59,7 +59,7 @@ function write(level: SocketLogLevel, message: string, metadata?: SocketLogMetad
   console.log('[socket]', payload);
 }
 
-function getSlowEventThresholdMs(): number {
+export function getSlowEventThresholdMs(): number {
   const raw = Number(process.env.SOCKET_SLOW_EVENT_MS);
   return Number.isFinite(raw) && raw > 0 ? raw : 250;
 }

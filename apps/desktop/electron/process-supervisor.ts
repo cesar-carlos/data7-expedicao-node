@@ -1,7 +1,7 @@
 import { spawn, type ChildProcess } from 'child_process';
 import path from 'path';
 
-import { retryDelayMs, serviceConfigChanged, type DesktopConfig } from '../shared/config-schema';
+import { retryDelayMs, serviceConfigChanged, serviceConfigDiff, type DesktopConfig } from '../shared/config-schema';
 import type { LogLine, ServerStatus } from '../shared/ipc-contract';
 import type { LogBuffer } from './log-buffer';
 import { probePort } from './port-check';
@@ -27,6 +27,7 @@ export class ProcessSupervisor {
   private retryTimer: NodeJS.Timeout | null = null;
   private probeTimer: NodeJS.Timeout | null = null;
   private launched: DesktopConfig | null = null;
+  private retryAt: number | null = null;
   private status: ServerStatus = {
     state: 'stopped',
     portOpen: false,
@@ -34,7 +35,9 @@ export class ProcessSupervisor {
     port: 0,
     message: 'Configure e salve para iniciar.',
     attempt: 0,
+    retryAt: null,
     restartRequired: false,
+    pendingChanges: [],
   };
 
   constructor(private readonly deps: SupervisorDeps) {}
@@ -64,6 +67,7 @@ export class ProcessSupervisor {
     }
     this.intentionalStop = false;
     this.failures = 0;
+    this.retryAt = null;
     this.clearRetry();
     this.spawnChild();
     return this.status;
@@ -71,6 +75,7 @@ export class ProcessSupervisor {
 
   async stop(): Promise<ServerStatus> {
     this.intentionalStop = true;
+    this.retryAt = null;
     this.clearRetry();
     const child = this.child;
     if (!child) {
@@ -117,6 +122,7 @@ export class ProcessSupervisor {
   }
 
   private spawnChild(): void {
+    this.retryAt = null;
     const env = this.deps.materializeEnv();
     const config = this.deps.readConfig();
     if (!env || !config) {
@@ -191,6 +197,7 @@ export class ProcessSupervisor {
       const delay = retryDelayMs(this.failures);
       const detail = code === null ? 'O processo foi encerrado.' : `O processo saiu com código ${code}.`;
       if (delay === null) {
+        this.retryAt = null;
         this.publish({
           state: 'failed',
           portOpen: false,
@@ -201,12 +208,13 @@ export class ProcessSupervisor {
         });
         return;
       }
+      this.retryAt = Date.now() + delay;
       this.publish({
         state: 'starting',
         portOpen: false,
         pid: null,
         port: config.serverPort,
-        message: `${detail} Nova tentativa em ${Math.round(delay / 1000)}s.`,
+        message: detail,
         attempt: this.failures,
       });
       this.retryTimer = setTimeout(() => this.spawnChild(), delay);
@@ -311,8 +319,21 @@ export class ProcessSupervisor {
     return serviceConfigChanged(this.launched, current);
   }
 
-  private publish(status: Omit<ServerStatus, 'restartRequired'>): void {
-    this.status = { ...status, restartRequired: this.restartRequired() };
+  private pendingChanges(): string[] {
+    const current = this.deps.readConfig();
+    if (!this.child || !this.launched || !current) {
+      return [];
+    }
+    return serviceConfigDiff(this.launched, current);
+  }
+
+  private publish(status: Omit<ServerStatus, 'restartRequired' | 'pendingChanges' | 'retryAt'>): void {
+    this.status = {
+      ...status,
+      retryAt: this.retryAt,
+      restartRequired: this.restartRequired(),
+      pendingChanges: this.pendingChanges(),
+    };
     this.deps.onStatus(this.status);
   }
 }

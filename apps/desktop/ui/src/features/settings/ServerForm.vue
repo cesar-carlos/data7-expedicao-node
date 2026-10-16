@@ -7,7 +7,7 @@ const store = useSettingsStore();
 
 <template>
   <div class="field-grid">
-    <div class="span-6">
+    <div class="field-narrow">
       <q-input
         :model-value="store.draft.serverPort"
         type="number"

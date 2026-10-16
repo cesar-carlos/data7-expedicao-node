@@ -80,9 +80,44 @@ export function mergeSavedConfig(previous: DesktopConfig | null, input: unknown)
   };
 }
 
-export function serviceConfigChanged(previous: DesktopConfig, next: DesktopConfig): boolean {
+const SERVICE_FIELD_LABEL: Record<string, string> = {
+  serverPort: 'Porta',
+  databaseHost: 'Host',
+  databasePort: 'Porta do SQL Server',
+  databaseName: 'Banco',
+  databaseUser: 'Usuário',
+  separarListenEnabled: 'Escuta periódica',
+  separarListenIntervalMs: 'Intervalo da escuta',
+  separarListenLimit: 'Limite da escuta',
+  separarListenDebug: 'Log de depuração',
+  sqlHeartbeatIntervalMs: 'Intervalo do SQL',
+};
+
+function changedServiceKeys(previous: DesktopConfig, next: DesktopConfig): (keyof DesktopConfig)[] {
   const keys = Object.keys(next) as (keyof DesktopConfig)[];
-  return keys.some((key) => !WINDOW_KEYS.includes(key as (typeof WINDOW_KEYS)[number]) && previous[key] !== next[key]);
+  return keys.filter((key) => !WINDOW_KEYS.includes(key as (typeof WINDOW_KEYS)[number]) && previous[key] !== next[key]);
+}
+
+export function serviceConfigChanged(previous: DesktopConfig, next: DesktopConfig): boolean {
+  return changedServiceKeys(previous, next).length > 0;
+}
+
+function formatConfigValue(value: DesktopConfig[keyof DesktopConfig]): string {
+  if (typeof value === 'boolean') {
+    return value ? 'ligada' : 'desligada';
+  }
+  return String(value);
+}
+
+/** Diferenças que só entram no processo depois de reiniciar. A senha não aparece. */
+export function serviceConfigDiff(previous: DesktopConfig, next: DesktopConfig): string[] {
+  return changedServiceKeys(previous, next).map((key) => {
+    if (key === 'databasePassword') {
+      return 'Senha';
+    }
+    const label = SERVICE_FIELD_LABEL[key] ?? key;
+    return `${label}: ${formatConfigValue(previous[key])} → ${formatConfigValue(next[key])}`;
+  });
 }
 
 export function parseEnvText(text: string): Record<string, string> {

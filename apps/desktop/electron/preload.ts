@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
 
-import type { DesktopApi, LogLine, ServerStatus } from '../shared/ipc-contract';
+import type { DesktopApi, LogLine, ServerStatus, SocketMonitorDetailView, SocketMonitorView } from '../shared/ipc-contract';
 
 const api: DesktopApi = {
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -16,6 +16,8 @@ const api: DesktopApi = {
   clearLiveView: () => ipcRenderer.invoke('logs:clear-live'),
   clearErrorView: () => ipcRenderer.invoke('logs:clear-errors'),
   exportErrors: () => ipcRenderer.invoke('logs:export'),
+  getSocketSnapshot: () => ipcRenderer.invoke('sockets:snapshot') as Promise<SocketMonitorView>,
+  getSocketDetail: (socketId) => ipcRenderer.invoke('sockets:detail', socketId) as Promise<SocketMonitorDetailView>,
   onLog: (listener) => {
     const wrapped = (_event: IpcRendererEvent, line: LogLine) => listener(line);
     ipcRenderer.on('logs:line', wrapped);
