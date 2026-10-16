@@ -21,15 +21,20 @@ SELECT
    )QuantidadeItensSeparacao,
     SUM(ise.Quantidade) QuantidadeItensSetor,
     SUM(ise.QuantidadeSeparacao) QuantidadeItensSeparacaoSetor,
-   (SELECT CASE WHEN COUNT(*) > 0 THEN 'S' ELSE 'N' END
-    FROM Expedicao.CarrinhoPercursoEstagio cpe
-    WHERE cpe.CodEmpresa = se.CodEmpresa
-      AND cpe.CodOrigem = se.CodSepararEstoque
-      AND cpe.CodUsuarioInicio = sut.CodUsuario
-      AND cpe.Situacao NOT IN ('CANCELADA')
-	  AND cpe.DataFinalizacao IS NULL
-	  AND cpe.Origem = 'SE'
-   )CarrinhosAbertosUsuario,
+   (SELECT CASE
+        WHEN EXISTS (
+          SELECT 1
+          FROM Expedicao.CarrinhoPercursoEstagio cpe
+          WHERE cpe.Origem = 'SE'
+            AND cpe.CodEmpresa = se.CodEmpresa
+            AND cpe.CodOrigem = se.CodSepararEstoque
+            AND cpe.CodUsuarioInicio = sut.CodUsuario
+            AND cpe.Situacao NOT IN ('CANCELADA')
+            AND cpe.DataFinalizacao IS NULL
+        ) THEN 'S'
+        ELSE 'N'
+      END
+   ) CarrinhosAbertosUsuario,
     sut.CodUsuario,
     sut.NomeUsuario,
     sut.EstacaoSeparacao
