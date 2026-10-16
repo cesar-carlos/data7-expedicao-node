@@ -110,4 +110,4 @@ if (-not (Test-Path $Iscc)) {
 & $Iscc (Join-Path $Desktop 'installer\setup.iss')
 if ($LASTEXITCODE -ne 0) { throw 'ISCC falhou' }
 
-Write-Host "Instalador em $(Join-Path $Desktop 'dist\Data7Expedicao-Setup.exe')"
+Write-Host "Instalador em $(Join-Path $Desktop 'dist\Data7 Expedicao Server-Setup.exe')"

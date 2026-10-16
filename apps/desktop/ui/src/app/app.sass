@@ -415,16 +415,46 @@ h1, h2, h3, h4, h5, h6
 .connections-table .connection-bad td
   background: #fdecec
 
+.connections-toolbar
+  display: flex
+  align-items: center
+  gap: 12px
+  margin-bottom: 12px
+
+.connections-table .health-cell
+  white-space: normal
+  max-width: 14rem
+
+.connections-table .health-warn
+  color: #9a6408
+  font-weight: 600
+
+.connections-table .health-bad
+  color: #c23b3b
+  font-weight: 600
+
+.trace-fold
+  margin-top: 6px
+  padding: 0
+  border: 0
+  background: transparent
+  color: #0e6f96
+  font: inherit
+  font-size: 12px
+  font-weight: 700
+  cursor: pointer
+
 .q-dialog__inner--minimized > .trace-dialog
-  max-width: min(760px, calc(100vw - 48px))
+  max-width: min(880px, calc(100vw - 48px))
 
 .trace-dialog
   display: flex
   flex-direction: column
-  width: min(760px, calc(100vw - 48px))
-  max-height: min(640px, calc(100vh - 48px))
+  width: min(880px, calc(100vw - 48px))
+  max-height: min(720px, calc(100vh - 48px))
   border-radius: 12px
   background: #fff
+  overflow: hidden
 
 .trace-dialog-head
   display: flex
@@ -498,16 +528,58 @@ h1, h2, h3, h4, h5, h6
 .trace-dialog-body
   display: flex
   flex-direction: column
+  flex: 1 1 auto
   min-height: 0
   padding: 12px 16px 16px
   overflow: auto
   border-top: 1px solid #e6eef3
 
+.trace-tools
+  display: flex
+  flex-direction: column
+  gap: 8px
+  padding: 0 16px 12px
+
+.trace-filters
+  display: flex
+  flex-wrap: wrap
+  align-items: center
+  gap: 6px
+
+.trace-event-search
+  flex: 1 1 10rem
+  min-width: 8rem
+
+.trace-scroll
+  position: relative
+  display: flex
+  flex-direction: column
+  flex: 1 1 auto
+  min-height: 0
+
+.trace-jump
+  position: absolute
+  z-index: 2
+  left: 50%
+  bottom: 12px
+  transform: translateX(-50%)
+  border: 0
+  border-radius: 999px
+  padding: 6px 12px
+  background: #0e6f96
+  color: #fff
+  font: inherit
+  font-size: 12px
+  font-weight: 700
+  cursor: pointer
+  box-shadow: 0 6px 16px rgba(14, 111, 150, 0.28)
+
 .trace-section-head
   display: flex
+  flex-wrap: wrap
   align-items: baseline
   justify-content: space-between
-  gap: 12px
+  gap: 8px 12px
 
 .trace-section-head h3
   margin: 0
@@ -517,6 +589,7 @@ h1, h2, h3, h4, h5, h6
 
 .trace-section-head p
   margin: 0
+  flex: 1 1 16rem
   color: #5c7080
   font-size: 12px
   text-align: right
@@ -581,6 +654,9 @@ h1, h2, h3, h4, h5, h6
   padding: 8px 10px
   border-radius: 8px
   background: #f4f8fb
+  white-space: pre-wrap
+  word-break: break-word
+  overflow-wrap: anywhere
 
 .trace-list,
 .disconnect-list

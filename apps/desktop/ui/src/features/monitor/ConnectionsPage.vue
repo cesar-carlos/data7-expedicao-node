@@ -1,10 +1,22 @@
 <script setup lang="ts">
 import type { QTableColumn } from 'quasar';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import type { SocketClientSummary, SocketDisconnectRecord, SocketTraceEntry } from '@shared/ipc-contract';
 import PageFrame from '../../shared/ui/PageFrame.vue';
+import { notifyError, notifyOk } from '../../shared/ui/notify';
 import { useConnectionsStore } from './connections-store';
+import {
+  PREVIEW_FOLDED_LINES,
+  TRACE_HISTORY_LIMIT,
+  WATCHED_PREVIEW_KB,
+  foldTracePreview,
+  formatTracePreview,
+  matchesTraceFilter,
+  traceClipboardText,
+  traceTailKey,
+  type TraceFilter,
+} from './trace-text';
 
 /** Row turns amber above this RTT. Engine.IO pings every 25s; a healthy LAN hop stays well under it. */
 const RTT_WARN_MS = 500;
@@ -13,15 +25,62 @@ const STALE_EVENT_MS = 120_000;
 
 const store = useConnectionsStore();
 const detailOpen = ref(false);
+const traceBody = ref<HTMLElement | null>(null);
+const followTail = ref(true);
+const unseenTail = ref(false);
+const directionFilter = ref<TraceFilter['direction']>('all');
+const onlyErrors = ref(false);
+const onlySlow = ref(false);
+const eventQuery = ref<string | null>('');
+const clientQuery = ref<string | null>('');
+const expandedPreview = ref<Record<string, boolean>>({});
+let ignoreTraceScroll = false;
+let tailMark = '';
+let filterTouch = false;
 let timer: ReturnType<typeof setInterval> | undefined;
 let ticking = false;
 let queued = false;
 
 const clients = computed(() => store.snapshot?.clients ?? []);
+const visibleClients = computed(() => {
+  const query = (clientQuery.value ?? '').trim().toLowerCase();
+  if (!query) {
+    return clients.value;
+  }
+  return clients.value.filter((row) => clientSearchText(row).includes(query));
+});
+const clientFilterActive = computed(() => (clientQuery.value ?? '').trim().length > 0);
+const tableEmptyLabel = computed(() =>
+  clients.value.length === 0 ? 'Nenhum coletor conectado.' : 'Nenhum coletor com esse texto.',
+);
 const disconnects = computed(() => store.snapshot?.recentDisconnects ?? []);
 const websocketCount = computed(() => clients.value.filter((client) => client.transport === 'websocket').length);
 const pollingCount = computed(() => clients.value.filter((client) => client.transport === 'polling').length);
 const trace = computed(() => orderedTrace(store.detail?.trace ?? []));
+const traceFilter = computed<TraceFilter>(() => ({
+  direction: directionFilter.value,
+  errors: onlyErrors.value,
+  slow: onlySlow.value,
+  query: eventQuery.value ?? '',
+}));
+const visibleTrace = computed(() =>
+  trace.value.filter((entry) =>
+    matchesTraceFilter(
+      { ...entry, event: eventLabel(store.selectedId, entry.event), preview: entry.preview },
+      traceFilter.value,
+    ),
+  ),
+);
+const traceFilterActive = computed(
+  () => directionFilter.value !== 'all' || onlyErrors.value || onlySlow.value || (eventQuery.value ?? '').trim().length > 0,
+);
+const traceCaption = computed(() => {
+  const limit = `Últimas ${TRACE_HISTORY_LIMIT} mensagens. O texto do cliente aberto guarda até ${WATCHED_PREVIEW_KB} KB e só entra enquanto ele está aberto.`;
+  if (!traceFilterActive.value || trace.value.length === 0) {
+    return limit;
+  }
+  return `${visibleTrace.value.length} de ${trace.value.length}. ${limit}`;
+});
 
 const columns: QTableColumn<SocketClientSummary>[] = [
   { name: 'socketId', label: 'Cliente', field: (row) => shortId(row.socketId), align: 'left' },
@@ -32,6 +91,7 @@ const columns: QTableColumn<SocketClientSummary>[] = [
   { name: 'lastDurationMs', label: 'Processamento', field: (row) => milliseconds(row.lastDurationMs), align: 'right' },
   { name: 'errorCount', label: 'Erros', field: 'errorCount', align: 'right' },
   { name: 'rttMs', label: 'RTT', field: (row) => milliseconds(row.rttMs), align: 'right' },
+  { name: 'health', label: 'Situação', field: (row) => healthReason(row) || '—', align: 'left' },
 ];
 
 const updatedLabel = computed(() => (store.snapshot ? `Atualizado ${clock(store.snapshot.now)}` : ''));
@@ -57,6 +117,7 @@ onUnmounted(() => {
 });
 
 async function openDetail(socketId: string): Promise<void> {
+  resetTraceTools();
   detailOpen.value = true;
   if (store.selectedId !== socketId) {
     store.detail = null;
@@ -70,9 +131,120 @@ watch(detailOpen, (open) => {
   if (open) {
     return;
   }
+  resetTraceTools();
   store.selectedId = '';
   store.detail = null;
   store.detailMessage = '';
+});
+
+function atBottom(element: HTMLElement): boolean {
+  return element.scrollHeight - element.scrollTop - element.clientHeight <= 2;
+}
+
+function onTraceScroll(): void {
+  const element = traceBody.value;
+  if (!element || ignoreTraceScroll) {
+    return;
+  }
+  followTail.value = atBottom(element);
+  if (followTail.value) {
+    unseenTail.value = false;
+    tailMark = traceTailKey(visibleTrace.value);
+  }
+}
+
+function resetTraceTools(): void {
+  followTail.value = true;
+  unseenTail.value = false;
+  directionFilter.value = 'all';
+  onlyErrors.value = false;
+  onlySlow.value = false;
+  eventQuery.value = '';
+  expandedPreview.value = {};
+  tailMark = '';
+  filterTouch = false;
+}
+
+function toggleDirection(direction: 'in' | 'out'): void {
+  filterTouch = true;
+  directionFilter.value = directionFilter.value === direction ? 'all' : direction;
+}
+
+function toggleErrors(): void {
+  filterTouch = true;
+  onlyErrors.value = !onlyErrors.value;
+}
+
+function toggleSlow(): void {
+  filterTouch = true;
+  onlySlow.value = !onlySlow.value;
+}
+
+function resumeTail(): void {
+  followTail.value = true;
+  unseenTail.value = false;
+  tailMark = traceTailKey(visibleTrace.value);
+  void followTrace();
+}
+
+async function copyTraceEntry(entry: SocketTraceEntry): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(
+      traceClipboardText({
+        direction: directionLabel(entry.direction),
+        event: eventLabel(store.selectedId, entry.event),
+        at: clock(entry.at),
+        preview: entry.preview,
+      }),
+    );
+    notifyOk('Copiado.');
+  } catch (error) {
+    notifyError(error instanceof Error ? error.message : String(error));
+  }
+}
+
+function scrollTraceToEnd(): void {
+  const element = traceBody.value;
+  if (!element) {
+    return;
+  }
+  ignoreTraceScroll = true;
+  element.scrollTop = element.scrollHeight;
+  requestAnimationFrame(() => {
+    const current = traceBody.value;
+    if (current) {
+      current.scrollTop = current.scrollHeight;
+    }
+    requestAnimationFrame(() => {
+      ignoreTraceScroll = false;
+    });
+  });
+}
+
+async function followTrace(): Promise<void> {
+  await nextTick();
+  if (!followTail.value) {
+    return;
+  }
+  scrollTraceToEnd();
+}
+
+watch(eventQuery, () => {
+  filterTouch = true;
+});
+
+watch(visibleTrace, (entries) => {
+  const mark = traceTailKey(entries);
+  const fromFilter = filterTouch;
+  filterTouch = false;
+  if (!fromFilter && !followTail.value && mark !== tailMark && mark !== '') {
+    unseenTail.value = true;
+  }
+  if (followTail.value || fromFilter) {
+    unseenTail.value = false;
+    tailMark = mark;
+  }
+  void followTrace();
 });
 
 async function tick(): Promise<void> {
@@ -235,6 +407,41 @@ function reasonLabel(reason: string): string {
   return reason;
 }
 
+function previewIdentity(entry: SocketTraceEntry, index: number): string {
+  return `${entry.at}|${entry.direction}|${entry.event}|${index}`;
+}
+
+function shownPreview(entry: SocketTraceEntry, index: number): { text: string; expandable: boolean; expanded: boolean; hiddenLines: number } {
+  const formatted = formatTracePreview(entry.preview);
+  const expanded = expandedPreview.value[previewIdentity(entry, index)] === true;
+  const folded = foldTracePreview(formatted, expanded);
+  return {
+    text: folded.text,
+    expandable: formatted.split('\n').length > PREVIEW_FOLDED_LINES,
+    expanded,
+    hiddenLines: folded.hiddenLines,
+  };
+}
+
+function togglePreview(entry: SocketTraceEntry, index: number): void {
+  const key = previewIdentity(entry, index);
+  expandedPreview.value = { ...expandedPreview.value, [key]: expandedPreview.value[key] !== true };
+}
+
+function clientSearchText(row: SocketClientSummary): string {
+  return [row.lastSession, row.address, row.socketId, transportLabel(row.transport), eventLabel(row.socketId, row.lastEvent), healthReason(row)]
+    .join(' ')
+    .toLowerCase();
+}
+
+function healthTextClass(row: SocketClientSummary, column: string): string {
+  if (column !== 'health') {
+    return '';
+  }
+  const tone = healthTone(row);
+  return tone ? `health-${tone}` : '';
+}
+
 function directionLabel(direction: SocketTraceEntry['direction']): string {
   return direction === 'in' ? 'Recebido' : 'Enviado';
 }
@@ -287,17 +494,30 @@ function disconnectKey(record: SocketDisconnectRecord): string {
     </div>
 
     <template v-else>
+      <div class="connections-toolbar">
+        <q-input
+          v-model="clientQuery"
+          class="log-search"
+          dense
+          outlined
+          hide-bottom-space
+          clearable
+          placeholder="Sessão, IP ou evento"
+          aria-label="Buscar coletor"
+        />
+        <span v-if="clientFilterActive" class="log-count">{{ visibleClients.length }} de {{ clients.length }}</span>
+      </div>
       <q-table
         class="connections-table"
         flat
         bordered
         dense
         hide-pagination
-        :rows="clients"
+        :rows="visibleClients"
         :columns="columns"
         row-key="socketId"
         :pagination="{ rowsPerPage: 0 }"
-        no-data-label="Nenhum coletor conectado."
+        :no-data-label="tableEmptyLabel"
       >
         <template #body="props">
           <q-tr
@@ -306,8 +526,8 @@ function disconnectKey(record: SocketDisconnectRecord): string {
             :title="healthReason(props.row) || undefined"
             @click="openDetail(props.row.socketId)"
           >
-            <q-td v-for="col in props.cols" :key="col.name" :props="props">
-              <span :title="col.name === 'socketId' ? props.row.socketId : undefined">{{ col.value }}</span>
+            <q-td v-for="col in props.cols" :key="col.name" :props="props" :class="{ 'health-cell': col.name === 'health' }">
+              <span :class="healthTextClass(props.row, col.name)" :title="col.name === 'socketId' ? props.row.socketId : undefined">{{ col.value }}</span>
             </q-td>
           </q-tr>
         </template>
@@ -325,7 +545,7 @@ function disconnectKey(record: SocketDisconnectRecord): string {
     </template>
     </div>
 
-    <q-dialog v-model="detailOpen">
+    <q-dialog v-model="detailOpen" @show="followTrace">
       <q-card class="trace-dialog">
         <div class="trace-dialog-head">
           <div class="trace-dialog-copy">
@@ -366,30 +586,61 @@ function disconnectKey(record: SocketDisconnectRecord): string {
             <div class="trace-fact-label">RTT</div>
           </div>
         </div>
-        <div class="trace-dialog-body">
+        <div class="trace-tools">
           <div class="trace-section-head">
             <h3>Mensagens</h3>
-            <p v-if="store.detail && trace.length > 0">O texto entra só nas mensagens de agora, enquanto este cliente está aberto.</p>
+            <p v-if="store.detail">{{ traceCaption }}</p>
           </div>
-          <p v-if="store.detailMessage" class="trace-empty">{{ store.detailMessage }}</p>
-          <p v-else-if="!store.detail" class="trace-empty">Carregando a trilha.</p>
-          <p v-else-if="trace.length === 0" class="trace-empty">Nenhuma mensagem deste cliente.</p>
-          <ul v-else class="trace-list">
-            <li v-for="(entry, index) in trace" :key="`${entry.at}-${index}`" class="trace-entry" :class="entry.direction">
-              <div class="trace-entry-top">
-                <span class="trace-pill" :class="entry.direction">{{ directionLabel(entry.direction) }}</span>
-                <span class="trace-event">{{ eventLabel(store.selectedId, entry.event) }}</span>
-                <span v-if="entry.slow" class="trace-flag slow">Lento</span>
-                <span v-if="entry.error" class="trace-flag error">Erro</span>
-                <span v-if="entry.broadcast" class="trace-flag broadcast">Todos</span>
-                <span class="trace-entry-meta">
-                  <template v-if="entry.durationMs != null">{{ milliseconds(entry.durationMs) }} · </template>{{ formatBytes(entry.bytes) }}
-                </span>
-                <span class="trace-time">{{ clock(entry.at) }}</span>
-              </div>
-              <pre v-if="entry.preview" class="trace-preview">{{ entry.preview }}</pre>
-            </li>
-          </ul>
+          <div class="trace-filters">
+            <q-btn dense no-caps unelevated :outline="directionFilter !== 'in'" color="primary" label="Recebido" @click="toggleDirection('in')" />
+            <q-btn dense no-caps unelevated :outline="directionFilter !== 'out'" color="primary" label="Enviado" @click="toggleDirection('out')" />
+            <q-btn dense no-caps unelevated :outline="!onlyErrors" color="primary" label="Erro" @click="toggleErrors()" />
+            <q-btn dense no-caps unelevated :outline="!onlySlow" color="primary" label="Lento" @click="toggleSlow()" />
+            <q-input
+              v-model="eventQuery"
+              class="trace-event-search"
+              dense
+              outlined
+              hide-bottom-space
+              clearable
+              placeholder="Evento ou texto"
+              aria-label="Filtrar por evento ou texto"
+            />
+          </div>
+        </div>
+        <div class="trace-scroll">
+          <div ref="traceBody" class="trace-dialog-body" @scroll="onTraceScroll">
+            <p v-if="store.detailMessage" class="trace-empty">{{ store.detailMessage }}</p>
+            <p v-else-if="!store.detail" class="trace-empty">Carregando a trilha.</p>
+            <p v-else-if="trace.length === 0" class="trace-empty">Nenhuma mensagem deste cliente.</p>
+            <p v-else-if="visibleTrace.length === 0" class="trace-empty">Nenhuma mensagem com esse filtro.</p>
+            <ul v-else class="trace-list">
+              <li v-for="(entry, index) in visibleTrace" :key="`${entry.at}-${entry.direction}-${index}`" class="trace-entry" :class="entry.direction">
+                <div class="trace-entry-top">
+                  <span class="trace-pill" :class="entry.direction">{{ directionLabel(entry.direction) }}</span>
+                  <span class="trace-event">{{ eventLabel(store.selectedId, entry.event) }}</span>
+                  <span v-if="entry.slow" class="trace-flag slow">Lento</span>
+                  <span v-if="entry.error" class="trace-flag error">Erro</span>
+                  <span v-if="entry.broadcast" class="trace-flag broadcast">Todos</span>
+                  <span class="trace-entry-meta">
+                    <template v-if="entry.durationMs != null">{{ milliseconds(entry.durationMs) }} · </template>{{ formatBytes(entry.bytes) }}
+                  </span>
+                  <span class="trace-time">{{ clock(entry.at) }}</span>
+                  <q-btn flat round dense icon="content_copy" aria-label="Copiar mensagem" @click="copyTraceEntry(entry)" />
+                </div>
+                <pre v-if="entry.preview" class="trace-preview">{{ shownPreview(entry, index).text }}</pre>
+                <button
+                  v-if="entry.preview && shownPreview(entry, index).expandable"
+                  type="button"
+                  class="trace-fold"
+                  @click="togglePreview(entry, index)"
+                >
+                  {{ shownPreview(entry, index).expanded ? 'Recolher' : `Expandir (+${shownPreview(entry, index).hiddenLines} linhas)` }}
+                </button>
+              </li>
+            </ul>
+          </div>
+          <button v-if="unseenTail" type="button" class="trace-jump" @click="resumeTail">Novas mensagens</button>
         </div>
       </q-card>
     </q-dialog>

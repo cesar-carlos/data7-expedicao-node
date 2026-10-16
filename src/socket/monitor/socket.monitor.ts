@@ -3,7 +3,8 @@ import { monitorEventLoopDelay } from 'perf_hooks';
 import { getSlowEventThresholdMs } from '../protocol/socket.logger';
 
 export const TRACE_LIMIT = 50;
-export const PREVIEW_CHARS = 1024;
+/** Body text stored only while that client is open in the monitor. */
+export const PREVIEW_CHARS = 16 * 1024;
 export const WATCH_LEASE_MS = 3000;
 export const SESSION_LABEL_CHARS = 24;
 export const DISCONNECT_LIMIT = 20;

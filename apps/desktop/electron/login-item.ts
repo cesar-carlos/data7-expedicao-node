@@ -2,24 +2,57 @@ import { execFile } from 'child_process';
 
 import { app } from 'electron';
 
-const RUN_KEY = 'HKLM\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run';
-const VALUE_NAME = 'Data7 Expedicao';
+import {
+  RUN_KEY,
+  VALUE_NAME,
+  loginItemAction,
+  parseRegQueryData,
+  registryFailure,
+  type RunValueState,
+} from './login-item-registry';
 
-function runReg(args: string[]): Promise<void> {
-  return new Promise((resolve, reject) => {
-    execFile('reg.exe', args, { windowsHide: true }, (error, _stdout, stderr) => {
+const ADMIN_REQUIRED = 'O início com o Windows para todos os usuários precisa de administrador.';
+
+type RegOutcome =
+  | { ok: true; stdout: string }
+  | { ok: false; kind: ReturnType<typeof registryFailure>; error: Error };
+
+function runReg(args: string[]): Promise<RegOutcome> {
+  return new Promise((resolve) => {
+    execFile('reg.exe', args, { windowsHide: true }, (error, stdout, stderr) => {
       if (!error) {
-        resolve();
+        resolve({ ok: true, stdout: stdout ?? '' });
         return;
       }
-      const text = `${stderr ?? ''} ${error.message}`;
-      if (args[0] === 'delete' && /unable to find|não pôde localizar|não foi possível encontrar/i.test(text)) {
-        resolve();
-        return;
-      }
-      reject(error);
+      const failure = error instanceof Error ? error : new Error(String(error));
+      const text = `${stderr ?? ''}\n${stdout ?? ''}\n${failure.message}`;
+      resolve({ ok: false, kind: registryFailure(text), error: failure });
     });
   });
+}
+
+async function readRunValue(): Promise<{ state: RunValueState; data?: string }> {
+  const queried = await runReg(['query', RUN_KEY, '/v', VALUE_NAME]);
+  if (queried.ok) {
+    return { state: 'present', data: parseRegQueryData(queried.stdout, VALUE_NAME) };
+  }
+  if (queried.kind === 'not-found') {
+    return { state: 'absent' };
+  }
+  if (queried.kind === 'denied') {
+    return { state: 'denied' };
+  }
+  throw queried.error;
+}
+
+async function requireRegistryWrite(outcome: RegOutcome): Promise<void> {
+  if (outcome.ok || outcome.kind === 'not-found') {
+    return;
+  }
+  if (outcome.kind === 'denied') {
+    throw new Error(ADMIN_REQUIRED);
+  }
+  throw outcome.error;
 }
 
 /** Início automático de todos os usuários. A chave HKCU antiga é removida. */
@@ -34,11 +67,15 @@ export async function applyLoginItem(startWithWindows: boolean): Promise<void> {
     args: ['--hidden'],
   });
 
-  if (!startWithWindows) {
-    await runReg(['delete', RUN_KEY, '/v', VALUE_NAME, '/f']);
+  const desired = `"${process.execPath}" --hidden`;
+  const current = await readRunValue();
+  const action = loginItemAction(startWithWindows, current.state, current.data, desired);
+  if (action === 'none') {
     return;
   }
-
-  const command = `"${process.execPath}" --hidden`;
-  await runReg(['add', RUN_KEY, '/v', VALUE_NAME, '/t', 'REG_SZ', '/d', command, '/f']);
+  if (action === 'delete') {
+    await requireRegistryWrite(await runReg(['delete', RUN_KEY, '/v', VALUE_NAME, '/f']));
+    return;
+  }
+  await requireRegistryWrite(await runReg(['add', RUN_KEY, '/v', VALUE_NAME, '/t', 'REG_SZ', '/d', desired, '/f']));
 }

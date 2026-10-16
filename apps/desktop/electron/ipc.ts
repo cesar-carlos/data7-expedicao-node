@@ -45,7 +45,7 @@ export function registerIpc(deps: IpcDeps): void {
       await applyLoginItem(saved.config.startWithWindows);
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
-      throw new Error(`Configuração gravada. O início com o Windows para todos os usuários precisa de administrador. ${detail}`);
+      throw new Error(`Configuração gravada. ${detail}`);
     }
     return { config: toPublicConfig(saved.config), needsSetup: false };
   });
