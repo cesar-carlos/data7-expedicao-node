@@ -8,6 +8,7 @@ import {
   loginItemAction,
   parseRegQueryData,
   registryFailure,
+  textFromRegistryBytes,
   type RunValueState,
 } from './login-item-registry';
 
@@ -17,16 +18,25 @@ type RegOutcome =
   | { ok: true; stdout: string }
   | { ok: false; kind: ReturnType<typeof registryFailure>; error: Error };
 
+function asBytes(chunk: string | Buffer | undefined): Uint8Array {
+  if (!chunk) {
+    return new Uint8Array();
+  }
+  return typeof chunk === 'string' ? Buffer.from(chunk) : chunk;
+}
+
 function runReg(args: string[]): Promise<RegOutcome> {
   return new Promise((resolve) => {
-    execFile('reg.exe', args, { windowsHide: true }, (error, stdout, stderr) => {
+    execFile('reg.exe', args, { windowsHide: true, encoding: 'buffer' }, (error, stdout, stderr) => {
+      const stdoutText = textFromRegistryBytes(asBytes(stdout));
+      const stderrText = textFromRegistryBytes(asBytes(stderr));
       if (!error) {
-        resolve({ ok: true, stdout: stdout ?? '' });
+        resolve({ ok: true, stdout: stdoutText });
         return;
       }
       const failure = error instanceof Error ? error : new Error(String(error));
-      const text = `${stderr ?? ''}\n${stdout ?? ''}\n${failure.message}`;
-      resolve({ ok: false, kind: registryFailure(text), error: failure });
+      const kind = registryFailure(`${stderrText}\n${stdoutText}`);
+      resolve({ ok: false, kind, error: failure });
     });
   });
 }

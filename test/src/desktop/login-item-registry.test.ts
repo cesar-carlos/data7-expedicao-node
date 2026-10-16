@@ -4,6 +4,7 @@ import {
   loginItemAction,
   parseRegQueryData,
   registryFailure,
+  textFromRegistryBytes,
 } from '../../../apps/desktop/electron/login-item-registry';
 
 const desired = '"C:\\Program Files\\Data7 Expedicao\\Data7Expedicao.exe" --hidden';
@@ -32,6 +33,18 @@ describe('login item registry', () => {
     expect(registryFailure('ERROR: The system was unable to find the specified registry key or value.')).toBe('not-found');
     expect(registryFailure('ERRO: Acesso negado.')).toBe('denied');
     expect(registryFailure('ERROR: Access is denied.')).toBe('denied');
+  });
+
+  it('reads the Portuguese not-found message reg.exe writes in code page 850', () => {
+    const bytes = Buffer.from(
+      '4552524f3a204f2073697374656d61206ec66f2070936465206c6f63616c697a6172206120636861766520646f20526567697374726f206f752076616c6f722065737065636966696361646f2e0d0a',
+      'hex',
+    );
+
+    const text = textFromRegistryBytes(bytes);
+
+    expect(text).toContain('não pôde localizar');
+    expect(registryFailure(text)).toBe('not-found');
   });
 
   it('reads the startup command from reg query output', () => {

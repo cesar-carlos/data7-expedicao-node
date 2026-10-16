@@ -1,4 +1,5 @@
 #define MyAppName "Data7 Expedicao"
+#define MyShortcutName "Data7 Expedicao Server"
 #define MyAppVersion "1.1.2"
 #define MyAppExeName "Data7Expedicao.exe"
 #define MyAppId "{{7E4C1A2B-9D30-4F55-8A61-2C8B0E4D6F19}"
@@ -37,8 +38,8 @@ Name: "{commonappdata}\data7-expedicao\logs"; Permissions: users-modify; Flags: 
 Source: "..\dist\win-unpacked\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
-Name: "{commonprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
+Name: "{commonprograms}\{#MyShortcutName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyShortcutName}"
+Name: "{commondesktop}\{#MyShortcutName}"; Filename: "{app}\{#MyAppExeName}"; Comment: "{#MyShortcutName}"
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "Iniciar Data7 Expedicao"; Flags: nowait postinstall skipifsilent
