@@ -1,14 +1,18 @@
 import sql, { ConnectionPool } from 'mssql';
 import type { Request } from 'mssql';
 
-import { Param, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { Param, Params, Pagination, OrderBy, DEFAULT_PAGE_LIMIT } from '../../contracts/local.base.params';
 import ParamsCommonRepository from './params.common';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
+/** Consulta sem página explícita fica no teto padrão. Sem isso o SELECT devolve a view inteira. */
+export function resolveSelectPagination(pagination: Pagination | undefined): Pagination {
+  return pagination ?? Pagination.create(DEFAULT_PAGE_LIMIT);
+}
+
 /**
  * ORDER BY explícito quando o cliente pediu.
- * ORDER BY (SELECT NULL) só existe para o OFFSET/FETCH, que o SQL Server recusa sem ordenação.
- * Consulta sem página não ganha essa cláusula: o conjunto de linhas permanece o mesmo e o plano evita um sort à toa.
+ * ORDER BY (SELECT NULL) existe para o OFFSET/FETCH, que o SQL Server recusa sem ordenação.
  */
 export function applySelectOrdering(baseSql: string, orderBy: OrderBy | undefined, paginate: boolean): string {
   const explicitOrder =
@@ -26,6 +30,7 @@ export async function executeSelectWhere(
   pagination: Pagination | undefined,
   orderBy: OrderBy | undefined,
   expedicaoSepararConsulta?: boolean,
+  applyExtra?: (request: Request) => void,
 ): Promise<{ recordset: any[] }> {
   try {
     let baseSql: string;
@@ -48,16 +53,38 @@ export async function executeSelectWhere(
       applyToRequest = pw.apply;
     }
 
-    const sqlTextBase = applySelectOrdering(baseSql, orderBy, Boolean(pagination));
-    let sqlText = sqlTextBase;
+    const page = resolveSelectPagination(pagination);
+    const sqlTextBase = applySelectOrdering(baseSql, orderBy, true);
     const req = pool.request();
     applyToRequest(req);
+    applyExtra?.(req);
+    req.input('__pg_offset', sql.Int, page.offset);
+    req.input('__pg_limit', sql.Int, page.limit);
+    const sqlText = `${sqlTextBase} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`;
 
-    if (pagination) {
-      req.input('__pg_offset', sql.Int, Number(pagination.offset));
-      req.input('__pg_limit', sql.Int, Number(pagination.limit));
-      sqlText += ` OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`;
-    }
+    return await req.query(sqlText);
+  } catch (e) {
+    throw wrapRepositoryError(e);
+  }
+}
+
+/** Vários grupos no mesmo SELECT: (a AND b) OR (c AND d), com limite. */
+export async function executeSelectWhereAny(
+  pool: ConnectionPool,
+  selectSql: string,
+  groups: Params[][],
+  pagination: Pagination | undefined,
+  orderBy: OrderBy | undefined,
+): Promise<{ recordset: any[] }> {
+  try {
+    const where = ParamsCommonRepository.buildWhereAnyOf(groups as Param[][]);
+    const baseSql = where.whereFragment ? `${selectSql} WHERE ${where.whereFragment}` : selectSql;
+    const page = resolveSelectPagination(pagination);
+    const req = pool.request();
+    where.apply(req);
+    req.input('__pg_offset', sql.Int, page.offset);
+    req.input('__pg_limit', sql.Int, page.limit);
+    const sqlText = `${applySelectOrdering(baseSql, orderBy, true)} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`;
 
     return await req.query(sqlText);
   } catch (e) {

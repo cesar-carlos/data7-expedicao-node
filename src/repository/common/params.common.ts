@@ -40,6 +40,106 @@ function inferSqlType(value: unknown): sql.ISqlType | sql.ISqlTypeFactory {
   return sql.NVarChar(sql.MAX);
 }
 
+type SqlBinding = {
+  name: string;
+  type: sql.ISqlType | sql.ISqlTypeFactory;
+  value: unknown;
+};
+
+type WhereBuild = {
+  fragments: string[];
+  bindings: SqlBinding[];
+  nextName: () => string;
+};
+
+function applyBindings(bindings: SqlBinding[]): (request: Request) => void {
+  return (request: Request) => {
+    for (const binding of bindings) {
+      request.input(binding.name, binding.type as Parameters<Request['input']>[1], binding.value);
+    }
+  };
+}
+
+function appendComparison(
+  param: Param,
+  state: WhereBuild,
+  context?: ExpedicaoSepararConsultaContext,
+): void {
+  if (!Params.isValid(param)) return;
+
+  const op = param.operator || ComparisonOperator.EQUALS;
+  if (op === ComparisonOperator.CUSTOM) {
+    throw new Error('operator CUSTOM requer ParamsCommonRepository.build (legacy)');
+  }
+
+  if (context === 'expedicao-separar-consulta' && param.key === 'CodSetorEstoque') {
+    assertSqlIdentifier(param.key, 'WHERE');
+    const name = state.nextName();
+    state.bindings.push({ name, type: inferSqlType(param.value), value: param.value });
+    state.fragments.push(`EXISTS (
+          SELECT *
+          FROM Expedicao.ItemSepararEstoque ise
+          WHERE ise.CodEmpresa = SepararConsulta.CodEmpresa
+            AND ise.CodSepararEstoque = SepararConsulta.CodSepararEstoque
+            AND ise.CodSetorEstoque = @${name}
+        )`);
+    return;
+  }
+
+  assertSqlIdentifier(param.key, 'WHERE');
+
+  if (op === ComparisonOperator.IS_NULL) {
+    state.fragments.push(`${param.key} IS NULL`);
+    return;
+  }
+  if (op === ComparisonOperator.IS_NOT_NULL) {
+    state.fragments.push(`${param.key} IS NOT NULL`);
+    return;
+  }
+
+  if (op === ComparisonOperator.IN || op === ComparisonOperator.NOT_IN) {
+    const vals = Array.isArray(param.value) ? param.value : [];
+    if (vals.length === 0) {
+      state.fragments.push(op === ComparisonOperator.IN ? '1=0' : '1=1');
+      return;
+    }
+    const placeholders = vals.map((value) => {
+      const name = state.nextName();
+      state.bindings.push({ name, type: inferSqlType(value), value });
+      return `@${name}`;
+    });
+    const comb = op === ComparisonOperator.IN ? 'IN' : 'NOT IN';
+    state.fragments.push(`${param.key} ${comb} (${placeholders.join(', ')})`);
+    return;
+  }
+
+  if (op === ComparisonOperator.BETWEEN) {
+    const pair = param.value as [unknown, unknown];
+    if (!Array.isArray(pair) || pair.length !== 2) {
+      throw new Error('BETWEEN requer array [min, max]');
+    }
+    const minName = state.nextName();
+    const maxName = state.nextName();
+    state.bindings.push({ name: minName, type: inferSqlType(pair[0]), value: pair[0] });
+    state.bindings.push({ name: maxName, type: inferSqlType(pair[1]), value: pair[1] });
+    state.fragments.push(`${param.key} BETWEEN @${minName} AND @${maxName}`);
+    return;
+  }
+
+  const name = state.nextName();
+  state.bindings.push({ name, type: inferSqlType(param.value), value: param.value });
+  state.fragments.push(`${param.key} ${op} @${name}`);
+}
+
+function newWhereBuild(): WhereBuild {
+  let index = 0;
+  return {
+    fragments: [],
+    bindings: [],
+    nextName: () => `wp_${index++}`,
+  };
+}
+
 export default class ParamsCommonRepository {
   static build(params: Params[] | string[] | string[][]) {
     if (typeof params === 'string') return params;
@@ -133,87 +233,46 @@ export default class ParamsCommonRepository {
       return { whereFragment: '', apply: () => {} };
     }
 
-    let idx = 0;
-    const nextName = () => `wp_${idx++}`;
-    const bindings: Array<{ name: string; type: sql.ISqlType | sql.ISqlTypeFactory; value: unknown }> = [];
-    const fragments: string[] = [];
-
-    for (const p of params) {
-      if (!Params.isValid(p)) continue;
-
-      const op = p.operator || ComparisonOperator.EQUALS;
-
-      if (op === ComparisonOperator.CUSTOM) {
-        throw new Error('operator CUSTOM requer ParamsCommonRepository.build (legacy)');
-      }
-
-      if (context === 'expedicao-separar-consulta' && p.key === 'CodSetorEstoque') {
-        assertSqlIdentifier(p.key, 'WHERE');
-        const name = nextName();
-        bindings.push({ name, type: inferSqlType(p.value), value: p.value });
-        fragments.push(`EXISTS (
-          SELECT *
-          FROM Expedicao.ItemSepararEstoque ise
-          WHERE ise.CodEmpresa = SepararConsulta.CodEmpresa
-            AND ise.CodSepararEstoque = SepararConsulta.CodSepararEstoque
-            AND ise.CodSetorEstoque = @${name}
-        )`);
-        continue;
-      }
-
-      assertSqlIdentifier(p.key, 'WHERE');
-
-      if (op === ComparisonOperator.IS_NULL) {
-        fragments.push(`${p.key} IS NULL`);
-        continue;
-      }
-      if (op === ComparisonOperator.IS_NOT_NULL) {
-        fragments.push(`${p.key} IS NOT NULL`);
-        continue;
-      }
-
-      if (op === ComparisonOperator.IN || op === ComparisonOperator.NOT_IN) {
-        const vals = Array.isArray(p.value) ? p.value : [];
-        if (vals.length === 0) {
-          fragments.push(op === ComparisonOperator.IN ? '1=0' : '1=1');
-          continue;
-        }
-        const placeholders = vals.map((v) => {
-          const name = nextName();
-          bindings.push({ name, type: inferSqlType(v), value: v });
-          return `@${name}`;
-        });
-        const comb = op === ComparisonOperator.IN ? 'IN' : 'NOT IN';
-        fragments.push(`${p.key} ${comb} (${placeholders.join(', ')})`);
-        continue;
-      }
-
-      if (op === ComparisonOperator.BETWEEN) {
-        const pair = p.value as [unknown, unknown];
-        if (!Array.isArray(pair) || pair.length !== 2) {
-          throw new Error('BETWEEN requer array [min, max]');
-        }
-        const a = nextName();
-        const b = nextName();
-        bindings.push({ name: a, type: inferSqlType(pair[0]), value: pair[0] });
-        bindings.push({ name: b, type: inferSqlType(pair[1]), value: pair[1] });
-        fragments.push(`${p.key} BETWEEN @${a} AND @${b}`);
-        continue;
-      }
-
-      const name = nextName();
-      bindings.push({ name, type: inferSqlType(p.value), value: p.value });
-      fragments.push(`${p.key} ${op} @${name}`);
+    const state = newWhereBuild();
+    for (const param of params) {
+      appendComparison(param, state, context);
     }
 
-    const whereFragment = fragments.join(' AND ');
     return {
-      whereFragment,
-      apply: (request: Request) => {
-        for (const b of bindings) {
-          request.input(b.name, b.type as Parameters<Request['input']>[1], b.value);
-        }
-      },
+      whereFragment: state.fragments.join(' AND '),
+      apply: applyBindings(state.bindings),
+    };
+  }
+
+  /**
+   * Cada grupo vira um AND. Os grupos se juntam com OR.
+   * Serve para "qualquer um destes pares", sem transformar pares diferentes num AND só.
+   */
+  static buildWhereAnyOf(groups: Param[][]): ParameterizedWhere {
+    const state = newWhereBuild();
+    const clauses: string[] = [];
+
+    for (const group of groups) {
+      const start = state.fragments.length;
+      for (const param of group) {
+        appendComparison(param, state);
+      }
+      const added = state.fragments.slice(start);
+      if (added.length === 1) {
+        clauses.push(added[0]);
+      } else if (added.length > 1) {
+        clauses.push(`(${added.join(' AND ')})`);
+      }
+      state.fragments.length = start;
+    }
+
+    if (clauses.length === 0) {
+      return { whereFragment: '1=0', apply: () => {} };
+    }
+
+    return {
+      whereFragment: clauses.join(' OR '),
+      apply: applyBindings(state.bindings),
     };
   }
 

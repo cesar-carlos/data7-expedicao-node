@@ -1,9 +1,26 @@
 import { describe, expect, it } from 'vitest';
 
 import { OrderBy } from '../../../../src/contracts/local.base.orderby';
-import { applySelectOrdering } from '../../../../src/repository/common/consulta.sql.helper';
+import { DEFAULT_PAGE_LIMIT, Pagination } from '../../../../src/contracts/local.base.pagination';
+import { applySelectOrdering, resolveSelectPagination } from '../../../../src/repository/common/consulta.sql.helper';
 
 const selectSql = 'SELECT CodEmpresa FROM LiberacaoBloqueio';
+
+describe('resolveSelectPagination', () => {
+  it('should use the default page when the caller omits pagination', () => {
+    const page = resolveSelectPagination(undefined);
+
+    expect(page.limit).toBe(DEFAULT_PAGE_LIMIT);
+    expect(page.offset).toBe(0);
+  });
+
+  it('should keep an explicit page', () => {
+    const page = resolveSelectPagination(Pagination.create(20, 40, 3));
+
+    expect(page.limit).toBe(20);
+    expect(page.offset).toBe(40);
+  });
+});
 
 describe('applySelectOrdering', () => {
   it('should keep the select unchanged when there is no page and no order', () => {

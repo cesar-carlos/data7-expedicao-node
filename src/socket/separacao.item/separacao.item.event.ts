@@ -1,12 +1,11 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 
 import SepararItemRepository from '../separar.item/separar.item.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import ExpedicaoItemSeparacaoConsultaDto from '../../dto/expedicao/expedicao.item.separacao.consulta.dto';
 import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
 import ExpedicaoItemSeparacaoDto from '../../dto/expedicao/expedicao.item.separacao.dto';
-import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
 import SeparacaoItemRepository from './separacao.item.repository';
 import {
   convertSocketMutationPayload,
@@ -106,7 +105,7 @@ export default class SeparacaoItemEvent {
           return;
         }
 
-        await this.updateOneByOne(itensMutation);
+        await this.repository.update(itensMutation);
         const refresh = await this.buildRefreshPayload(itensMutation);
 
         const responseEvent = this.createMutationEvent(request.session, request.responseIn, itensMutation);
@@ -140,7 +139,7 @@ export default class SeparacaoItemEvent {
         }
 
         const itensSeparacaoConsulta = await this.loadItensSeparacaoConsulta(itensMutation);
-        await this.deleteOneByOne(itensMutation);
+        await this.repository.delete(itensMutation);
         const produtosSeparado = this.buildProdutosSeparado(itensMutation);
         const itensSepararConsulta = await this.refreshItensSepararConsulta(produtosSeparado);
 
@@ -191,18 +190,6 @@ export default class SeparacaoItemEvent {
     };
   }
 
-  private async updateOneByOne(items: ExpedicaoItemSeparacaoDto[]): Promise<void> {
-    for (const item of items) {
-      await this.repository.update([item]);
-    }
-  }
-
-  private async deleteOneByOne(items: ExpedicaoItemSeparacaoDto[]): Promise<void> {
-    for (const item of items) {
-      await this.repository.delete([item]);
-    }
-  }
-
   private convert(mutations: any[] | any): ExpedicaoItemSeparacaoDto[] {
     return convertSocketMutationPayload(
       mutations,
@@ -235,31 +222,26 @@ export default class SeparacaoItemEvent {
   }
 
   private async refreshItensSepararConsulta(produtos: ProdutoSeparar[]): Promise<ExpedicaoItemSepararConsultaDto[]> {
-    const consultas = await mapWithConcurrency(
-      produtos,
-      async (produto) => {
-        const params = this.buildProdutoSeparadoParams(produto);
-        const [separados, separarItem] = await Promise.all([
-          this.repository.select(params),
-          this.separarItemRepository.select(params),
-        ]);
+    if (produtos.length === 0) return [];
 
-        const quantidadeSeparada = separados.reduce((acc, cur) => {
-          return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-        }, 0);
+    await mapWithConcurrency(produtos, async (produto) => {
+      const params = this.buildProdutoSeparadoParams(produto);
+      const [quantidadeSeparada, separarItem] = await Promise.all([
+        this.repository.sumQuantidadeAtiva(produto),
+        this.separarItemRepository.select(params, Pagination.create(5)),
+      ]);
 
-        if (separarItem.length > 0) {
-          const item = separarItem[0];
-          item.QuantidadeSeparacao = quantidadeSeparada;
-          await this.separarItemRepository.update([item]);
-          return this.separarItemRepository.consulta(params);
-        }
+      if (separarItem.length === 0) return;
+      const item = separarItem[0];
+      if (item.QuantidadeSeparacao === quantidadeSeparada) return;
+      item.QuantidadeSeparacao = quantidadeSeparada;
+      await this.separarItemRepository.update([item]);
+    });
 
-        return this.separarItemRepository.consulta(params);
-      },
+    return this.separarItemRepository.consultaAny(
+      produtos.map((produto) => this.buildProdutoSeparadoParams(produto)),
+      Pagination.create(pageLimitForGroups(produtos.length, 20)),
     );
-
-    return consultas.flat();
   }
 
   private async loadItensSeparacaoConsulta(
@@ -277,9 +259,7 @@ export default class SeparacaoItemEvent {
         ]),
       ).values(),
     );
-    const consultas = await mapWithConcurrency(queryParams, (params) => this.repository.consulta(params));
-
-    return consultas.flat();
+    return this.repository.consultaAny(queryParams, Pagination.create(pageLimitForGroups(queryParams.length)));
   }
 
   private buildProdutoSeparadoParams(produto: ProdutoSeparar): Params[] {

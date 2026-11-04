@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectPaged, executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoSepararConsultaRepository
@@ -48,18 +48,34 @@ export default class SqlServerExpedicaoSepararConsultaRepository
       let result;
       if (typeof params === 'string') {
         const _params = this.buildParamsFromString(params);
+        const page = pagination ?? Pagination.create();
         const paramOrderBy =
           orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
         const sql = _params ? `${select} WHERE ${_params}` : select;
-        const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-        const sqlWithoutPagination = `${sql} ${paramOrderBy}`;
-        result = await pool.request().query(pagination ? sqlWithPagination : sqlWithoutPagination);
+        const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${page.offset} ROWS FETCH NEXT ${page.limit} ROWS ONLY`;
+        result = await pool.request().query(sqlWithPagination);
       } else {
         result = await executeSelectWhere(pool, select, params, pagination, orderBy, true);
       }
 
       if (result.recordset.length === 0) return [];
       return result.recordset.map((item: any) => ExpedicaoSepararConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
+    }
+  }
+
+  public async selectWhereAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoSepararConsultaDto[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const result = await executeSelectWhereAny(pool, this.getSelectSql(), groups, pagination, orderBy);
+      return result.recordset.map((item: Record<string, unknown>) => ExpedicaoSepararConsultaDto.fromObject(item));
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     }

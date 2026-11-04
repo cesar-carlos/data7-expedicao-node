@@ -2,6 +2,9 @@ import { ConnectionPool, config as SqlConfig, Transaction, Request } from 'mssql
 
 import createMssqlConfig from '../assets/config.msql';
 
+/** Commit abaixo disso não vai para o log. O stdout do PM2 estava em centenas de MB. */
+const SLOW_TRANSACTION_LOG_MS = 1000;
+
 export default class ConnectionSqlServerMssql {
   private static instance: ConnectionSqlServerMssql;
   private pool: ConnectionPool | null = null;
@@ -328,12 +331,6 @@ export default class ConnectionSqlServerMssql {
       this.connectionMetrics.totalTransactions++;
       this.connectionMetrics.activeTransactions = this.activeTransactions.size;
 
-      this.logInfo(`Transação iniciada`, {
-        transactionId: txId,
-        timeout: `${timeoutMs}ms`,
-        activeTransactions: this.activeTransactions.size,
-      });
-
       return txId;
     } catch (error) {
       this.connectionMetrics.failedTransactions++;
@@ -366,11 +363,7 @@ export default class ConnectionSqlServerMssql {
       this.connectionMetrics.activeTransactions = this.activeTransactions.size;
 
       const duration = Date.now() - txData.startTime.getTime();
-      this.logInfo(`Transação commitada com sucesso`, {
-        transactionId,
-        duration: `${duration}ms`,
-        activeTransactions: this.activeTransactions.size,
-      });
+      this.logSlowTransaction('commit', duration);
     } catch (error) {
       this.connectionMetrics.failedTransactions++;
       this.logError(`Erro ao fazer commit da transação ${transactionId}`, error);
@@ -418,11 +411,7 @@ export default class ConnectionSqlServerMssql {
       this.connectionMetrics.activeTransactions = this.activeTransactions.size;
 
       const duration = Date.now() - txData.startTime.getTime();
-      this.logInfo(`Transação desfeita com sucesso`, {
-        transactionId,
-        duration: `${duration}ms`,
-        activeTransactions: this.activeTransactions.size,
-      });
+      this.logSlowTransaction('rollback', duration);
     } catch (error) {
       this.connectionMetrics.failedTransactions++;
       this.activeTransactions.delete(transactionId); // Remove mesmo em caso de erro
@@ -602,6 +591,11 @@ export default class ConnectionSqlServerMssql {
       this.heartbeatInterval = null;
       this.logInfo('Heartbeat parado');
     }
+  }
+
+  private logSlowTransaction(action: 'commit' | 'rollback', durationMs: number): void {
+    if (durationMs < SLOW_TRANSACTION_LOG_MS) return;
+    console.log(`[DB] Transação lenta action=${action} durationMs=${durationMs}`);
   }
 
   private logInfo(message: string, metadata?: any): void {

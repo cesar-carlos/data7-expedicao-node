@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 
 import ExpedicaoSepararDto from '../../dto/expedicao/expedicao.separar.dto';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -142,15 +142,7 @@ export default class SepararEvent {
           await this.repository.insert([item]);
         }
 
-        const separarConsulta: ExpedicaoSepararConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
-          ]);
-
-          separarConsulta.push(...result);
-        }
+        const separarConsulta = await this.loadSepararConsulta(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
           Session: session,
@@ -181,15 +173,7 @@ export default class SepararEvent {
         const itens = this.convert(mutation);
         await this.repository.update(itens);
 
-        const separarConsulta: ExpedicaoSepararConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
-          ]);
-
-          separarConsulta.push(...result);
-        }
+        const separarConsulta = await this.loadSepararConsulta(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
           Session: session,
@@ -219,15 +203,7 @@ export default class SepararEvent {
       try {
         const itens = this.convert(mutation);
 
-        const separarConsulta: ExpedicaoSepararConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
-          ]);
-
-          separarConsulta.push(...result);
-        }
+        const separarConsulta = await this.loadSepararConsulta(itens);
 
         await this.repository.delete(itens);
 
@@ -247,6 +223,21 @@ export default class SepararEvent {
         emitSocketError(socket, responseIn, session, error);
       }
     });
+  }
+
+  private loadSepararConsulta(itens: ExpedicaoSepararDto[]): Promise<ExpedicaoSepararConsultaDto[]> {
+    const groups = Array.from(
+      new Map(
+        itens.map((item) => [
+          `${item.CodEmpresa}:${item.CodSepararEstoque}`,
+          [
+            Params.equals('CodEmpresa', item.CodEmpresa),
+            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
+          ],
+        ]),
+      ).values(),
+    );
+    return this.repository.consultaAny(groups, Pagination.create(pageLimitForGroups(groups.length, 2)));
   }
 
   private convert(mutations: any[] | any): ExpedicaoSepararDto[] {

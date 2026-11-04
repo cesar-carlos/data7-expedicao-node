@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
@@ -9,6 +9,7 @@ import ExpedicaoItemSeparacaoConsultaDto from '../../dto/expedicao/expedicao.ite
 import ExpedicaoItemSeparacaoDto from '../../dto/expedicao/expedicao.item.separacao.dto';
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoItemSeparacaoRepository from '../../repository/expedicao/sql.server.expedicao.item.separacao.repository';
+import SqlServerExpedicaoItemSeparacaoConsultaRepository from '../../repository/expedicao/sql.server.expedicao.item.separacao.consulta.repository';
 
 export default class SeparacaoItemRepository {
   public async consultaResumo(
@@ -23,6 +24,27 @@ export default class SeparacaoItemRepository {
     } catch (error: any) {
       throw new Error(error.message);
     }
+  }
+
+  public async sumQuantidadeAtiva(produto: {
+    CodEmpresa: number;
+    CodSepararEstoque: number;
+    CodProduto: number;
+  }): Promise<number> {
+    return this.repositorySpecific().sumQuantidadeAtiva(produto);
+  }
+
+  public async consultaAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoItemSeparacaoConsultaDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositoryConsultaSql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length)),
+      orderBy,
+    );
   }
 
   public async consulta(
@@ -95,6 +117,10 @@ export default class SeparacaoItemRepository {
       context: getLocalDbContext(),
       bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemSeparacaoConsultaDto,
     });
+  }
+
+  private repositoryConsultaSql(): SqlServerExpedicaoItemSeparacaoConsultaRepository {
+    return this.repositoryConsulta() as SqlServerExpedicaoItemSeparacaoConsultaRepository;
   }
 
   private repositoryResumoConsulta() {

@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import UsuarioConsultaDto from '../../dto/common.data/usuario.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class LocalSqlServerUsuarioConsultaRepository
@@ -22,8 +22,8 @@ export default class LocalSqlServerUsuarioConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'usuario.consulta.sql');
-      const sql = readSqlFileCached(patchSQL);
-      const result = await pool.request().query(sql);
+      const sqlText = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sqlText, pagination ?? Pagination.create());
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -59,6 +59,24 @@ export default class LocalSqlServerUsuarioConsultaRepository
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     } finally {
+    }
+  }
+
+  public async selectWhereAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<UsuarioConsultaDto[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'usuario.consulta.sql');
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy);
+      return result.recordset.map((item: Record<string, unknown>) => UsuarioConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

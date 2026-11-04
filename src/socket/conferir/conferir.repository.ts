@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -10,6 +10,7 @@ import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.cons
 import ExpedicaoConferirConsultaDto from '../../dto/expedicao/expedicao.conferir.consulta.dto';
 import ExpedicaoConferirDto from '../../dto/expedicao/expedicao.conferir.dto';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import SqlServerExpedicaoConferirConsultaRepository from '../../repository/expedicao/sql.server.expedicao.conferir.consulta.repository';
 
 export default class ConferirRepository {
   public async consulta(
@@ -21,9 +22,23 @@ export default class ConferirRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoConferirConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Falha ao consultar conferir';
+      throw new Error(message);
     }
+  }
+
+  public async consultaAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoConferirConsultaDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositoryConsultaSql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length, 2)),
+      orderBy,
+    );
   }
 
   public async carrinhoConferirConsulta(
@@ -100,6 +115,13 @@ export default class ConferirRepository {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoConferirDto>>({
       context: getLocalDbContext(),
       bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoConferirDto,
+    });
+  }
+
+  private repositoryConsultaSql(): SqlServerExpedicaoConferirConsultaRepository {
+    return AppDependencys.resolve<SqlServerExpedicaoConferirConsultaRepository>({
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoConferirConsultaDto,
     });
   }
 

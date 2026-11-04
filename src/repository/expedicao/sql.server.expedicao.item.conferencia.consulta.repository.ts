@@ -1,15 +1,24 @@
 import path from 'path';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
 
-import { ConnectionPool } from 'mssql';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import sql, { ConnectionPool } from 'mssql';
+import { Params, Pagination, OrderBy, type Param } from '../../contracts/local.base.params';
+import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
 
 import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoItemConferenciaConsultaDto from '../../dto/expedicao/expedicao.item.conferencia.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+
+export type ConferenciaQuantidadeTotal = {
+  CodEmpresa: number;
+  CodConferir: number;
+  CodCarrinho: number;
+  CodProduto: number;
+  Total: number;
+};
 
 export default class SqlServerExpedicaoItemConferenciaConsultaRepository
   implements LocalBaseConsultaRepositoryContract<ExpedicaoItemConferenciaConsultaDto>
@@ -22,8 +31,8 @@ export default class SqlServerExpedicaoItemConferenciaConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferencia.consulta.sql');
-      const sql = readSqlFileCached(patchSQL);
-      const result = await pool.request().query(sql);
+      const sqlText = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sqlText, page ?? Pagination.create());
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -59,6 +68,59 @@ export default class SqlServerExpedicaoItemConferenciaConsultaRepository
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     } finally {
+    }
+  }
+
+  public async selectWhereAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoItemConferenciaConsultaDto[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferencia.consulta.sql');
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy);
+      return result.recordset.map((item: Record<string, unknown>) =>
+        ExpedicaoItemConferenciaConsultaDto.fromObject(item),
+      );
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
+    }
+  }
+
+  public async sumQuantidadeAtiva(groups: Params[][]): Promise<ConferenciaQuantidadeTotal[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferencia.consulta.sql');
+      const view = readSqlFileCached(patchSQL);
+      const where = ParamsCommonRepository.buildWhereAnyOf(groups as Param[][]);
+      const request = pool.request();
+      where.apply(request);
+      request.input('qty_cancelado', sql.VarChar(30), ExpedicaoItemSituacaoModel.cancelado);
+      const result = await request.query(`SELECT CodEmpresa,
+          CodConferir,
+          CodCarrinho,
+          CodProduto,
+          ISNULL(SUM(CASE WHEN ISNULL(Situacao, '') <> @qty_cancelado THEN Quantidade ELSE 0 END), 0) AS Total
+        FROM (
+          ${view}
+        ) qty_src
+        WHERE ${where.whereFragment}
+        GROUP BY CodEmpresa, CodConferir, CodCarrinho, CodProduto`);
+      return result.recordset.map((row: Record<string, unknown>) => ({
+        CodEmpresa: Number(row.CodEmpresa),
+        CodConferir: Number(row.CodConferir),
+        CodCarrinho: Number(row.CodCarrinho),
+        CodProduto: Number(row.CodProduto),
+        Total: Number(row.Total ?? 0),
+      }));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

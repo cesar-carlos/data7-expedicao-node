@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ExpedicaoCarrinhoPercursoDto from '../../dto/expedicao/expedicao.carrinho.percurso.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoCarrinhoPercursoRepository
@@ -17,13 +17,13 @@ export default class SqlServerExpedicaoCarrinhoPercursoRepository
   private connect = ConnectionSqlServerMssql.getInstance();
   private basePatchSQL = ParamsCommonRepository.basePatchSQL('expedicao');
 
-  public async select(): Promise<ExpedicaoCarrinhoPercursoDto[]> {
+  public async select(pagination?: Pagination): Promise<ExpedicaoCarrinhoPercursoDto[]> {
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.select.sql');
-      const sql = readSqlFileCached(patchSQL);
-      const result = await pool.request().query(sql);
+      const sqlText = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sqlText, pagination ?? Pagination.create());
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -59,6 +59,24 @@ export default class SqlServerExpedicaoCarrinhoPercursoRepository
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     } finally {
+    }
+  }
+
+  public async selectWhereAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoCarrinhoPercursoDto[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.carrinho.percurso.select.sql');
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy);
+      return result.recordset.map((item: Record<string, unknown>) => ExpedicaoCarrinhoPercursoDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

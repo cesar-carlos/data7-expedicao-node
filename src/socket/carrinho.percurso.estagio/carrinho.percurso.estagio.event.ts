@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 
 import CarrinhoPercursoEstagioRepository from './carrinho.percurso.estagio.repository';
 import ExpedicaoCarrinhoPercursoEstagioDto from '../../dto/expedicao/expedicao.carrinho.percurso.estagio.dto';
@@ -11,7 +11,6 @@ import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.ev
 import SepararRepository from '../separar/separar.repository';
 import {
   convertSocketMutationPayload,
-  mapWithConcurrency,
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
@@ -147,22 +146,19 @@ export default class CarrinhoPercursoEstagioEvent {
   private async getCarrinhosPercursoEstagioConsulta(
     carrinhoEstagios: ExpedicaoCarrinhoPercursoEstagioDto[],
   ): Promise<ExpedicaoCarrinhoPercursoEstagioConsultaDto[]> {
-    const consultas = await Promise.all(
-      Array.from(
-        new Map(
-          carrinhoEstagios.map((item) => [
-            `${item.CodEmpresa}:${item.CodCarrinhoPercurso}:${item.Item}`,
-            [
-              Params.equals('CodEmpresa', item.CodEmpresa),
-              Params.equals('CodCarrinhoPercurso', item.CodCarrinhoPercurso),
-              Params.equals('Item', item.Item),
-            ],
-          ]),
-        ).values(),
-      ).map((params) => this.repository.consulta(params)),
+    const groups = Array.from(
+      new Map(
+        carrinhoEstagios.map((item) => [
+          `${item.CodEmpresa}:${item.CodCarrinhoPercurso}:${item.Item}`,
+          [
+            Params.equals('CodEmpresa', item.CodEmpresa),
+            Params.equals('CodCarrinhoPercurso', item.CodCarrinhoPercurso),
+            Params.equals('Item', item.Item),
+          ],
+        ]),
+      ).values(),
     );
-
-    return consultas.flat();
+    return this.repository.consultaAny(groups, Pagination.create(pageLimitForGroups(groups.length, 5)));
   }
 
   private convert(mutations: any[] | any): ExpedicaoCarrinhoPercursoEstagioDto[] {
@@ -197,9 +193,10 @@ export default class CarrinhoPercursoEstagioEvent {
           ]),
       ).values(),
     );
-    const consultas = await mapWithConcurrency(queryParams, (params) => this.separarRepository.consulta(params));
-
-    return consultas.flat();
+    return this.separarRepository.consultaAny(
+      queryParams,
+      Pagination.create(pageLimitForGroups(queryParams.length, 2)),
+    );
   }
 
   private async loadCarrinhosPercurso(
@@ -216,8 +213,9 @@ export default class CarrinhoPercursoEstagioEvent {
         ]),
       ).values(),
     );
-    const consultas = await mapWithConcurrency(queryParams, (params) => this.carrinhoPercursoRepository.select(params));
-
-    return consultas.flat();
+    return this.carrinhoPercursoRepository.selectAny(
+      queryParams,
+      Pagination.create(pageLimitForGroups(queryParams.length, 2)),
+    );
   }
 }

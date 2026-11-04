@@ -6,6 +6,7 @@ import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import ExpedicaoItemSeparacaoDto from '../../dto/expedicao/expedicao.item.separacao.dto';
+import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectWhere } from '../common/consulta.sql.helper';
@@ -60,6 +61,33 @@ export default class SqlServerExpedicaoItemSeparacaoRepository
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     } finally {
+    }
+  }
+
+  public async sumQuantidadeAtiva(produto: {
+    CodEmpresa: number;
+    CodSepararEstoque: number;
+    CodProduto: number;
+  }): Promise<number> {
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const result = await pool
+        .request()
+        .input('CodEmpresa', sql.Int, produto.CodEmpresa)
+        .input('CodSepararEstoque', sql.Int, produto.CodSepararEstoque)
+        .input('CodProduto', sql.Int, produto.CodProduto)
+        .input('Cancelado', sql.VarChar(30), ExpedicaoItemSituacaoModel.cancelado)
+        .query(`SELECT ISNULL(SUM(Quantidade), 0) AS Total
+            FROM Expedicao.ItemSeparacaoEstoque
+            WHERE CodEmpresa = @CodEmpresa
+              AND CodSepararEstoque = @CodSepararEstoque
+              AND CodProduto = @CodProduto
+              AND ISNULL(Situacao, '') <> @Cancelado`);
+      const total = result.recordset[0]?.Total;
+      return typeof total === 'number' ? total : Number(total ?? 0);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

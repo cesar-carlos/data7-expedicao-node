@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 import UsuarioDto from '../../dto/common.data/usuario';
 import UsuarioConsultaDto from '../../dto/common.data/usuario.consulta.dto';
 import { convertSocketMutationPayload } from '../socket.event.helpers';
@@ -63,12 +63,9 @@ export default class UsuarioEvent {
     });
   }
 
-  private async loadConsulta(items: UsuarioDto[]): Promise<UsuarioConsultaDto[]> {
-    const results = await Promise.all(
-      items.map((item) => this.repository.consulta([Params.equals('CodUsuario', item.CodUsuario)])),
-    );
-
-    return results.flat();
+  private loadConsulta(items: UsuarioDto[]): Promise<UsuarioConsultaDto[]> {
+    const groups = items.map((item) => [Params.equals('CodUsuario', item.CodUsuario)]);
+    return this.repository.consultaAny(groups, Pagination.create(pageLimitForGroups(groups.length, 5)));
   }
 
   private convert(mutations: unknown[] | unknown): UsuarioDto[] {

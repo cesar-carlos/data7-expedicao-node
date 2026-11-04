@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -11,6 +11,7 @@ import ExpedicaoItemImpressoConsultaDto from '../../dto/expedicao/expedicao.item
 import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.consulta.dto';
 import ExpedicaoSepararDto from '../../dto/expedicao/expedicao.separar.dto';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import SqlServerExpedicaoSepararConsultaRepository from '../../repository/expedicao/sql.server.expedicao.separar.consulta.repository';
 
 export default class SepararRepository {
   public async consulta(
@@ -21,6 +22,19 @@ export default class SepararRepository {
     const repository = this.repositoryConsulta();
     const result = await repository.selectWhere(params, pagination, orderBy);
     return result as ExpedicaoSepararConsultaDto[];
+  }
+
+  public async consultaAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoSepararConsultaDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositoryConsultaSql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length, 2)),
+      orderBy,
+    );
   }
 
   public async consultaProgressoSeparacao(
@@ -110,6 +124,13 @@ export default class SepararRepository {
     return AppDependencys.resolve<LocalBaseRepositoryContract<ExpedicaoSepararDto>>({
       context: getLocalDbContext(),
       bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoSepararDto,
+    });
+  }
+
+  private repositoryConsultaSql(): SqlServerExpedicaoSepararConsultaRepository {
+    return AppDependencys.resolve<SqlServerExpedicaoSepararConsultaRepository>({
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoSepararConsultaDto,
     });
   }
 

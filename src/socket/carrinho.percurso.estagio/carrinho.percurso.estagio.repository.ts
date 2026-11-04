@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import ExpedicaoCarrinhoPercursoEstagioDto from '../../dto/expedicao/expedicao.carrinho.percurso.estagio.dto';
@@ -8,6 +8,7 @@ import ExpedicaoCarrinhoPercursoEstagioConsultaDto from '../../dto/expedicao/exp
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoCarrinhoPercursoEstagioRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.estagio.repository';
+import SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.estagio.consulta.repository';
 
 export default class CarrinhoPercursoEstagioRepository {
   public async consulta(
@@ -19,9 +20,23 @@ export default class CarrinhoPercursoEstagioRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoCarrinhoPercursoEstagioConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Falha ao consultar estágio do percurso';
+      throw new Error(message);
     }
+  }
+
+  public async consultaAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoCarrinhoPercursoEstagioConsultaDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositoryConsultaSql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length, 5)),
+      orderBy,
+    );
   }
 
   public async select(
@@ -73,6 +88,13 @@ export default class CarrinhoPercursoEstagioRepository {
     } catch (error: any) {
       throw new Error(error.message);
     }
+  }
+
+  private repositoryConsultaSql(): SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository {
+    return AppDependencys.resolve<SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository>({
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto,
+    });
   }
 
   private repositoryConsulta() {

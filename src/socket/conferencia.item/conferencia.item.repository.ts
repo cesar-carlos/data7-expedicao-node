@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
@@ -8,8 +8,28 @@ import ExpedicaoItemConferenciaConsultaDto from '../../dto/expedicao/expedicao.i
 import ExpedicaoItemConferenciaDto from '../../dto/expedicao/expedicao.item.conferencia.dto';
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoItemConferenciaRepository from '../../repository/expedicao/sql.server.expedicao.item.conferencia.repository';
+import SqlServerExpedicaoItemConferenciaConsultaRepository, {
+  type ConferenciaQuantidadeTotal,
+} from '../../repository/expedicao/sql.server.expedicao.item.conferencia.consulta.repository';
 
 export default class ConferenciaItemRepository {
+  public async consultaAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoItemConferenciaConsultaDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositoryConsultaSql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length)),
+      orderBy,
+    );
+  }
+
+  public async sumQuantidadeAtiva(groups: Params[][]): Promise<ConferenciaQuantidadeTotal[]> {
+    return this.repositoryConsultaSql().sumQuantidadeAtiva(groups);
+  }
+
   public async consulta(
     params: Params[] = [],
     pagination?: Pagination,
@@ -76,6 +96,10 @@ export default class ConferenciaItemRepository {
       context: getLocalDbContext(),
       bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoItemConferenciaConsultaDto,
     });
+  }
+
+  private repositoryConsultaSql(): SqlServerExpedicaoItemConferenciaConsultaRepository {
+    return this.repositoryConsulta() as SqlServerExpedicaoItemConferenciaConsultaRepository;
   }
 
   private repository() {

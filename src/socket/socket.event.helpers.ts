@@ -88,16 +88,20 @@ export async function withSocketRequest(
   }
 
   let listenCount = 0;
+  let rowCount = 0;
+  let listenRows = 0;
 
   const context: SocketHandlerContext = {
     request,
     emitQuery(queryData) {
+      rowCount = countRows(queryData);
       socket.emit(
         request.responseIn,
         SocketResponseBuilder.serialize(SocketResponseBuilder.query(request, queryData)),
       );
     },
     emitMutation(mutationData) {
+      rowCount = countRows(mutationData);
       socket.emit(
         request.responseIn,
         SocketResponseBuilder.serialize(SocketResponseBuilder.mutation(request, mutationData)),
@@ -108,6 +112,8 @@ export async function withSocketRequest(
     },
     emitListen(io, channel, payload) {
       listenCount++;
+      listenRows += countListenRows(payload);
+      // Os outros coletores escutam este canal. O corpo precisa ser só as linhas alteradas.
       io.emit(channel, SocketResponseBuilder.serialize(payload));
     },
     serialize(payload) {
@@ -123,6 +129,8 @@ export async function withSocketRequest(
       responseIn: request.responseIn,
       requestId: request.requestId,
       durationMs: Date.now() - startedAt,
+      rows: rowCount,
+      listenRows,
       status: 'ok',
       listenCount,
     });
@@ -137,6 +145,8 @@ export async function withSocketRequest(
       request.eventName,
       Date.now() - startedAt,
       listenCount,
+      rowCount,
+      listenRows,
     );
   }
 }
@@ -228,6 +238,8 @@ export function emitSocketError(
   event?: string,
   durationMs?: number,
   listenCount = 0,
+  rows = 0,
+  listenRows = 0,
 ): void {
   const messages = normalizeSocketError(error);
   socket.emit(
@@ -250,6 +262,8 @@ export function emitSocketError(
     responseIn,
     requestId,
     durationMs,
+    rows,
+    listenRows,
     status: 'error',
     listenCount,
     errorCode,
@@ -282,6 +296,16 @@ function normalizeSocketError(error: unknown): string[] {
   }
 
   return ['Unexpected socket error'];
+}
+
+function countRows(value: unknown): number {
+  return Array.isArray(value) ? value.length : 0;
+}
+
+function countListenRows(payload: unknown): number {
+  if (!isRecord(payload)) return 0;
+  const mutation = payload.Mutation;
+  return Array.isArray(mutation) ? mutation.length : 0;
 }
 
 function getSocketRefreshConcurrency(): number {

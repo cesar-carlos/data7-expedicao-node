@@ -9,16 +9,8 @@ SELECT
     prio.CodPrioridade,
 	prio.Descricao DescricaoPrioridade,
 	prio.Prioridade,
-   (SELECT SUM(sise.Quantidade)
-    FROM Expedicao.ItemSepararEstoque sise
-    WHERE sise.CodEmpresa = se.CodEmpresa
-    AND sise.CodSepararEstoque = se.CodSepararEstoque)
-    QuantidadeItens,
-   (SELECT SUM(sise.QuantidadeSeparacao)
-    FROM Expedicao.ItemSepararEstoque sise
-    WHERE sise.CodEmpresa = se.CodEmpresa
-      AND sise.CodSepararEstoque = se.CodSepararEstoque
-   )QuantidadeItensSeparacao,
+   MAX(tot.QuantidadeItens) QuantidadeItens,
+   MAX(tot.QuantidadeItensSeparacao) QuantidadeItensSeparacao,
     SUM(ise.Quantidade) QuantidadeItensSetor,
     SUM(ise.QuantidadeSeparacao) QuantidadeItensSeparacaoSetor,
    (SELECT CASE
@@ -52,6 +44,16 @@ AND sut.CodSepararEstoque = ise.CodSepararEstoque
 AND sut.CodSetorEstoque = ise.CodSetorEstoque
 LEFT JOIN Expedicao.SetorEstoque ese ON
 	ese.CodSetorEstoque = ise.CodSetorEstoque
+LEFT JOIN (
+    SELECT sise.CodEmpresa,
+      sise.CodSepararEstoque,
+      SUM(sise.Quantidade) QuantidadeItens,
+      SUM(sise.QuantidadeSeparacao) QuantidadeItensSeparacao
+    FROM Expedicao.ItemSepararEstoque sise
+    GROUP BY sise.CodEmpresa,
+      sise.CodSepararEstoque
+  ) tot ON tot.CodEmpresa = se.CodEmpresa
+  AND tot.CodSepararEstoque = se.CodSepararEstoque
 GROUP By
     se.CodEmpresa,
     se.CodSepararEstoque,

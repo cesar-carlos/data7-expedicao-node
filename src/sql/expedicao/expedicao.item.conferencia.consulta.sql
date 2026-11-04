@@ -35,7 +35,8 @@ FROM (
       LEFT JOIN Expedicao.CarrinhoPercursoEstagio cpe ON cpe.CodEmpresa = ic.CodEmpresa
       AND cpe.CodCarrinhoPercurso = ic.CodCarrinhoPercurso
       AND cpe.Item = ic.ItemCarrinhoPercurso
-      LEFT JOIN Expedicao.Carrinho car ON car.CodCarrinho = cpe.CodCarrinho
+      LEFT JOIN Expedicao.Carrinho car ON car.CodEmpresa = cpe.CodEmpresa
+      AND car.CodCarrinho = cpe.CodCarrinho
       LEFT JOIN Produto prod ON prod.CodProduto = ic.CodProduto
       LEFT JOIN ProdutoEndereco pe ON pe.CodProdutoEndereco = prod.Endereco
       LEFT JOIN UnidadeMedida und ON und.CodUnidadeMedida = ic.CodUnidadeMedida

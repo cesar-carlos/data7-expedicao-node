@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -9,6 +9,7 @@ import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.cons
 import ExpedicaoCarrinhoPercursoEstagioConsultaDto from '../../dto/expedicao/expedicao.carrinho.percurso.estagio.consulta.dto';
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import SqlServerExpedicaoCarrinhoPercursoRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.repository';
 
 export default class CarrinhoPercursoRepository {
   public async consulta(
@@ -33,9 +34,23 @@ export default class CarrinhoPercursoRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Falha ao selecionar percurso';
+      throw new Error(message);
     }
+  }
+
+  public async selectAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoCarrinhoPercursoDto[]> {
+    if (groups.length === 0) return [];
+    return this.repositorySql().selectWhereAny(
+      groups,
+      pagination ?? Pagination.create(pageLimitForGroups(groups.length, 2)),
+      orderBy,
+    );
   }
 
   public async insert(models: ExpedicaoCarrinhoPercursoDto[]): Promise<void> {
@@ -85,6 +100,13 @@ export default class CarrinhoPercursoRepository {
     return AppDependencys.resolve<LocalBaseConsultaRepositoryContract<ExpedicaoCarrinhoPercursoEstagioConsultaDto>>({
       context: getLocalDbContext(),
       bind: DI_BIND.LocalBaseConsultaRepositoryContract_ExpedicaoCarrinhoPercursoEstagioConsultaDto,
+    });
+  }
+
+  private repositorySql(): SqlServerExpedicaoCarrinhoPercursoRepository {
+    return AppDependencys.resolve<SqlServerExpedicaoCarrinhoPercursoRepository>({
+      context: getLocalDbContext(),
+      bind: DI_BIND.LocalBaseRepositoryContract_ExpedicaoCarrinhoPercursoDto,
     });
   }
 

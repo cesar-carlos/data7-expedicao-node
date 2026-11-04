@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoSepararItemConsultaRepository
@@ -22,8 +22,8 @@ export default class SqlServerExpedicaoSepararItemConsultaRepository
 
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.consulta.sql');
-      const sql = readSqlFileCached(patchSQL);
-      const result = await pool.request().query(sql);
+      const sqlText = readSqlFileCached(patchSQL);
+      const result = await executeSelectPaged(pool, sqlText, page ?? Pagination.create());
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -59,6 +59,24 @@ export default class SqlServerExpedicaoSepararItemConsultaRepository
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
     } finally {
+    }
+  }
+
+  public async selectWhereAny(
+    groups: Params[][],
+    pagination?: Pagination,
+    orderBy?: OrderBy,
+  ): Promise<ExpedicaoItemSepararConsultaDto[]> {
+    if (groups.length === 0) return [];
+    const pool: ConnectionPool = await this.connect.getConnection();
+
+    try {
+      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.consulta.sql');
+      const select = readSqlFileCached(patchSQL);
+      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy);
+      return result.recordset.map((item: Record<string, unknown>) => ExpedicaoItemSepararConsultaDto.fromObject(item));
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 }

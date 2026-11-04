@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 
 import ExpedicaoBasicErrorEvent from '../../model/expedicao.basic.error.event';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -134,15 +134,7 @@ export default class ConferirEvent {
           await this.repository.insert([item]);
         }
 
-        const conferirConsulta: ExpedicaoConferirConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodConferir', item.CodConferir),
-          ]);
-
-          conferirConsulta.push(...result);
-        }
+        const conferirConsulta = await this.loadConferirConsulta(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
           Session: session,
@@ -175,15 +167,7 @@ export default class ConferirEvent {
         const itens = this.convert(mutation);
         await this.repository.update(itens);
 
-        const conferirConsulta: ExpedicaoConferirConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodConferir', item.CodConferir),
-          ]);
-
-          conferirConsulta.push(...result);
-        }
+        const conferirConsulta = await this.loadConferirConsulta(itens);
 
         const basicEvent = new ExpedicaoMutationBasicEvent({
           Session: session,
@@ -215,15 +199,7 @@ export default class ConferirEvent {
       try {
         const itens = this.convert(mutation);
 
-        const conferirConsulta: ExpedicaoConferirConsultaDto[] = [];
-        for (const item of itens) {
-          const result = await this.repository.consulta([
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodConferir', item.CodConferir),
-          ]);
-
-          conferirConsulta.push(...result);
-        }
+        const conferirConsulta = await this.loadConferirConsulta(itens);
 
         await this.repository.delete(itens);
 
@@ -245,6 +221,18 @@ export default class ConferirEvent {
         emitSocketError(socket, responseIn, session, error);
       }
     });
+  }
+
+  private loadConferirConsulta(itens: ExpedicaoConferirDto[]): Promise<ExpedicaoConferirConsultaDto[]> {
+    const groups = Array.from(
+      new Map(
+        itens.map((item) => [
+          `${item.CodEmpresa}:${item.CodConferir}`,
+          [Params.equals('CodEmpresa', item.CodEmpresa), Params.equals('CodConferir', item.CodConferir)],
+        ]),
+      ).values(),
+    );
+    return this.repository.consultaAny(groups, Pagination.create(pageLimitForGroups(groups.length, 2)));
   }
 
   private convert(mutations: any[] | any): ExpedicaoConferirDto[] {

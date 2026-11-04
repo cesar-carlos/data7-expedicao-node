@@ -11,6 +11,7 @@ import {
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
+import { uniqueSepararEstoquePairs } from './separar.estoque.pairs';
 
 export default class SepararItemEvent {
   private repository = new SepararItemRepository();
@@ -25,8 +26,7 @@ export default class SepararItemEvent {
         kind: 'query',
       }, async ({ request, emitQuery }) => {
         const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
-        const unidadeMedidaParams = this.groupResultsByEmpresaAndSepararEstoque(result);
-        const unidadesMedida = await this.repository.consultaUnidadeMedida(unidadeMedidaParams);
+        const unidadesMedida = await this.repository.consultaUnidadeMedidaPorPares(uniqueSepararEstoquePairs(result));
         const itens = this.buildUnidadesMedida(result, unidadesMedida);
         emitQuery(itens.map((item) => item.toJson()));
       });
@@ -126,26 +126,6 @@ export default class SepararItemEvent {
         emitListen(io, 'separar.item.delete.listen', listenEvent.toJson());
       });
     });
-  }
-
-  private groupResultsByEmpresaAndSepararEstoque(results: ExpedicaoItemSepararConsultaDto[]): Params[] {
-    const unidadeMedidaParams: Params[] = [];
-    const uniqueKeys = new Set<string>();
-
-    results.forEach((item) => {
-      const key = `${item.CodEmpresa}_${item.CodSepararEstoque}`;
-      uniqueKeys.add(key);
-    });
-
-    uniqueKeys.forEach((key) => {
-      const [codEmpresa, codSepararEstoque] = key.split('_').map(Number);
-      unidadeMedidaParams.push(
-        Params.equals('CodEmpresa', codEmpresa),
-        Params.equals('CodSepararEstoque', codSepararEstoque),
-      );
-    });
-
-    return unidadeMedidaParams;
   }
 
   private buildUnidadesMedida(

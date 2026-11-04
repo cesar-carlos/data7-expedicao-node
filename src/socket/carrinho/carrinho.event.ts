@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 import ExpedicaoCarrinhoConsultaDto from '../../dto/expedicao/expedicao.carrinho.consulta.dto';
 import ExpedicaoCarrinhoDto from '../../dto/expedicao/expedicao.carrinho.dto';
 import { convertSocketMutationPayload } from '../socket.event.helpers';
@@ -63,12 +63,9 @@ export default class CarrinhoEvent {
     });
   }
 
-  private async loadConsulta(items: ExpedicaoCarrinhoDto[]): Promise<ExpedicaoCarrinhoConsultaDto[]> {
-    const results = await Promise.all(
-      items.map((item) => this.repository.consulta([Params.equals('CodCarrinho', item.CodCarrinho)])),
-    );
-
-    return results.flat();
+  private loadConsulta(items: ExpedicaoCarrinhoDto[]): Promise<ExpedicaoCarrinhoConsultaDto[]> {
+    const groups = items.map((item) => [Params.equals('CodCarrinho', item.CodCarrinho)]);
+    return this.repository.consultaAny(groups, Pagination.create(pageLimitForGroups(groups.length, 5)));
   }
 
   private convert(mutations: unknown[] | unknown): ExpedicaoCarrinhoDto[] {

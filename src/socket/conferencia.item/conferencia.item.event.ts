@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 
 import ConferenciaItemRepository from './conferencia.item.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -8,7 +8,6 @@ import CarrinhoPercursoEstagioRepository from '../carrinho.percurso.estagio/carr
 import ExpedicaoItemConferirConsultaDto from '../../dto/expedicao/expedicao.item.conferir.consulta.dto';
 import ExpedicaoItemConferenciaDto from '../../dto/expedicao/expedicao.item.conferencia.dto';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
-import ExpedicaoItemSituacaoModel from '../../model/expedicao.item.situacao.model';
 import ConferirItemRepository from '../conferir.item/conferir.item.repository';
 import {
   convertSocketMutationPayload,
@@ -16,6 +15,7 @@ import {
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
+import { assembleConferenciaConsultaRows } from './conferencia.item.refresh';
 
 type ProdutoConferir = {
   CodEmpresa: number;
@@ -103,7 +103,7 @@ export default class ConferenciaItemEvent {
           emitMutation([]);
           return;
         }
-        await this.updateOneByOne(itensMutation);
+        await this.repository.update(itensMutation);
         const refresh = await this.buildRefreshPayload(itensMutation);
 
         const responseEvent = this.createMutationEvent(
@@ -135,9 +135,10 @@ export default class ConferenciaItemEvent {
           return;
         }
         const itensConferenciaConsulta = await this.loadItensConferenciaConsulta(itensMutation);
-        await this.deleteOneByOne(itensMutation);
+        await this.repository.delete(itensMutation);
         const produtoConferir = await this.buildProdutosConferir(itensMutation);
-        const itensConferirConsulta = await this.refreshItensConferirConsulta(produtoConferir);
+        const refreshed = await this.refreshItensConferirConsulta(produtoConferir);
+        const itensConferirConsulta = refreshed.itensConferirConsulta;
 
         const responseEvent = this.createMutationEvent(request.session, request.responseIn, itensMutation);
         const conferenciaListenEvent = this.createMutationEvent(
@@ -175,27 +176,16 @@ export default class ConferenciaItemEvent {
     itensConferirConsulta: ExpedicaoItemConferirConsultaDto[];
   }> {
     const produtoConferir = await this.buildProdutosConferir(items);
-    const [itensConferirConsulta, itensConferenciaConsulta] = await Promise.all([
-      this.refreshItensConferirConsulta(produtoConferir),
-      this.loadItensConferenciaConsulta(items),
-    ]);
+    const refreshed = await this.refreshItensConferirConsulta(produtoConferir);
+    const itensConferenciaConsulta = await this.loadItensConferenciaConsulta(
+      items,
+      refreshed.itensConferenciaConsulta,
+    );
 
     return {
       itensConferenciaConsulta,
-      itensConferirConsulta,
+      itensConferirConsulta: refreshed.itensConferirConsulta,
     };
-  }
-
-  private async updateOneByOne(items: ExpedicaoItemConferenciaDto[]): Promise<void> {
-    for (const item of items) {
-      await this.repository.update([item]);
-    }
-  }
-
-  private async deleteOneByOne(items: ExpedicaoItemConferenciaDto[]): Promise<void> {
-    for (const item of items) {
-      await this.repository.delete([item]);
-    }
   }
 
   private convert(mutations: any[] | any): ExpedicaoItemConferenciaDto[] {
@@ -242,52 +232,80 @@ export default class ConferenciaItemEvent {
 
   private async refreshItensConferirConsulta(
     produtos: ProdutoConferir[],
-  ): Promise<ExpedicaoItemConferirConsultaDto[]> {
-    const consultas = await mapWithConcurrency(
-      produtos,
-      async (produto) => {
-        const params = this.buildProdutoConferirParams(produto);
-        const [itensConferenciaConsulta, itensConferir] = await Promise.all([
-          this.repository.consulta(params),
-          this.conferirItemRepository.consulta(params),
-        ]);
+  ): Promise<{
+    itensConferirConsulta: ExpedicaoItemConferirConsultaDto[];
+    itensConferenciaConsulta: ExpedicaoItemConferenciaConsultaDto[];
+  }> {
+    if (produtos.length === 0) {
+      return { itensConferirConsulta: [], itensConferenciaConsulta: [] };
+    }
 
-        const quantidadeConferida = itensConferenciaConsulta.reduce((acc, cur) => {
-          return cur.Situacao != ExpedicaoItemSituacaoModel.cancelado ? acc + cur.Quantidade : acc;
-        }, 0);
+    const groups = produtos.map((produto) => this.buildProdutoConferirParams(produto));
+    const [totals, conferirGroups] = await Promise.all([
+      this.repository.sumQuantidadeAtiva(groups),
+      mapWithConcurrency(produtos, async (produto) => ({
+        produto,
+        rows: await this.conferirItemRepository.consulta(
+          this.buildProdutoConferirParams(produto),
+          Pagination.create(pageLimitForGroups(1, 20)),
+        ),
+      })),
+    ]);
+    const totalByProduto = new Map(totals.map((total) => [this.getProdutoConferirKey(total), total.Total]));
+    const conferirByProduto = new Map(conferirGroups.map((group) => [this.getProdutoConferirKey(group.produto), group.rows]));
 
-        if (itensConferir.length > 0) {
-          const itemConferir = ExpedicaoItemConferirDto.fromConsulta(itensConferir[0]);
-          itemConferir.QuantidadeConferida = quantidadeConferida;
-          await this.conferirItemRepository.update([itemConferir]);
-          return this.conferirItemRepository.consulta(params);
-        }
+    const updates: ExpedicaoItemConferirDto[] = [];
+    const itensConferirConsulta: ExpedicaoItemConferirConsultaDto[] = [];
 
-        return itensConferir;
-      },
-    );
+    for (const produto of produtos) {
+      const key = this.getProdutoConferirKey(produto);
+      const rows = conferirByProduto.get(key) ?? [];
+      const quantidadeConferida = totalByProduto.get(key) ?? 0;
+      if (rows.length === 0) continue;
 
-    return consultas.flat();
+      const first = rows[0];
+      if (first.QuantidadeConferida !== quantidadeConferida) {
+        const itemConferir = ExpedicaoItemConferirDto.fromConsulta(first);
+        itemConferir.QuantidadeConferida = quantidadeConferida;
+        updates.push(itemConferir);
+      }
+
+      itensConferirConsulta.push(
+        ...rows.map((item, index) =>
+          index === 0 ? item.copyWith({ QuantidadeConferida: quantidadeConferida }) : item,
+        ),
+      );
+    }
+
+    if (updates.length > 0) {
+      await this.conferirItemRepository.update(updates);
+    }
+
+    return {
+      itensConferirConsulta,
+      itensConferenciaConsulta: [],
+    };
   }
 
   private async loadItensConferenciaConsulta(
     items: ExpedicaoItemConferenciaDto[],
+    alreadyLoaded: ExpedicaoItemConferenciaConsultaDto[] = [],
   ): Promise<ExpedicaoItemConferenciaConsultaDto[]> {
-    const queryParams = Array.from(
-      new Map(
-        items.map((item) => [
-          `${item.CodEmpresa}:${item.CodConferir}:${item.Item}`,
-          [
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodConferir', item.CodConferir),
-            Params.equals('Item', item.Item),
-          ],
-        ]),
-      ).values(),
-    );
-    const consultas = await mapWithConcurrency(queryParams, (params) => this.repository.consulta(params));
+    const planned = assembleConferenciaConsultaRows(items, alreadyLoaded);
+    if (planned.missing.length === 0) {
+      return planned.rows;
+    }
 
-    return consultas.flat();
+    const fetched = await this.repository.consultaAny(
+      planned.missing.map((item) => [
+        Params.equals('CodEmpresa', item.CodEmpresa),
+        Params.equals('CodConferir', item.CodConferir),
+        Params.equals('Item', item.Item),
+      ]),
+      Pagination.create(pageLimitForGroups(planned.missing.length)),
+    );
+
+    return assembleConferenciaConsultaRows(items, alreadyLoaded, fetched).rows;
   }
 
   private async getCodCarrinho(
@@ -313,7 +331,12 @@ export default class ConferenciaItemEvent {
     return load;
   }
 
-  private getProdutoConferirKey(produto: ProdutoConferir): string {
+  private getProdutoConferirKey(produto: {
+    CodEmpresa: number;
+    CodConferir: number;
+    CodCarrinho: number;
+    CodProduto: number;
+  }): string {
     return `${produto.CodEmpresa}:${produto.CodConferir}:${produto.CodCarrinho}:${produto.CodProduto}`;
   }
 
