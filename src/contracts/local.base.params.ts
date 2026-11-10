@@ -189,5 +189,5 @@ export class Params {
 }
 
 // Re-export Pagination and OrderBy for backward compatibility
-export { Pagination, pageLimitForGroups, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT } from './local.base.pagination';
+export { Pagination, pageForSeparacaoItens, pageLimitForGroups, DEFAULT_PAGE_LIMIT, MAX_PAGE_LIMIT } from './local.base.pagination';
 export { OrderBy } from './local.base.orderby';

@@ -10,6 +10,7 @@ Cobrança PIX, Firebase e Sybase não fazem parte desta versão.
 - [Consulta de usuários](./usuario-consulta.md) — `GET /usuarios`
 - [Escuta de separação](./escuta-separacao.md) — evento periódico `separar.consulta.listen`
 - [Parâmetros de consulta SQL](./params-common.md) — formatos aceitos por `ParamsCommonRepository.build`
+- [Paginação e limites](./paginacao-limites.md) — página padrão, teto e exceções das consultas
 
 ## Configuração
 

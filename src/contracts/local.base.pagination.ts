@@ -1,11 +1,22 @@
 /** Página quando o cliente não manda LIMIT. A view de expedição não aguenta 1000 linhas de uma vez. */
 export const DEFAULT_PAGE_LIMIT = 100;
 /** Teto mesmo se o cliente pedir mais. */
-export const MAX_PAGE_LIMIT = 500;
+export const MAX_PAGE_LIMIT = 1000;
 
 export function clampPageLimit(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_PAGE_LIMIT;
   return Math.min(MAX_PAGE_LIMIT, Math.max(1, Math.floor(value)));
+}
+
+/**
+ * ItemSepararEstoque and ItemSeparacaoEstoque return the separation lines to the collector.
+ * The generic 100-row default drops items on larger orders. An explicit LIMIT other than that default stays as sent.
+ * Remove when those events page by item instead of loading the separation in one read.
+ */
+export function pageForSeparacaoItens(pagination?: Pagination): Pagination {
+  const current = pagination ?? Pagination.create();
+  if (current.getLimit() !== DEFAULT_PAGE_LIMIT) return current;
+  return Pagination.create(MAX_PAGE_LIMIT, current.getOffset(), current.getPage());
 }
 
 /** Limite de um refresh em lote: algumas linhas por chave, sem passar do teto da página. */

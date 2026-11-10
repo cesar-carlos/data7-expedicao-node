@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageForSeparacaoItens, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -43,7 +43,7 @@ export default class ConferirItemRepository {
   ): Promise<ExpedicaoItemSeparacaoConferirConsultaDto[]> {
     try {
       const repository = this.repositoryConferirSeparacaoConsulta();
-      const result = await repository.selectWhere(params, pagination, orderBy);
+      const result = await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
       return result as ExpedicaoItemSeparacaoConferirConsultaDto[];
     } catch (error: any) {
       throw new Error(error.message);

@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest';
 
 import { OrderBy } from '../../../../src/contracts/local.base.orderby';
 import { DEFAULT_PAGE_LIMIT, Pagination } from '../../../../src/contracts/local.base.pagination';
-import { applySelectOrdering, resolveSelectPagination } from '../../../../src/repository/common/consulta.sql.helper';
+import {
+  KEEP_EVERY_UNIT_ROW,
+  applySelectOrdering,
+  applySelectPage,
+  resolveSelectPagination,
+} from '../../../../src/repository/common/consulta.sql.helper';
 
 const selectSql = 'SELECT CodEmpresa FROM LiberacaoBloqueio';
 
@@ -19,6 +24,25 @@ describe('resolveSelectPagination', () => {
 
     expect(page.limit).toBe(20);
     expect(page.offset).toBe(40);
+  });
+});
+
+describe('applySelectPage', () => {
+  it('should keep every unit row when the unit consulta opts out of the page', () => {
+    const assembled = applySelectPage(selectSql, undefined, undefined, KEEP_EVERY_UNIT_ROW);
+
+    expect(assembled.sqlText).toBe(selectSql);
+    expect(assembled.page).toBeUndefined();
+  });
+
+  it('should keep the page cap for the other consultas', () => {
+    const assembled = applySelectPage(selectSql, undefined, undefined, false);
+
+    expect(assembled.sqlText).toBe(
+      `${selectSql} ORDER BY (SELECT NULL) OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+    );
+    expect(assembled.page?.limit).toBe(DEFAULT_PAGE_LIMIT);
+    expect(assembled.page?.offset).toBe(0);
   });
 });
 

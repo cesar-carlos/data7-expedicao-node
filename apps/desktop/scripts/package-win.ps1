@@ -107,7 +107,15 @@ if (-not (Test-Path (Join-Path $packedModules 'sybase\package.json'))) {
 if (-not (Test-Path $Iscc)) {
   throw "Inno Setup não encontrado em $Iscc"
 }
-& $Iscc (Join-Path $Desktop 'installer\setup.iss')
+$AppVersion = (Get-Content (Join-Path $Desktop 'package.json') -Raw | ConvertFrom-Json).version
+if ([string]::IsNullOrWhiteSpace($AppVersion)) {
+  throw 'A versão do aplicativo não está definida em apps/desktop/package.json.'
+}
+$Installer = Join-Path $Desktop "dist\Data7 Expedicao Server-Setup-$AppVersion.exe"
+& $Iscc "/DMyAppVersion=$AppVersion" (Join-Path $Desktop 'installer\setup.iss')
 if ($LASTEXITCODE -ne 0) { throw 'ISCC falhou' }
+if (-not (Test-Path $Installer)) {
+  throw "O instalador não foi gerado em $Installer"
+}
 
-Write-Host "Instalador em $(Join-Path $Desktop 'dist\Data7 Expedicao Server-Setup.exe')"
+Write-Host "Instalador $AppVersion em $Installer"

@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoItemSepararUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.separar.unidade.medida.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
+import { KEEP_EVERY_UNIT_ROW, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepository
@@ -23,7 +23,7 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.unidade.medida.consulta.sql');
       const sqlText = readSqlFileCached(patchSQL);
-      const result = await executeSelectPaged(pool, sqlText, page ?? Pagination.create());
+      const result = await pool.request().query(sqlText);
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {
@@ -49,7 +49,16 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.unidade.medida.consulta.sql');
       const select = readSqlFileCached(patchSQL);
 
-      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
+      const result = await executeSelectWhere(
+        pool,
+        select,
+        params,
+        pagination,
+        orderBy,
+        undefined,
+        undefined,
+        KEEP_EVERY_UNIT_ROW,
+      );
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {
@@ -74,7 +83,7 @@ export default class SqlServerExpedicaoItemSepararUnidadeMedidaConsultaRepositor
     try {
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.separar.unidade.medida.consulta.sql');
       const select = readSqlFileCached(patchSQL);
-      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy);
+      const result = await executeSelectWhereAny(pool, select, groups, pagination, orderBy, KEEP_EVERY_UNIT_ROW);
       return result.recordset.map((item: Record<string, unknown>) =>
         ExpedicaoItemSepararUnidadeMedidaConsultaDto.fromObject(item),
       );

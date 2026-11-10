@@ -23,6 +23,30 @@ export function applySelectOrdering(baseSql: string, orderBy: OrderBy | undefine
   return baseSql;
 }
 
+/**
+ * Skip OFFSET/FETCH only for the item unit-of-measure read.
+ * Each item needs its standard unit and every conversion; a page cut drops UnidadeMedidas on the collector.
+ * Remove this exception when the query filters by item instead of the whole separation.
+ */
+export const KEEP_EVERY_UNIT_ROW = true;
+export function applySelectPage(
+  baseSql: string,
+  orderBy: OrderBy | undefined,
+  pagination: Pagination | undefined,
+  unbounded = false,
+): { sqlText: string; page?: Pagination } {
+  if (unbounded) {
+    return { sqlText: applySelectOrdering(baseSql, orderBy, false) };
+  }
+
+  const page = resolveSelectPagination(pagination);
+  const ordered = applySelectOrdering(baseSql, orderBy, true);
+  return {
+    page,
+    sqlText: `${ordered} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+  };
+}
+
 export async function executeSelectWhere(
   pool: ConnectionPool,
   selectSql: string,
@@ -31,6 +55,7 @@ export async function executeSelectWhere(
   orderBy: OrderBy | undefined,
   expedicaoSepararConsulta?: boolean,
   applyExtra?: (request: Request) => void,
+  unbounded = false,
 ): Promise<{ recordset: any[] }> {
   try {
     let baseSql: string;
@@ -53,16 +78,16 @@ export async function executeSelectWhere(
       applyToRequest = pw.apply;
     }
 
-    const page = resolveSelectPagination(pagination);
-    const sqlTextBase = applySelectOrdering(baseSql, orderBy, true);
+    const assembled = applySelectPage(baseSql, orderBy, pagination, unbounded);
     const req = pool.request();
     applyToRequest(req);
     applyExtra?.(req);
-    req.input('__pg_offset', sql.Int, page.offset);
-    req.input('__pg_limit', sql.Int, page.limit);
-    const sqlText = `${sqlTextBase} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`;
+    if (assembled.page) {
+      req.input('__pg_offset', sql.Int, assembled.page.offset);
+      req.input('__pg_limit', sql.Int, assembled.page.limit);
+    }
 
-    return await req.query(sqlText);
+    return await req.query(assembled.sqlText);
   } catch (e) {
     throw wrapRepositoryError(e);
   }
@@ -75,18 +100,20 @@ export async function executeSelectWhereAny(
   groups: Params[][],
   pagination: Pagination | undefined,
   orderBy: OrderBy | undefined,
+  unbounded = false,
 ): Promise<{ recordset: any[] }> {
   try {
     const where = ParamsCommonRepository.buildWhereAnyOf(groups as Param[][]);
     const baseSql = where.whereFragment ? `${selectSql} WHERE ${where.whereFragment}` : selectSql;
-    const page = resolveSelectPagination(pagination);
+    const assembled = applySelectPage(baseSql, orderBy, pagination, unbounded);
     const req = pool.request();
     where.apply(req);
-    req.input('__pg_offset', sql.Int, page.offset);
-    req.input('__pg_limit', sql.Int, page.limit);
-    const sqlText = `${applySelectOrdering(baseSql, orderBy, true)} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`;
+    if (assembled.page) {
+      req.input('__pg_offset', sql.Int, assembled.page.offset);
+      req.input('__pg_limit', sql.Int, assembled.page.limit);
+    }
 
-    return await req.query(sqlText);
+    return await req.query(assembled.sqlText);
   } catch (e) {
     throw wrapRepositoryError(e);
   }

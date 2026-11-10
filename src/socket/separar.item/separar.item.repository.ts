@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageForSeparacaoItens, pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -20,7 +20,7 @@ export default class SepararItemRepository {
     orderBy?: OrderBy,
   ): Promise<ExpedicaoItemSepararConsultaDto[]> {
     const repository = this.repositoryConsulta();
-    const result = await repository.selectWhere(params, pagination, orderBy);
+    const result = await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
     return result as ExpedicaoItemSepararConsultaDto[];
   }
 
@@ -43,7 +43,7 @@ export default class SepararItemRepository {
       Params.equals('CodSepararEstoque', pair.codSepararEstoque),
     ]);
     const repository = this.repositoryUnidadeMedidaSql();
-    return repository.selectWhereAny(groups, Pagination.create(pageLimitForGroups(pairs.length, 30)));
+    return repository.selectWhereAny(groups);
   }
 
   public async consultaUnidadeMedida(
@@ -67,7 +67,7 @@ export default class SepararItemRepository {
   ): Promise<ExpedicaoItemSepararDto[]> {
     try {
       const repository = this.repository();
-      return await repository.selectWhere(params, pagination, orderBy);
+      return await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
     } catch (error: any) {
       throw new Error(error.message);
     }

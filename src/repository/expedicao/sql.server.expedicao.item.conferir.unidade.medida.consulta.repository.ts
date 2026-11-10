@@ -8,7 +8,7 @@ import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoItemConferirUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.conferir.unidade.medida.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { KEEP_EVERY_UNIT_ROW, executeSelectWhere } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoItemConferirUnidadeMedidaConsultaRepository
@@ -49,7 +49,16 @@ export default class SqlServerExpedicaoItemConferirUnidadeMedidaConsultaReposito
       const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferir.unidade.medida.consulta.sql');
       const select = readSqlFileCached(patchSQL);
 
-      const result = await executeSelectWhere(pool, select, params, pagination, orderBy);
+      const result = await executeSelectWhere(
+        pool,
+        select,
+        params,
+        pagination,
+        orderBy,
+        undefined,
+        undefined,
+        KEEP_EVERY_UNIT_ROW,
+      );
 
       if (result.recordset.length === 0) return [];
       const entitys = result.recordset.map((item: any) => {

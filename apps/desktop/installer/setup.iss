@@ -1,6 +1,8 @@
 #define MyAppName "Data7 Expedicao"
 #define MyShortcutName "Data7 Expedicao Server"
-#define MyAppVersion "1.1.3"
+#ifndef MyAppVersion
+#define MyAppVersion "1.1.6"
+#endif
 #define MyAppExeName "Data7Expedicao.exe"
 #define MyAppId "{{7E4C1A2B-9D30-4F55-8A61-2C8B0E4D6F19}"
 
@@ -16,7 +18,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=admin
 OutputDir=..\dist
-OutputBaseFilename=Data7 Expedicao Server-Setup
+OutputBaseFilename=Data7 Expedicao Server-Setup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 ArchitecturesAllowed=x64compatible
