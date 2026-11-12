@@ -16,6 +16,8 @@ export const desktopConfigSchema = z.object({
   separarListenLimit: z.number().int().min(1).max(500),
   separarListenDebug: z.boolean(),
   sqlHeartbeatIntervalMs: z.number().int().min(5000),
+  sqlPoolMax: z.number().int().min(1).max(100).default(20),
+  sqlPoolMin: z.number().int().min(0).max(100).default(2),
   startWithWindows: z.boolean(),
   closeToTray: z.boolean(),
   minimizeToTray: z.boolean(),
@@ -39,6 +41,8 @@ export const defaultDesktopConfig: DesktopConfig = {
   separarListenLimit: 20,
   separarListenDebug: false,
   sqlHeartbeatIntervalMs: 30_000,
+  sqlPoolMax: 20,
+  sqlPoolMin: 2,
   startWithWindows: false,
   closeToTray: true,
   minimizeToTray: false,
@@ -60,6 +64,8 @@ export function toPublicConfig(config: DesktopConfig): PublicDesktopConfig {
     separarListenLimit: config.separarListenLimit,
     separarListenDebug: config.separarListenDebug,
     sqlHeartbeatIntervalMs: config.sqlHeartbeatIntervalMs,
+    sqlPoolMax: config.sqlPoolMax,
+    sqlPoolMin: config.sqlPoolMin,
     startWithWindows: config.startWithWindows,
     closeToTray: config.closeToTray,
     minimizeToTray: config.minimizeToTray,
@@ -91,6 +97,8 @@ const SERVICE_FIELD_LABEL: Record<string, string> = {
   separarListenLimit: 'Limite da escuta',
   separarListenDebug: 'Log de depuração',
   sqlHeartbeatIntervalMs: 'Intervalo do SQL',
+  sqlPoolMax: 'Máximo de conexões SQL',
+  sqlPoolMin: 'Mínimo de conexões SQL',
 };
 
 function changedServiceKeys(previous: DesktopConfig, next: DesktopConfig): (keyof DesktopConfig)[] {
@@ -178,6 +186,8 @@ export function desktopConfigFromEnv(map: Record<string, string>): DesktopConfig
     separarListenLimit: intFrom(map.SEPARAR_LISTEN_LIMIT, defaults.separarListenLimit),
     separarListenDebug: boolFrom(map.SEPARAR_LISTEN_DEBUG, defaults.separarListenDebug),
     sqlHeartbeatIntervalMs: intFrom(map.SQL_HEARTBEAT_INTERVAL_MS, defaults.sqlHeartbeatIntervalMs),
+    sqlPoolMax: intFrom(map.SQL_POOL_MAX, defaults.sqlPoolMax),
+    sqlPoolMin: intFrom(map.SQL_POOL_MIN, defaults.sqlPoolMin),
   };
   const parsed = desktopConfigSchema.safeParse(candidate);
   if (parsed.success) {
@@ -203,6 +213,8 @@ export function toProcessEnv(config: DesktopConfig): Record<string, string> {
     SEPARAR_LISTEN_LIMIT: String(config.separarListenLimit),
     SEPARAR_LISTEN_DEBUG: config.separarListenDebug ? 'true' : 'false',
     SQL_HEARTBEAT_INTERVAL_MS: String(config.sqlHeartbeatIntervalMs),
+    SQL_POOL_MAX: String(config.sqlPoolMax),
+    SQL_POOL_MIN: String(config.sqlPoolMin),
     EXPEDICAO_DESKTOP: '1',
     NODE_ENV: 'production',
   };

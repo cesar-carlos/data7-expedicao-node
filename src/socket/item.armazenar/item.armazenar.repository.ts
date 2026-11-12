@@ -8,6 +8,7 @@ import ExpedicaoItemArmazenarConsultaDto from '../../dto/expedicao/expedicao.ite
 import ExpedicaoItemArmazenarDto from '../../dto/expedicao/expedicao.item.armazenar.dto';
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoItemArmazenarRepository from '../../repository/expedicao/sql.server.expedicao.item.armazenar.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class ItemArmazenarRepository {
   public async consulta(
@@ -28,8 +29,8 @@ export default class ItemArmazenarRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -44,8 +45,8 @@ export default class ItemArmazenarRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -55,8 +56,8 @@ export default class ItemArmazenarRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -66,8 +67,8 @@ export default class ItemArmazenarRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

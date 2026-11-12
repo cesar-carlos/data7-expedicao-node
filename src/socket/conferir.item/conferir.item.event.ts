@@ -5,6 +5,7 @@ import ConferirItemRepository from './conferir.item.repository';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import {
+  assertSocketWhereHasKey,
   convertSocketMutationPayload,
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
@@ -22,6 +23,7 @@ export default class ConferirItemEvent {
         eventName: 'conferir.item.consulta',
         kind: 'query',
       }, async ({ request, emitQuery }) => {
+        assertSocketWhereHasKey(request.where, 'CodCarrinho', 'conferir.item.consulta');
         const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
         emitQuery(result.map((item) => item.toJson()));
       });

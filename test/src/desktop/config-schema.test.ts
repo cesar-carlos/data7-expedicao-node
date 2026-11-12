@@ -4,6 +4,7 @@ import {
   defaultDesktopConfig,
   desktopConfigFromEnv,
   mergeSavedConfig,
+  parseDesktopConfig,
   parseEnvText,
   redactText,
   retryDelayMs,
@@ -36,6 +37,30 @@ describe('desktop config schema', () => {
     expect(env.CORS_ORIGINS).toBe('');
     expect(env.SOCKET_AUTH_TOKEN).toBe('');
     expect(env.JWT_SECRET).toBe('');
+    expect(env.SQL_POOL_MAX).toBe('20');
+    expect(env.SQL_POOL_MIN).toBe('2');
+  });
+
+  it('should fill pool size when an older saved config omits the new fields', () => {
+    const parsed = parseDesktopConfig({
+      serverPort: 3001,
+      databaseHost: 'localhost',
+      databasePort: 1433,
+      databaseName: 'Estacao',
+      databaseUser: 'sa',
+      databasePassword: 'x',
+      separarListenEnabled: true,
+      separarListenIntervalMs: 8000,
+      separarListenLimit: 20,
+      separarListenDebug: false,
+      sqlHeartbeatIntervalMs: 30_000,
+      startWithWindows: false,
+      closeToTray: true,
+      minimizeToTray: false,
+    });
+
+    expect(parsed.sqlPoolMax).toBe(20);
+    expect(parsed.sqlPoolMin).toBe(2);
   });
 
   it('imports an existing env file once into the form shape', () => {

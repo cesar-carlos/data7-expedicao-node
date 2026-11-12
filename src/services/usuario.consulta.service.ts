@@ -3,7 +3,8 @@ import { getLocalDbContext } from '../di/database.context';
 import AppDependencys from '../aplication/app.dependencys';
 import LocalBaseConsultaRepositoryContract from '../contracts/local.base.consulta.repository.contract';
 import UsuarioConsultaDto from '../dto/common.data/usuario.consulta.dto';
-import { Params, Pagination, OrderBy } from '../contracts/local.base.params';
+import { DEFAULT_PAGE_LIMIT, SQL_INT_MAX, Params, Pagination, OrderBy } from '../contracts/local.base.params';
+import { logAppError } from '../infra/app.logger';
 
 export interface PaginatedResult<T> {
   data: T[];
@@ -21,7 +22,7 @@ export default class UsuarioConsultaService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarTodos(page: number = 1, limit: number = 100): Promise<PaginatedResult<UsuarioConsultaDto>> {
+  public async consultarTodos(page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult<UsuarioConsultaDto>> {
     try {
       this.validatePagination(page, limit);
       const repository = this.repository();
@@ -46,9 +47,8 @@ export default class UsuarioConsultaService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar todos os usuários:', {
+      logAppError('Erro ao consultar todos os usuários', {
         error: error.message,
-        stack: error.stack,
         page,
         limit,
       });
@@ -77,9 +77,8 @@ export default class UsuarioConsultaService {
 
       return usuarios[0];
     } catch (error: any) {
-      console.error('Erro ao consultar usuário por código:', {
+      logAppError('Erro ao consultar usuário por código', {
         error: error.message,
-        stack: error.stack,
         codUsuario,
       });
       throw new Error(`Erro ao consultar usuário por código: ${error.message}`);
@@ -96,7 +95,7 @@ export default class UsuarioConsultaService {
   public async consultarPorNome(
     nome: string,
     page: number = 1,
-    limit: number = 100,
+    limit: number = DEFAULT_PAGE_LIMIT,
   ): Promise<PaginatedResult<UsuarioConsultaDto>> {
     try {
       this.validatePagination(page, limit);
@@ -127,9 +126,8 @@ export default class UsuarioConsultaService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar usuário por nome:', {
+      logAppError('Erro ao consultar usuário por nome', {
         error: error.message,
-        stack: error.stack,
         nome,
         page,
         limit,
@@ -144,7 +142,7 @@ export default class UsuarioConsultaService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarAtivos(page: number = 1, limit: number = 100): Promise<PaginatedResult<UsuarioConsultaDto>> {
+  public async consultarAtivos(page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult<UsuarioConsultaDto>> {
     try {
       this.validatePagination(page, limit);
       const repository = this.repository();
@@ -170,9 +168,8 @@ export default class UsuarioConsultaService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar usuários ativos:', {
+      logAppError('Erro ao consultar usuários ativos', {
         error: error.message,
-        stack: error.stack,
         page,
         limit,
       });
@@ -190,7 +187,7 @@ export default class UsuarioConsultaService {
   public async consultarPorEmpresa(
     codEmpresa: number,
     page: number = 1,
-    limit: number = 100,
+    limit: number = DEFAULT_PAGE_LIMIT,
   ): Promise<PaginatedResult<UsuarioConsultaDto>> {
     try {
       this.validatePagination(page, limit);
@@ -221,9 +218,8 @@ export default class UsuarioConsultaService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar usuários por empresa:', {
+      logAppError('Erro ao consultar usuários por empresa', {
         error: error.message,
-        stack: error.stack,
         codEmpresa,
         page,
         limit,
@@ -242,7 +238,7 @@ export default class UsuarioConsultaService {
   public async consultarPorStatus(
     ativo: 'S' | 'N',
     page: number = 1,
-    limit: number = 100,
+    limit: number = DEFAULT_PAGE_LIMIT,
   ): Promise<PaginatedResult<UsuarioConsultaDto>> {
     try {
       this.validatePagination(page, limit);
@@ -273,9 +269,8 @@ export default class UsuarioConsultaService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar usuários por status:', {
+      logAppError('Erro ao consultar usuários por status', {
         error: error.message,
-        stack: error.stack,
         ativo,
         page,
         limit,
@@ -294,9 +289,8 @@ export default class UsuarioConsultaService {
       const usuarios = await repository.selectWhere([]);
       return usuarios.length;
     } catch (error: any) {
-      console.error('Erro ao contar usuários:', {
+      logAppError('Erro ao contar usuários', {
         error: error.message,
-        stack: error.stack,
       });
       throw new Error(`Erro ao contar usuários: ${error.message}`);
     }
@@ -313,9 +307,8 @@ export default class UsuarioConsultaService {
       const usuarios = await repository.selectWhere(params);
       return usuarios.length;
     } catch (error: any) {
-      console.error('Erro ao contar usuários ativos:', {
+      logAppError('Erro ao contar usuários ativos', {
         error: error.message,
-        stack: error.stack,
       });
       throw new Error(`Erro ao contar usuários ativos: ${error.message}`);
     }
@@ -337,9 +330,8 @@ export default class UsuarioConsultaService {
       const usuarios = await repository.selectWhere(params);
       return usuarios.length;
     } catch (error: any) {
-      console.error('Erro ao contar usuários por empresa:', {
+      logAppError('Erro ao contar usuários por empresa', {
         error: error.message,
-        stack: error.stack,
         codEmpresa,
       });
       throw new Error(`Erro ao contar usuários por empresa: ${error.message}`);
@@ -354,8 +346,8 @@ export default class UsuarioConsultaService {
     if (page < 1) {
       throw new Error('Página deve ser maior que 0');
     }
-    if (limit < 1 || limit > 1000) {
-      throw new Error('Limit deve estar entre 1 e 1000');
+    if (limit < 1 || limit > SQL_INT_MAX) {
+      throw new Error('Limit deve ser maior que 0');
     }
   }
 

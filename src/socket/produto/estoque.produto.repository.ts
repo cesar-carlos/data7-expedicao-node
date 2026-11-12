@@ -9,6 +9,7 @@ import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.cons
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
 import EstoqueProdutoDto from '../../dto/common.data/estoque.produto.dto';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class EstoqueProdutoRepository {
   public async consulta(
@@ -20,8 +21,8 @@ export default class EstoqueProdutoRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as EstoqueProdutoConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -33,8 +34,8 @@ export default class EstoqueProdutoRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -44,8 +45,8 @@ export default class EstoqueProdutoRepository {
       for (const el of models) {
         await repository.insert(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -55,8 +56,8 @@ export default class EstoqueProdutoRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -66,8 +67,8 @@ export default class EstoqueProdutoRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -76,8 +77,8 @@ export default class EstoqueProdutoRepository {
       const name = 'Produto_Sequencia';
       const repository = this.sequenceRepository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

@@ -1,5 +1,6 @@
 import path from 'path';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
+import { logCaughtError } from '../../infra/app.logger';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -120,7 +121,7 @@ export default class SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository
           .query(sqlCommand);
       });
     } catch (error: unknown) {
-      console.error('Erro em SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository.actonEntity:', error);
+      logCaughtError('Erro em SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository.actonEntity', error);
       throw wrapRepositoryError(error);
     }
   }

@@ -1,8 +1,9 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import SequenciaRegistroRepository from './sequencia.registro.repository';
-import ExpedicaoBasicSelectEvent from '../../model/expedicao.basic.query.event';
-import { emitSocketError, getSocketPayloadOrEmitError } from '../socket.event.helpers';
+import { sequenceNameFromWhere, withSocketRequest } from '../socket.event.helpers';
+import { SocketClientError } from '../../utils/repository.error';
+import SocketErrorCode from '../protocol/socket.error.code';
 
 export default class SequenciaRegistroEvent {
   private repository = new SequenciaRegistroRepository();
@@ -11,29 +12,18 @@ export default class SequenciaRegistroEvent {
     const client = socket.id;
 
     socket.on(`${client} sequencia.select`, async (data) => {
-      const payload = getSocketPayloadOrEmitError(socket, data, {
+      await withSocketRequest(socket, data, {
         defaultResponseIn: `${client} sequencia.select`,
-      });
-      if (!payload) return;
-
-      const { session, responseIn, where, pagination, orderBy } = payload;
-
-      try {
-        const result = await this.repository.select(String(where ?? ''), pagination, orderBy);
+        eventName: 'sequencia.select',
+        kind: 'query',
+      }, async ({ request, emitQuery }) => {
+        const name = sequenceNameFromWhere(request.where);
+        const result = await this.repository.select(name, request.pagination, request.orderBy);
         if (result === undefined) {
-          throw new Error('Sequencia nÃ£o encontrada');
+          throw new SocketClientError('Sequencia nao encontrada', SocketErrorCode.NOT_FOUND);
         }
-
-        const event = new ExpedicaoBasicSelectEvent({
-          Session: session,
-          ResponseIn: responseIn,
-          Data: result.toJson(),
-        });
-
-        socket.emit(responseIn, JSON.stringify(event.toJson()));
-      } catch (error) {
-        emitSocketError(socket, responseIn, session, error);
-      }
+        emitQuery(result.toJson());
+      });
     });
   }
 }

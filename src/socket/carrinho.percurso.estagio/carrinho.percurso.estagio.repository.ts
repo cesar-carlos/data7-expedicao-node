@@ -9,6 +9,7 @@ import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.cons
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoCarrinhoPercursoEstagioRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.estagio.repository';
 import SqlServerExpedicaoCarrinhoPercursoEstagioConsultaRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.estagio.consulta.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class CarrinhoPercursoEstagioRepository {
   public async consulta(
@@ -47,8 +48,8 @@ export default class CarrinhoPercursoEstagioRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -63,8 +64,8 @@ export default class CarrinhoPercursoEstagioRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -74,8 +75,8 @@ export default class CarrinhoPercursoEstagioRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -85,8 +86,8 @@ export default class CarrinhoPercursoEstagioRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

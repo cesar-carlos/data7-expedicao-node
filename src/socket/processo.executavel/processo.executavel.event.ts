@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import ProcessoExecutavelDto from '../../dto/common.data/processo.executavel.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import ProcessoExecutavelRepository from './processo.executavel.repository';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 
@@ -21,7 +21,10 @@ export default class ProcessoExecutavelEvent {
       convert: (mutation) => this.convert(mutation),
       beforeExecute: async (items) => {
         for (const item of items) {
-          item.CodProcessoExecutavel = (await this.repository.sequence())?.Valor ?? 0;
+          item.CodProcessoExecutavel = requireSequenceValue(
+            await this.repository.sequence(),
+            'ProcessoExecutavel',
+          );
         }
       },
       execute: async (items) => this.repository.insert(items),

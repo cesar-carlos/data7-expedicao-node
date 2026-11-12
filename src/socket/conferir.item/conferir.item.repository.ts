@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { pageForSeparacaoItens, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
@@ -10,6 +10,7 @@ import ExpedicaoItemConferirUnidadeMedidaConsultaDto from '../../dto/expedicao/e
 import ExpedicaoItemConferirConsultaDto from '../../dto/expedicao/expedicao.item.conferir.consulta.dto';
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import SqlServerExpedicaoItemConferirRepository from '../../repository/expedicao/sql.server.expedicao.item.conferir.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class ConferirItemRepository {
   public async consulta(
@@ -31,8 +32,8 @@ export default class ConferirItemRepository {
       const repository = this.repositoryUnidadeMedidaConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoItemConferirUnidadeMedidaConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -43,10 +44,10 @@ export default class ConferirItemRepository {
   ): Promise<ExpedicaoItemSeparacaoConferirConsultaDto[]> {
     try {
       const repository = this.repositoryConferirSeparacaoConsulta();
-      const result = await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
+      const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoItemSeparacaoConferirConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -58,8 +59,8 @@ export default class ConferirItemRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -74,8 +75,8 @@ export default class ConferirItemRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -85,8 +86,8 @@ export default class ConferirItemRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -96,8 +97,8 @@ export default class ConferirItemRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

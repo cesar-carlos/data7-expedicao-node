@@ -1,133 +1,63 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
 
-import SeparacaoUsuarioSetorItemRepository from './separacao.usuario.setor.item.repository';
 import ExpedicaoSeparacaoUsuarioSetorDto from '../../dto/expedicao/expedicao.separacao.usuario.setor.dto';
-import ExpedicaoMutationListenEvent from '../../model/expedicao.mutation.listen.event';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
 import {
   convertSocketMutationPayload,
   normalizeExpedicaoItemSequenceKey,
-  withSocketRequest,
 } from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
+import SeparacaoUsuarioSetorItemRepository from './separacao.usuario.setor.item.repository';
 
 export default class SeparacaoUsuarioSetorItemEvent {
   private repository = new SeparacaoUsuarioSetorItemRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} separar.usuario.setor.consulta`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} separar.usuario.setor.consulta`,
-        eventName: 'separar.usuario.setor.consulta',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item: any) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'separar.usuario.setor.consulta',
+      execute: (where, pagination, orderBy) => this.repository.consulta(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} separar.usuario.setor.select`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} separar.usuario.setor.select`,
-        eventName: 'separar.usuario.setor.select',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item: any) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'separar.usuario.setor.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} separar.usuario.setor.insert`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} separar.usuario.setor.insert`,
-        eventName: 'separar.usuario.setor.insert',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
-        }
-        await this.repository.insert(itens);
-
-        const itensJson = itens.map((item: any) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itensJson,
-        });
-
-        const listenEvent = new ExpedicaoMutationListenEvent({
-          Mutation: itensJson,
-        });
-
-        emitMutation(basicEvent.Mutation ?? itensJson);
-        emitListen(io, 'separar.usuario.setor.insert.listen', listenEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'separar.usuario.setor.insert',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.insert(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'separar.usuario.setor.insert.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
-    socket.on(`${client} separar.usuario.setor.update`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} separar.usuario.setor.update`,
-        eventName: 'separar.usuario.setor.update',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
-        }
-        await this.repository.update(itens);
-
-        const itensJson = itens.map((item: any) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itensJson,
-        });
-
-        const listenEvent = new ExpedicaoMutationListenEvent({
-          Mutation: itensJson,
-        });
-
-        emitMutation(basicEvent.Mutation ?? itensJson);
-        emitListen(io, 'separar.usuario.setor.update.listen', listenEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'separar.usuario.setor.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'separar.usuario.setor.update.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
 
-    socket.on(`${client} separar.usuario.setor.delete`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} separar.usuario.setor.delete`,
-        eventName: 'separar.usuario.setor.delete',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
-        }
-        await this.repository.delete(itens);
-
-        const itensJson = itens.map((item: any) => item.toJson());
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itensJson,
-        });
-
-        const listenEvent = new ExpedicaoMutationListenEvent({
-          Mutation: itensJson,
-        });
-
-        emitMutation(basicEvent.Mutation ?? itensJson);
-        emitListen(io, 'separar.usuario.setor.delete.listen', listenEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'separar.usuario.setor.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'separar.usuario.setor.delete.listen',
+      listenPayload: (items) => ({ Mutation: items.map((item) => item.toJson()) }),
+      allowEmptyMutation: true,
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoSeparacaoUsuarioSetorDto[] {
+  private convert(mutations: unknown[] | unknown): ExpedicaoSeparacaoUsuarioSetorDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) =>

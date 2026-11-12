@@ -1,109 +1,80 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Params } from '../../contracts/local.base.params';
 
-import EstoqueConversaoUnidadeRepository from './estoque.conversao.unidade.repository';
 import EstoqueConversaoUnidadeDto from '../../dto/common.data/estoque.conversao.unidade.dto';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import { SocketClientError } from '../../utils/repository.error';
+import {
+  convertSocketMutationPayload,
+  mutationBasicListenPayload,
+} from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
+import EstoqueConversaoUnidadeRepository from './estoque.conversao.unidade.repository';
 
 export default class EstoqueConversaoUnidadeEvent {
   private repository = new EstoqueConversaoUnidadeRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
-    socket.on(`${client} produto.conversao.unidade.consulta`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} estoque.produto.conversao.unidade.consulta`,
-        eventName: 'produto.conversao.unidade.consulta',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    const registrar = new SocketCrudRegistrar(io, socket);
+
+    registrar.query({
+      eventSuffix: 'produto.conversao.unidade.consulta',
+      execute: (where, pagination, orderBy) => this.repository.consulta(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} produto.conversao.unidade.select`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} estoque.produto.conversao.unidade.select`,
-        eventName: 'produto.conversao.unidade.select',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'produto.conversao.unidade.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} produto.conversao.unidade.insert`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} estoque.produto.conversao.unidade.insert`,
-        eventName: 'produto.conversao.unidade.insert',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        for (const el of itens) {
-          const sequence = await this.repository.sequence();
-          el.CodProduto = sequence?.Valor ?? 0;
-          el.Item = await this.lestItem(el.CodProduto);
+    registrar.mutation({
+      eventSuffix: 'produto.conversao.unidade.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const el of items) {
+          if (!(el.CodProduto > 0)) {
+            throw new SocketClientError('produto.conversao.unidade.insert exige CodProduto.');
+          }
+          if (!el.Item || String(el.Item).trim().length === 0) {
+            el.Item = await this.lestItem(el.CodProduto);
+          }
+        }
+      },
+      execute: async (items) => {
+        for (const el of items) {
           await this.repository.insert([el]);
         }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'produto.conversao.unidade.insert.listen', basicEvent.toJson());
-      });
+      },
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'produto.conversao.unidade.insert.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
     });
 
-    socket.on(`${client} produto.conversao.unidade.update`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} estoque.produto.conversao.unidade.update`,
-        eventName: 'produto.conversao.unidade.update',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.update(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'produto.conversao.unidade.update.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'produto.conversao.unidade.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'produto.conversao.unidade.update.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
     });
 
-    socket.on(`${client} produto.conversao.unidade.delete`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} estoque.produto.conversao.unidade.delete`,
-        eventName: 'produto.conversao.unidade.delete',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'produto.conversao.unidade.delete.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'produto.conversao.unidade.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'produto.conversao.unidade.delete.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
     });
   }
 
-  private convert(mutations: any[] | any): EstoqueConversaoUnidadeDto[] {
+  private convert(mutations: unknown[] | unknown): EstoqueConversaoUnidadeDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => EstoqueConversaoUnidadeDto.fromObject(mutation),
-      { eventName: 'produto.conversao.unidade.mutation' },
+      { eventName: 'produto.conversao.unidade.mutation', requiredKeys: ['CodProduto'] },
     );
   }
 

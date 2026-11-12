@@ -19,5 +19,5 @@ alwaysApply: true
 - Return generic error responses to clients and keep stack traces or database details out of production responses.
 - Log only safe metadata. Never log passwords, tokens, PIX credentials, raw webhook secrets, certificate contents, or sensitive personal data.
 - Keep a centralized redaction policy in the logger for auth headers, tokens, cookies when applicable, API keys, and other known secret-bearing fields.
-- Use parameterized queries or safe ORM/query-builder APIs and keep database permissions minimal.
+- Use parameterized queries or safe ORM/query-builder APIs and keep database permissions minimal. Consulta Socket `Where` prefers a `{ key, value }[]` list (`normalizeConsultaWhere` / `buildWhereParameterized`). Interpolating a client SQL string is a named legacy shim for Flutter `QueryBuilder.buildSqlWhere()` only; log it and do not expand `CUSTOM` from the client.
 - Validate signatures, webhook authenticity, and external callback provenance for PIX or payment-related integrations whenever the integration supports it.

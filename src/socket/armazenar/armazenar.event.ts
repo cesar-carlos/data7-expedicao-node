@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import ExpedicaoArmazenarDto from '../../dto/expedicao/expedicao.armazenar.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import ArmazenarRepository from './armazenar.repository';
 
@@ -22,7 +22,7 @@ export default class ArmazenarEvent {
       beforeExecute: async (items) => {
         for (const item of items) {
           if (item.CodArmazenar <= 0) {
-            item.CodArmazenar = (await this.repository.sequence())?.Valor ?? 0;
+            item.CodArmazenar = requireSequenceValue(await this.repository.sequence(), 'Armazenar');
           }
         }
       },

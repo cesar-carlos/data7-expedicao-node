@@ -1,4 +1,5 @@
 import { Server as SocketIOServer } from 'socket.io';
+import { logAppInfo } from '../infra/app.logger';
 import SepararPeriodicListenService from '../services/separar.periodic.listen.service';
 import { resolveSepararPeriodicListenConfig } from '../services/separar.periodic.listen.config';
 
@@ -22,7 +23,7 @@ export default class AppLinstens {
   private listenSepararPeriodic() {
     const cfg = resolveSepararPeriodicListenConfig();
     if (!cfg.enabled) {
-      console.log('[AppLinstens] Emissão periódica de Separar desabilitada (SEPARAR_LISTEN_ENABLED)');
+      logAppInfo('Emissão periódica de Separar desabilitada (SEPARAR_LISTEN_ENABLED)');
       return;
     }
 
@@ -32,7 +33,7 @@ export default class AppLinstens {
       debug: cfg.debug,
     });
     this.separarPeriodicListen.start();
-    console.log('Serviço de emissão periódica de Separar iniciado automaticamente');
+    logAppInfo('Serviço de emissão periódica de Separar iniciado automaticamente');
   }
 
   /**

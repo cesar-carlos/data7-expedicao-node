@@ -1,7 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { Params } from '../../contracts/local.base.params';
 import ExpedicaoSetorEstoqueDto from '../../dto/expedicao/expedicao.setor.estoque.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import SetorEstoqueRepository from './setor.estoque.repository';
 
@@ -23,7 +23,7 @@ export default class SetorEstoqueEvent {
       beforeExecute: async (items) => {
         for (const item of items) {
           if (item.CodSetorEstoque <= 0) {
-            item.CodSetorEstoque = (await this.repository.sequence())?.Valor ?? 0;
+            item.CodSetorEstoque = requireSequenceValue(await this.repository.sequence(), 'SetorEstoque');
           }
         }
       },

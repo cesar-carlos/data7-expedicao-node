@@ -10,6 +10,7 @@ import ExpedicaoCarrinhoPercursoEstagioConsultaDto from '../../dto/expedicao/exp
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
 import SequenceDto from '../../dto/common.data/sequence.dto';
 import SqlServerExpedicaoCarrinhoPercursoRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class CarrinhoPercursoRepository {
   public async consulta(
@@ -21,8 +22,8 @@ export default class CarrinhoPercursoRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoCarrinhoPercursoEstagioConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -59,8 +60,8 @@ export default class CarrinhoPercursoRepository {
       for (const el of models) {
         await repository.insert(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -70,8 +71,8 @@ export default class CarrinhoPercursoRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -81,8 +82,8 @@ export default class CarrinhoPercursoRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -91,8 +92,8 @@ export default class CarrinhoPercursoRepository {
       const name = 'CarrinhoPercurso_Sequencia_1';
       const repository = this.sequenceRepository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

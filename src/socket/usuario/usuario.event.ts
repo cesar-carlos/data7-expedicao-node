@@ -2,7 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 import UsuarioDto from '../../dto/common.data/usuario';
 import UsuarioConsultaDto from '../../dto/common.data/usuario.consulta.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import UsuarioRepository from './usuario.repository';
 
@@ -29,7 +29,7 @@ export default class UsuarioEvent {
       convert: (mutation) => this.convert(mutation),
       beforeExecute: async (items) => {
         for (const item of items) {
-          item.CodUsuario = (await this.repository.sequence())?.Valor ?? 0;
+          item.CodUsuario = requireSequenceValue(await this.repository.sequence(), 'Usuario');
         }
       },
       execute: async (items) => this.repository.insert(items),

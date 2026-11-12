@@ -1,5 +1,5 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Pagination, Params, type Param } from '../../contracts/local.base.params';
 
 import ConferenciaItemRepository from './conferencia.item.repository';
 import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
@@ -10,12 +10,16 @@ import ExpedicaoItemConferenciaDto from '../../dto/expedicao/expedicao.item.conf
 import ExpedicaoItemConferirDto from '../../dto/expedicao/expedicao.item.conferir.dto';
 import ConferirItemRepository from '../conferir.item/conferir.item.repository';
 import {
+  assertSocketWhereHasKey,
   convertSocketMutationPayload,
   mapWithConcurrency,
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
+import { SocketClientError } from '../../utils/repository.error';
+import SocketErrorCode from '../protocol/socket.error.code';
 import { assembleConferenciaConsultaRows } from './conferencia.item.refresh';
+import { homogeneousEquals, mapConsultaInChunks, refreshWhere } from '../common/mutation.refresh.where';
 
 type ProdutoConferir = {
   CodEmpresa: number;
@@ -44,6 +48,7 @@ export default class ConferenciaItemEvent {
         eventName: 'conferencia.item.consulta',
         kind: 'query',
       }, async ({ request, emitQuery }) => {
+        assertSocketWhereHasKey(request.where, 'CodCarrinho', 'conferencia.item.consulta');
         const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
         emitQuery(result.map((item) => item.toJson()));
       });
@@ -71,6 +76,7 @@ export default class ConferenciaItemEvent {
           emitMutation([]);
           return;
         }
+        await this.assertCarrinhosExistem(itensMutation);
         const inserteds = await this.repository.insert(itensMutation);
         const refresh = await this.buildRefreshPayload(inserteds);
 
@@ -205,7 +211,7 @@ export default class ConferenciaItemEvent {
   }
 
   private async buildProdutosConferir(items: ExpedicaoItemConferenciaDto[]): Promise<ProdutoConferir[]> {
-    const codCarrinhoCache = new Map<string, Promise<number>>();
+    const codCarrinhoCache = new Map<string, Promise<number | undefined>>();
     const produtos = new Map<string, ProdutoConferir>();
 
     await Promise.all(
@@ -215,6 +221,9 @@ export default class ConferenciaItemEvent {
           CodCarrinhoPercurso: item.CodCarrinhoPercurso,
           ItemCarrinhoPercurso: item.ItemCarrinhoPercurso,
         }, codCarrinhoCache);
+        if (codCarrinho === undefined) {
+          return;
+        }
 
         const produto = {
           CodEmpresa: item.CodEmpresa,
@@ -240,16 +249,19 @@ export default class ConferenciaItemEvent {
       return { itensConferirConsulta: [], itensConferenciaConsulta: [] };
     }
 
-    const groups = produtos.map((produto) => this.buildProdutoConferirParams(produto));
+    const cart = homogeneousEquals(produtos, ['CodEmpresa', 'CodConferir', 'CodCarrinho']);
+    const groups = cart ? [cart] : produtos.map((produto) => this.buildProdutoConferirParams(produto));
     const [totals, conferirGroups] = await Promise.all([
       this.repository.sumQuantidadeAtiva(groups),
-      mapWithConcurrency(produtos, async (produto) => ({
-        produto,
-        rows: await this.conferirItemRepository.consulta(
-          this.buildProdutoConferirParams(produto),
-          Pagination.create(pageLimitForGroups(1, 20)),
-        ),
-      })),
+      cart
+        ? this.loadConferirConsultaByCart(produtos, cart)
+        : mapWithConcurrency(produtos, async (produto) => ({
+            produto,
+            rows: await this.conferirItemRepository.consulta(
+              this.buildProdutoConferirParams(produto),
+              Pagination.create(pageLimitForGroups(1, 20)),
+            ),
+          })),
     ]);
     const totalByProduto = new Map(totals.map((total) => [this.getProdutoConferirKey(total), total.Total]));
     const conferirByProduto = new Map(conferirGroups.map((group) => [this.getProdutoConferirKey(group.produto), group.rows]));
@@ -296,22 +308,74 @@ export default class ConferenciaItemEvent {
       return planned.rows;
     }
 
-    const fetched = await this.repository.consultaAny(
-      planned.missing.map((item) => [
-        Params.equals('CodEmpresa', item.CodEmpresa),
-        Params.equals('CodConferir', item.CodConferir),
-        Params.equals('Item', item.Item),
-      ]),
-      Pagination.create(pageLimitForGroups(planned.missing.length)),
+    const where = refreshWhere(
+      items,
+      ['CodEmpresa', 'CodConferir', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso'],
+      ['CodEmpresa', 'CodConferir', 'Item'],
     );
+    const fetched =
+      where.mode === 'single'
+        ? await this.repository.consulta(
+            where.params,
+            Pagination.create(pageLimitForGroups(planned.missing.length)),
+          )
+        : await this.repository.consultaAny(
+            planned.missing.map((item) => [
+              Params.equals('CodEmpresa', item.CodEmpresa),
+              Params.equals('CodConferir', item.CodConferir),
+              Params.equals('Item', item.Item),
+            ]),
+            Pagination.create(pageLimitForGroups(planned.missing.length)),
+          );
 
     return assembleConferenciaConsultaRows(items, alreadyLoaded, fetched).rows;
   }
 
+  private async loadConferirConsultaByCart(
+    produtos: ProdutoConferir[],
+    cart: Param[],
+  ): Promise<Array<{ produto: ProdutoConferir; rows: ExpedicaoItemConferirConsultaDto[] }>> {
+    const rows = await mapConsultaInChunks<ExpedicaoItemConferirConsultaDto>(
+      (params, pagination) => this.conferirItemRepository.consulta(params, pagination),
+      cart,
+      'CodProduto',
+      [...new Set(produtos.map((produto) => produto.CodProduto))],
+      20,
+    );
+    const byProduto = new Map<string, ExpedicaoItemConferirConsultaDto[]>();
+    for (const row of rows) {
+      const key = this.getProdutoConferirKey(row);
+      const bucket = byProduto.get(key);
+      if (bucket) bucket.push(row);
+      else byProduto.set(key, [row]);
+    }
+    return produtos.map((produto) => ({
+      produto,
+      rows: byProduto.get(this.getProdutoConferirKey(produto)) ?? [],
+    }));
+  }
+
+  private async assertCarrinhosExistem(items: ExpedicaoItemConferenciaDto[]): Promise<void> {
+    const cache = new Map<string, Promise<number | undefined>>();
+    for (const item of items) {
+      const codCarrinho = await this.getCodCarrinho({
+        CodEmpresa: item.CodEmpresa,
+        CodCarrinhoPercurso: item.CodCarrinhoPercurso,
+        ItemCarrinhoPercurso: item.ItemCarrinhoPercurso,
+      }, cache);
+      if (codCarrinho === undefined) {
+        throw new SocketClientError(
+          'Carrinho do estagio de conferencia nao encontrado.',
+          SocketErrorCode.NOT_FOUND,
+        );
+      }
+    }
+  }
+
   private async getCodCarrinho(
     params: CarrinhoPercursoEstagioParams,
-    cache?: Map<string, Promise<number>>,
-  ): Promise<number> {
+    cache?: Map<string, Promise<number | undefined>>,
+  ): Promise<number | undefined> {
     const key = `${params.CodEmpresa}:${params.CodCarrinhoPercurso}:${params.ItemCarrinhoPercurso}`;
 
     if (cache?.has(key)) {
@@ -322,7 +386,10 @@ export default class ConferenciaItemEvent {
       Params.equals('CodEmpresa', params.CodEmpresa),
       Params.equals('CodCarrinhoPercurso', params.CodCarrinhoPercurso),
       Params.equals('Item', params.ItemCarrinhoPercurso),
-    ]).then((result) => result?.shift()?.CodCarrinho ?? 0);
+    ]).then((result) => {
+      const codCarrinho = result?.shift()?.CodCarrinho;
+      return typeof codCarrinho === 'number' && codCarrinho > 0 ? codCarrinho : undefined;
+    });
 
     if (cache) {
       cache.set(key, load);

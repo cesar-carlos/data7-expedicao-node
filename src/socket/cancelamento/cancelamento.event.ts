@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import ExpedicaoCancelamentoDto from '../../dto/expedicao/expedicao.cancelamento.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import CancelamentoRepository from './cancelamento.repository';
 
@@ -22,7 +22,7 @@ export default class CancelamentoEvent {
       beforeExecute: async (items) => {
         for (const item of items) {
           if (item.CodCancelamento <= 0) {
-            item.CodCancelamento = (await this.repository.sequence())?.Valor ?? 0;
+            item.CodCancelamento = requireSequenceValue(await this.repository.sequence(), 'Cancelamento');
           }
         }
       },

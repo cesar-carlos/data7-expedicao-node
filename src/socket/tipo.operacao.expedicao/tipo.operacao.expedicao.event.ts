@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import ExpedicaoTipoOperacaoExpedicaoDto from '../../dto/expedicao/expedicao.tipo.operacao.expedicao.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import TipoOperacaoExpedicaoRepository from './tipo.operacao.expedicao.repository';
 
@@ -21,7 +21,10 @@ export default class TipoOperacaoExpedicaoEvent {
       convert: (mutation) => this.convert(mutation),
       beforeExecute: async (items) => {
         for (const item of items) {
-          item.CodTipoOperacaoExpedicao = (await this.repository.sequence())?.Valor ?? 0;
+          item.CodTipoOperacaoExpedicao = requireSequenceValue(
+            await this.repository.sequence(),
+            'TipoOperacaoExpedicao',
+          );
         }
       },
       execute: async (items) => this.repository.insert(items),

@@ -33,8 +33,6 @@ export default class SqlServerExpedicaoItemConferirUnidadeMedidaConsultaReposito
       return entity;
     } catch (error: unknown) {
       throw wrapRepositoryError(error);
-    } finally {
-      //if (pool) pool.close();
     }
   }
 

@@ -1,119 +1,78 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
-import { Params } from '../../contracts/local.base.params';
 
-import CarrinhoPercursoRepository from './carrinho.percurso.repository';
 import ExpedicaoCarrinhoPercursoDto from '../../dto/expedicao/expedicao.carrinho.percurso.dto';
-import ExpedicaoMutationBasicEvent from '../../model/expedicao.basic.mutation.event';
-import { convertSocketMutationPayload, withSocketRequest } from '../socket.event.helpers';
+import {
+  convertSocketMutationPayload,
+  mutationBasicListenPayload,
+  requireSequenceValue,
+} from '../socket.event.helpers';
+import SocketCrudRegistrar from '../socket.crud.registrar';
+import CarrinhoPercursoRepository from './carrinho.percurso.repository';
 
 export default class CarrinhoPercursoEvent {
   private repository = new CarrinhoPercursoRepository();
 
   constructor(io: SocketIOServer, socket: Socket) {
-    const client = socket.id;
+    const registrar = new SocketCrudRegistrar(io, socket);
 
-    socket.on(`${client} carrinho.percurso.consulta`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} carrinho.percurso.consulta`,
-        eventName: 'carrinho.percurso.consulta',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'carrinho.percurso.consulta',
+      execute: (where, pagination, orderBy) => this.repository.consulta(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} carrinho.percurso.select`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} carrinho.percurso.select`,
-        eventName: 'carrinho.percurso.select',
-        kind: 'query',
-      }, async ({ request, emitQuery }) => {
-        const result = await this.repository.select(request.where as Params[], request.pagination, request.orderBy);
-        emitQuery(result.map((item) => item.toJson()));
-      });
+    registrar.query({
+      eventSuffix: 'carrinho.percurso.select',
+      execute: (where, pagination, orderBy) => this.repository.select(where, pagination, orderBy),
+      map: (item) => item.toJson(),
     });
 
-    socket.on(`${client} carrinho.percurso.insert`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} carrinho.percurso.insert`,
-        eventName: 'carrinho.percurso.insert',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
+    registrar.mutation({
+      eventSuffix: 'carrinho.percurso.insert',
+      convert: (mutation) => this.convert(mutation),
+      beforeExecute: async (items) => {
+        for (const item of items) {
+          if (item.CodCarrinhoPercurso <= 0) {
+            item.CodCarrinhoPercurso = requireSequenceValue(
+              await this.repository.sequence(),
+              'CarrinhoPercurso',
+            );
+          }
         }
-        const carrinhoPercursos: ExpedicaoCarrinhoPercursoDto[] = [];
-        for (const item of itens) {
-          const sequence = await this.repository.sequence();
-          item.CodCarrinhoPercurso = sequence?.Valor ?? 0;
+      },
+      execute: async (items) => {
+        for (const item of items) {
           await this.repository.insert([item]);
-          carrinhoPercursos.push(item);
         }
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: carrinhoPercursos.map((item) => item.toJson()),
-        });
-
-        emitMutation(carrinhoPercursos.map((item) => item.toJson()));
-        emitListen(io, 'carrinho.percurso.insert.listen', basicEvent.toJson());
-      });
+      },
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.percurso.insert.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
+      allowEmptyMutation: true,
     });
 
-    socket.on(`${client} carrinho.percurso.update`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} carrinho.percurso.update`,
-        eventName: 'carrinho.percurso.update',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
-        }
-        await this.repository.update(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'carrinho.percurso.update.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'carrinho.percurso.update',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.update(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.percurso.update.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
+      allowEmptyMutation: true,
     });
 
-    socket.on(`${client} carrinho.percurso.delete`, async (data) => {
-      await withSocketRequest(socket, data, {
-        defaultResponseIn: `${client} carrinho.percurso.delete`,
-        eventName: 'carrinho.percurso.delete',
-        kind: 'mutation',
-      }, async ({ request, emitMutation, emitListen }) => {
-        const itens = this.convert(request.mutation);
-        if (itens.length === 0) {
-          emitMutation([]);
-          return;
-        }
-        await this.repository.delete(itens);
-
-        const basicEvent = new ExpedicaoMutationBasicEvent({
-          Session: request.session,
-          ResponseIn: request.responseIn,
-          Mutation: itens.map((item) => item.toJson()),
-        });
-
-        emitMutation(itens.map((item) => item.toJson()));
-        emitListen(io, 'carrinho.percurso.delete.listen', basicEvent.toJson());
-      });
+    registrar.mutation({
+      eventSuffix: 'carrinho.percurso.delete',
+      convert: (mutation) => this.convert(mutation),
+      execute: async (items) => this.repository.delete(items),
+      responseMap: (item) => item.toJson(),
+      listenChannel: 'carrinho.percurso.delete.listen',
+      listenPayload: (items, request) => mutationBasicListenPayload(items, request),
+      allowEmptyMutation: true,
     });
   }
 
-  private convert(mutations: any[] | any): ExpedicaoCarrinhoPercursoDto[] {
+  private convert(mutations: unknown[] | unknown): ExpedicaoCarrinhoPercursoDto[] {
     return convertSocketMutationPayload(
       mutations,
       (mutation) => ExpedicaoCarrinhoPercursoDto.fromObject(mutation),

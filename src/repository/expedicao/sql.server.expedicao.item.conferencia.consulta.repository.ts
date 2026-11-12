@@ -11,6 +11,11 @@ import ExpedicaoItemConferenciaConsultaDto from '../../dto/expedicao/expedicao.i
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
 import { wrapRepositoryError } from '../../utils/repository.error';
+import {
+  SQL_PARAM_BUDGET,
+  chunkGroupsByBindBudget,
+  expandGroupsForInBudget,
+} from '../common/sql.param.budget';
 
 export type ConferenciaQuantidadeTotal = {
   CodEmpresa: number;
@@ -96,13 +101,29 @@ export default class SqlServerExpedicaoItemConferenciaConsultaRepository
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferencia.consulta.sql');
-      const view = readSqlFileCached(patchSQL);
-      const where = ParamsCommonRepository.buildWhereAnyOf(groups as Param[][]);
-      const request = pool.request();
-      where.apply(request);
-      request.input('qty_cancelado', sql.VarChar(30), ExpedicaoItemSituacaoModel.cancelado);
-      const result = await request.query(`SELECT CodEmpresa,
+      const expanded = expandGroupsForInBudget(groups as Param[][]);
+      const chunks = chunkGroupsByBindBudget(expanded, SQL_PARAM_BUDGET - 1);
+      const totals: ConferenciaQuantidadeTotal[] = [];
+      for (const chunk of chunks.length > 0 ? chunks : [expanded]) {
+        totals.push(...(await this.querySumQuantidadeAtiva(pool, chunk)));
+      }
+      return totals;
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
+    }
+  }
+
+  private async querySumQuantidadeAtiva(
+    pool: ConnectionPool,
+    groups: Param[][],
+  ): Promise<ConferenciaQuantidadeTotal[]> {
+    const patchSQL = path.resolve(this.basePatchSQL, 'expedicao.item.conferencia.consulta.sql');
+    const view = readSqlFileCached(patchSQL);
+    const where = ParamsCommonRepository.buildWhereAnyOf(groups);
+    const request = pool.request();
+    where.apply(request);
+    request.input('qty_cancelado', sql.VarChar(30), ExpedicaoItemSituacaoModel.cancelado);
+    const result = await request.query(`SELECT CodEmpresa,
           CodConferir,
           CodCarrinho,
           CodProduto,
@@ -112,15 +133,12 @@ export default class SqlServerExpedicaoItemConferenciaConsultaRepository
         ) qty_src
         WHERE ${where.whereFragment}
         GROUP BY CodEmpresa, CodConferir, CodCarrinho, CodProduto`);
-      return result.recordset.map((row: Record<string, unknown>) => ({
-        CodEmpresa: Number(row.CodEmpresa),
-        CodConferir: Number(row.CodConferir),
-        CodCarrinho: Number(row.CodCarrinho),
-        CodProduto: Number(row.CodProduto),
-        Total: Number(row.Total ?? 0),
-      }));
-    } catch (error: unknown) {
-      throw wrapRepositoryError(error);
-    }
+    return result.recordset.map((row: Record<string, unknown>) => ({
+      CodEmpresa: Number(row.CodEmpresa),
+      CodConferir: Number(row.CodConferir),
+      CodCarrinho: Number(row.CodCarrinho),
+      CodProduto: Number(row.CodProduto),
+      Total: Number(row.Total ?? 0),
+    }));
   }
 }

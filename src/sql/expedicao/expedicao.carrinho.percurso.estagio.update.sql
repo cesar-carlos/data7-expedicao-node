@@ -1,3 +1,6 @@
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+
 UPDATE Expedicao.CarrinhoPercursoEstagio SET
   Origem = @Origem,
   CodOrigem = @CodOrigem,

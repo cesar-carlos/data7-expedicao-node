@@ -13,6 +13,7 @@ import {
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
+import { homogeneousEquals, mapConsultaInChunks, refreshWhere } from '../common/mutation.refresh.where';
 
 type ProdutoSeparar = {
   CodEmpresa: number;
@@ -238,6 +239,17 @@ export default class SeparacaoItemEvent {
       await this.separarItemRepository.update([item]);
     });
 
+    const documento = homogeneousEquals(produtos, ['CodEmpresa', 'CodSepararEstoque']);
+    if (documento) {
+      return mapConsultaInChunks(
+        (params, pagination) => this.separarItemRepository.consulta(params, pagination),
+        documento,
+        'CodProduto',
+        [...new Set(produtos.map((produto) => produto.CodProduto))],
+        20,
+      );
+    }
+
     return this.separarItemRepository.consultaAny(
       produtos.map((produto) => this.buildProdutoSeparadoParams(produto)),
       Pagination.create(pageLimitForGroups(produtos.length, 20)),
@@ -247,19 +259,16 @@ export default class SeparacaoItemEvent {
   private async loadItensSeparacaoConsulta(
     items: ExpedicaoItemSeparacaoDto[],
   ): Promise<ExpedicaoItemSeparacaoConsultaDto[]> {
-    const queryParams = Array.from(
-      new Map(
-        items.map((item) => [
-          `${item.CodEmpresa}:${item.CodSepararEstoque}:${item.Item}`,
-          [
-            Params.equals('CodEmpresa', item.CodEmpresa),
-            Params.equals('CodSepararEstoque', item.CodSepararEstoque),
-            Params.equals('Item', item.Item),
-          ],
-        ]),
-      ).values(),
+    const where = refreshWhere(
+      items,
+      ['CodEmpresa', 'CodSepararEstoque', 'CodCarrinhoPercurso', 'ItemCarrinhoPercurso'],
+      ['CodEmpresa', 'CodSepararEstoque', 'Item'],
     );
-    return this.repository.consultaAny(queryParams, Pagination.create(pageLimitForGroups(queryParams.length)));
+    if (where.mode === 'single') {
+      return this.repository.consulta(where.params, Pagination.create(pageLimitForGroups(items.length)));
+    }
+    if (where.groups.length === 0) return [];
+    return this.repository.consultaAny(where.groups, Pagination.create(pageLimitForGroups(where.groups.length)));
   }
 
   private buildProdutoSeparadoParams(produto: ProdutoSeparar): Params[] {

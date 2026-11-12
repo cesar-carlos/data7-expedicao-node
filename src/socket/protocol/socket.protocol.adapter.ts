@@ -19,7 +19,7 @@ const legacySocketEnvelopeSchema = z
     ResponseIn: z.string().optional(),
     Where: z.unknown().optional(),
     Mutation: z.unknown().optional(),
-    Pagination: z.string().optional(),
+    Pagination: z.union([z.string(), z.number(), z.record(z.string(), z.unknown())]).optional(),
     OrderBy: z.string().optional(),
   })
   .passthrough();
@@ -28,7 +28,7 @@ export default class SocketProtocolAdapter {
   static fromLegacy(data: unknown, defaults: LegacySocketRequestDefaults): NormalizedSocketRequest {
     const raw = this.normalizePayload(data);
     const parsed = legacySocketEnvelopeSchema.parse(raw);
-    const pagination = Pagination.fromQueryString(parsed.Pagination);
+    const pagination = Pagination.fromClientInput(parsed.Pagination);
     const orderBy = OrderBy.fromQueryString(parsed.OrderBy);
     const eventName = defaults.eventName ?? defaults.defaultResponseIn;
 

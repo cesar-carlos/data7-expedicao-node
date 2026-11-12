@@ -119,8 +119,8 @@ export default class CarrinhoPercursoEstagioEvent {
           emitMutation([]);
           return;
         }
-        await this.repository.delete(itens);
         const percursoConsulta = await this.getCarrinhosPercursoEstagioConsulta(itens);
+        await this.repository.delete(itens);
 
         const responseEvent = this.createMutationEvent(request.session, request.responseIn, itens);
         const percursoListenEvent = this.createMutationEvent(request.session, request.responseIn, percursoConsulta);

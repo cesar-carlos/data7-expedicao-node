@@ -6,6 +6,7 @@ alwaysApply: true
 # Express REST API Conventions
 
 - This is a stack-specific rule file for the Express transport.
+- HTTP route docs: `docs/http/README.md`. Envelope of list endpoints: `docs/contratos/consulta-http.md`. How HTTP sits next to Socket.IO: `docs/comunicacao.md`.
 
 ## Router structure
 

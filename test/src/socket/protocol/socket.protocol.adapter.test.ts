@@ -21,6 +21,36 @@ describe('socket.protocol.adapter', () => {
     expect(request.where).toEqual([{ key: 'CodEmpresa', value: 1 }]);
     expect(request.kind).toBe('query');
     expect(request.requestId).toBeTruthy();
+    expect(request.pagination?.getLimit()).toBe(10);
+    expect(request.pagination?.getOffset()).toBe(0);
+  });
+
+  test('should keep LIMIT and OFFSET sent in the envelope', () => {
+    const request = SocketProtocolAdapter.fromLegacy({
+      Session: 'session-page',
+      Pagination: 'LIMIT=80&OFFSET=40&PAGE=2',
+    }, {
+      defaultResponseIn: 'fallback',
+      eventName: 'separar.item.consulta',
+      kind: 'query',
+    });
+
+    expect(request.pagination?.getLimit()).toBe(80);
+    expect(request.pagination?.getOffset()).toBe(40);
+    expect(request.pagination?.getPage()).toBe(2);
+  });
+
+  test('should leave pagination undefined when the client omits it', () => {
+    const request = SocketProtocolAdapter.fromLegacy({
+      Session: 'session-2',
+      Where: [],
+    }, {
+      defaultResponseIn: 'client separar.item.select',
+      eventName: 'separar.item.select',
+      kind: 'query',
+    });
+
+    expect(request.pagination).toBeUndefined();
   });
 
   test('should fallback response channel when ResponseIn is missing', () => {

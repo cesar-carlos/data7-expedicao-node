@@ -1,10 +1,11 @@
 import { getLocalDbContext } from '../di/database.context';
 import { DI_BIND } from '../di/bind.tokens';
-import { Params, Pagination, OrderBy } from '../contracts/local.base.params';
+import { DEFAULT_PAGE_LIMIT, SQL_INT_MAX, Params, Pagination, OrderBy } from '../contracts/local.base.params';
 
 import AppDependencys from '../aplication/app.dependencys';
 import LocalBaseConsultaRepositoryContract from '../contracts/local.base.consulta.repository.contract';
 import ExpedicaoVersaoAppConsultaDto from '../dto/expedicao/expedicao.versaoapp.consulta.dto';
+import { logAppError } from '../infra/app.logger';
 
 export interface PaginatedResult {
   data: ExpedicaoVersaoAppConsultaDto[];
@@ -22,7 +23,7 @@ export default class ConsultaVersaoAppService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarTodos(page: number = 1, limit: number = 100): Promise<PaginatedResult> {
+  public async consultarTodos(page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult> {
     try {
       this.validatePagination(page, limit);
       const repository = this.repository();
@@ -47,9 +48,8 @@ export default class ConsultaVersaoAppService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar todas as versões de app:', {
+      logAppError('Erro ao consultar todas as versões de app', {
         error: error.message,
-        stack: error.stack,
         page,
         limit,
       });
@@ -64,7 +64,7 @@ export default class ConsultaVersaoAppService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarPorNomeApp(nomeApp: string, page: number = 1, limit: number = 100): Promise<PaginatedResult> {
+  public async consultarPorNomeApp(nomeApp: string, page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult> {
     try {
       this.validatePagination(page, limit);
       if (!nomeApp || nomeApp.trim().length === 0) {
@@ -93,9 +93,8 @@ export default class ConsultaVersaoAppService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar versões por nome do app:', {
+      logAppError('Erro ao consultar versões por nome do app', {
         error: error.message,
-        stack: error.stack,
         nomeApp,
         page,
         limit,
@@ -125,9 +124,8 @@ export default class ConsultaVersaoAppService {
 
       return versoes[0];
     } catch (error: any) {
-      console.error('Erro ao consultar versão por código:', {
+      logAppError('Erro ao consultar versão por código', {
         error: error.message,
-        stack: error.stack,
         codVersaoApp,
       });
       throw new Error(`Erro ao consultar versão por código: ${error.message}`);
@@ -140,7 +138,7 @@ export default class ConsultaVersaoAppService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarAtivos(page: number = 1, limit: number = 100): Promise<PaginatedResult> {
+  public async consultarAtivos(page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult> {
     try {
       this.validatePagination(page, limit);
       const repository = this.repository();
@@ -166,9 +164,8 @@ export default class ConsultaVersaoAppService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar versões ativas:', {
+      logAppError('Erro ao consultar versões ativas', {
         error: error.message,
-        stack: error.stack,
         page,
         limit,
       });
@@ -183,7 +180,7 @@ export default class ConsultaVersaoAppService {
    * @param limit Quantidade de registros por página
    * @returns Resultado paginado com dados e metadados
    */
-  public async consultarPorStatus(ativo: 'S' | 'N', page: number = 1, limit: number = 100): Promise<PaginatedResult> {
+  public async consultarPorStatus(ativo: 'S' | 'N', page: number = 1, limit: number = DEFAULT_PAGE_LIMIT): Promise<PaginatedResult> {
     try {
       this.validatePagination(page, limit);
       if (ativo !== 'S' && ativo !== 'N') {
@@ -212,9 +209,8 @@ export default class ConsultaVersaoAppService {
         offset: pagination.offset,
       };
     } catch (error: any) {
-      console.error('Erro ao consultar versões por status:', {
+      logAppError('Erro ao consultar versões por status', {
         error: error.message,
-        stack: error.stack,
         ativo,
         page,
         limit,
@@ -231,8 +227,8 @@ export default class ConsultaVersaoAppService {
     if (page < 1) {
       throw new Error('Página deve ser maior que 0');
     }
-    if (limit < 1 || limit > 1000) {
-      throw new Error('Limit deve estar entre 1 e 1000');
+    if (limit < 1 || limit > SQL_INT_MAX) {
+      throw new Error('Limit deve ser maior que 0');
     }
   }
 

@@ -1,8 +1,8 @@
 # Data7 Expedição
 
-Servidor Node.js 26.12 da expedição. A API atende HTTP e Socket.IO no SQL Server.
+Servidor Node.js 24–26 da expedição. A API atende HTTP e Socket.IO no SQL Server, na mesma porta.
 
-A documentação fica em [`docs/`](./docs/README.md).
+A documentação fica em [`docs/`](./docs/README.md). Comece por [`docs/comunicacao.md`](./docs/comunicacao.md).
 
 ```bash
 npm install

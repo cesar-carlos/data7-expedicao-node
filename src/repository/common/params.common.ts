@@ -1,6 +1,7 @@
 import path from 'path';
 import sql from 'mssql';
 import type { Request } from 'mssql';
+import { logCaughtError } from '../../infra/app.logger';
 
 import { Params, Param, ComparisonOperator } from '../../contracts/local.base.params';
 
@@ -177,7 +178,7 @@ export default class ParamsCommonRepository {
 
         return result;
       } catch (error: any) {
-        console.error('ParamsCommonRepository.build - Error processing array of arrays:', error.message);
+        logCaughtError('ParamsCommonRepository.build - Error processing array of arrays', error);
         throw error;
       }
     }
@@ -204,7 +205,7 @@ export default class ParamsCommonRepository {
 
       return result;
     } catch (error: any) {
-      console.error('ParamsCommonRepository.build - Error processing object array:', error.message);
+      logCaughtError('ParamsCommonRepository.build - Error processing object array', error);
       throw error;
     }
   }
@@ -247,6 +248,7 @@ export default class ParamsCommonRepository {
   /**
    * Cada grupo vira um AND. Os grupos se juntam com OR.
    * Serve para "qualquer um destes pares", sem transformar pares diferentes num AND só.
+   * Bind count is unlimited here; executeSelectWhereAny chunks against SQL_PARAM_BUDGET.
    */
   static buildWhereAnyOf(groups: Param[][]): ParameterizedWhere {
     const state = newWhereBuild();

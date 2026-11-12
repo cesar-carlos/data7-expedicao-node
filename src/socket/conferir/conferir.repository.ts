@@ -11,6 +11,7 @@ import ExpedicaoConferirConsultaDto from '../../dto/expedicao/expedicao.conferir
 import ExpedicaoConferirDto from '../../dto/expedicao/expedicao.conferir.dto';
 import SequenceDto from '../../dto/common.data/sequence.dto';
 import SqlServerExpedicaoConferirConsultaRepository from '../../repository/expedicao/sql.server.expedicao.conferir.consulta.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class ConferirRepository {
   public async consulta(
@@ -50,8 +51,8 @@ export default class ConferirRepository {
       const repository = this.repositoryCarrinhoConferirConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoCarrinhoConferirConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -63,8 +64,8 @@ export default class ConferirRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -74,8 +75,8 @@ export default class ConferirRepository {
       for (const el of models) {
         await repository.insert(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -85,8 +86,8 @@ export default class ConferirRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -96,8 +97,8 @@ export default class ConferirRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -106,8 +107,8 @@ export default class ConferirRepository {
       const name = 'Expedicao.ConferirEstoque_Sequencia_1';
       const repository = this.sequenceRepository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

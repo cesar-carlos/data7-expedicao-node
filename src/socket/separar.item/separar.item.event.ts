@@ -3,15 +3,12 @@ import { Params } from '../../contracts/local.base.params';
 
 import SepararItemRepository from './separar.item.repository';
 import ExpedicaoItemSepararDto from '../../dto/expedicao/expedicao.item.separar.dto';
-import ExpedicaoItemSepararConsultaDto from '../../dto/expedicao/expedicao.item.separar.consulta.dto';
-import ExpedicaoItemSepararUnidadeMedidaConsultaDto from '../../dto/expedicao/expedicao.item.separar.unidade.medida.consulta.dto';
 import ExpedicaoMutationListenEvent from '../../model/expedicao.mutation.listen.event';
 import {
   convertSocketMutationPayload,
   normalizeExpedicaoItemSequenceKey,
   withSocketRequest,
 } from '../socket.event.helpers';
-import { uniqueSepararEstoquePairs } from './separar.estoque.pairs';
 
 export default class SepararItemEvent {
   private repository = new SepararItemRepository();
@@ -26,9 +23,9 @@ export default class SepararItemEvent {
         kind: 'query',
       }, async ({ request, emitQuery }) => {
         const result = await this.repository.consulta(request.where as Params[], request.pagination, request.orderBy);
-        const unidadesMedida = await this.repository.consultaUnidadeMedidaPorPares(uniqueSepararEstoquePairs(result));
-        const itens = this.buildUnidadesMedida(result, unidadesMedida);
-        emitQuery(itens.map((item) => item.toJson()));
+        // Units stay on separar.item.unidade.medida.consulta. Nesting them
+        // here inflates the JSON and blocks the socket queue on large lists.
+        emitQuery(result.map((item) => item.toJson()));
       });
     });
 
@@ -125,30 +122,6 @@ export default class SepararItemEvent {
         emitMutation(itensJson);
         emitListen(io, 'separar.item.delete.listen', listenEvent.toJson());
       });
-    });
-  }
-
-  private buildUnidadesMedida(
-    results: ExpedicaoItemSepararConsultaDto[],
-    unidadesMedida: ExpedicaoItemSepararUnidadeMedidaConsultaDto[],
-  ): ExpedicaoItemSepararConsultaDto[] {
-    const unidadesPorItem = new Map<string, ExpedicaoItemSepararUnidadeMedidaConsultaDto[]>();
-
-    for (const unidade of unidadesMedida) {
-      const key = `${unidade.CodEmpresa}:${unidade.CodSepararEstoque}:${unidade.CodProduto}:${unidade.Item}`;
-      const current = unidadesPorItem.get(key) ?? [];
-      current.push(unidade);
-      unidadesPorItem.set(key, current);
-    }
-
-    return results.map((item) => {
-      if (!item.UnidadeMedidas) item.UnidadeMedidas = [];
-
-      const key = `${item.CodEmpresa}:${item.CodSepararEstoque}:${item.CodProduto}:${item.Item}`;
-      const unidadesDoProduto = unidadesPorItem.get(key) ?? [];
-
-      item.UnidadeMedidas.push(...unidadesDoProduto);
-      return item;
     });
   }
 

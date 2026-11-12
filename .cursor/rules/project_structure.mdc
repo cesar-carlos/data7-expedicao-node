@@ -8,7 +8,7 @@ alwaysApply: true
 - This is a project-specific rule file. It defines where code lives in this repository, not a universal folder layout for all projects.
 - Keep process bootstrap, dependency wiring, and runtime composition in `src/aplication/`.
 - Keep HTTP route registration in `src/route/` and controller implementations in `src/controllers/`.
-- Keep Socket.IO event classes and per-feature socket handlers in `src/socket/<feature>/`.
+- Keep Socket.IO event classes and per-feature socket handlers in `src/socket/<feature>/`. Event and consulta catalog: `docs/socket/README.md`. Do not put feature docs under `src/socket/` except the pointer `src/socket/README.md`.
 - Keep input validation in `src/validation/` and validation middleware in `src/middleware/`.
 - Keep persistence and external data access in `src/repository/`; keep lower-level connections and adapters in `src/infra/` and `src/dependency/`.
 - Keep SQL assets in `src/sql/`.

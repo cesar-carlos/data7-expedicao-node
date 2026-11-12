@@ -13,6 +13,21 @@ Leia primeiro:
 
 Depois carregue as rules especificas conforme a area alterada, como `express_api.mdc`, `websocket_api.mdc`, `security.mdc`, `testing.mdc` e `typescript.mdc`.
 
+## Dominio de expedicao
+
+Indice da documentacao: `docs/README.md`. Como o cliente fala com o processo: `docs/comunicacao.md`.
+
+Regras de separacao, conferencia, situacoes, triggers, erros e indices ficam em `docs/expedicao/`.
+Comece por `docs/expedicao/README.md` e `docs/expedicao/regras.md` antes de alterar fluxo de carrinho, conferir ou tratamento de erro dessas consultas. O formato `[50014] mensagem` esta em `docs/expedicao/erros.md`. Indices de `WHERE`: `docs/expedicao/indices.md` (scripts `07`/`08`/`09` em `D:\Developer\Data7\Expedicao\Expedicao Correcoes`). Erro FireDAC 1934 `ANSI_WARNINGS` em `dbo.Produto`: rode o `07`. 1934 em `Conferir`: UX filtrado (`03`) — triggers `01`/`02`/`04`/`05`/`06` ficam com `ANSI_WARNINGS ON`. SQL 334 no insert de estagio: Node precisa de `OUTPUT … INTO` (script `06`). `ConferirResumo` e gravado pela `02` (grade do ERP). O arquivo `trigger & procedure\10` esta incompleto. Pacote unico para aplicar na Estacao: `RODAR.sql` (ordem dos pedacos = prefixo `00 -` … `09 -`).
+
+Contratos de paginacao e consulta (Where, LIMIT 1500, envelope Socket.IO, HTTP) ficam em `docs/contratos/`.
+Comece por `docs/contratos/README.md` antes de alterar helper de consulta, `Pagination`, `Params` ou eventos `*.consulta`. `Where` das consultas e lista `{ key, value }` (preferida) ou string SQL legado (`QueryBuilder.buildSqlWhere()`).
+
+Rotas HTTP de login e usuarios: `docs/http/`. Comece por `docs/http/README.md`.
+
+Catalogo dos eventos Socket.IO (`*.consulta`, `*.select`, mutacao, `*.listen`) fica em `docs/socket/`.
+Comece por `docs/socket/README.md` e `docs/socket/consultas.md` antes de incluir, renomear ou alterar handler em `src/socket/`. Listen emitido pelo servidor: `docs/socket/listen.md` (nao unificar payload; trigger 02 nao emite `conferir.insert.listen`). Escuta periodica: `docs/socket/escuta.md`. Registro: `src/aplication/app.socket.config.ts`.
+
 ## Contexto atual do repositorio
 
 - Projeto legado em `Node.js + TypeScript`.

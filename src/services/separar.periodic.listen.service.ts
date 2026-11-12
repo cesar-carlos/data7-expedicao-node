@@ -1,6 +1,7 @@
 import { createHash } from 'crypto';
 import { Server as SocketIOServer } from 'socket.io';
 import { Pagination, OrderBy } from '../contracts/local.base.params';
+import { logAppInfo } from '../infra/app.logger';
 
 import BasePeriodicListenService from './base.periodic.listen.service';
 import ExpedicaoBasicListenEvent from '../model/expedicao.basic.listen.event';
@@ -66,9 +67,7 @@ export default class SepararPeriodicListenService extends BasePeriodicListenServ
 
     if (!forceRefresh && fingerprint === this.lastPayloadHash) {
       if (this.debug) {
-        console.log(
-          `[SepararPeriodicListenService] Emit omitido (payload idêntico ao anterior); limit=${this.limit}`,
-        );
+        logAppInfo('Emit omitido (payload idêntico ao anterior)', { limit: this.limit });
       }
       return;
     }
@@ -80,9 +79,7 @@ export default class SepararPeriodicListenService extends BasePeriodicListenServ
     });
 
     if (this.debug) {
-      console.log(
-        `[SepararPeriodicListenService] Emit separar.consulta.listen; linhas=${rows.length}; limit=${this.limit}`,
-      );
+      logAppInfo('Emit separar.consulta.listen', { rows: rows.length, limit: this.limit });
     }
 
     this.io.emit('separar.consulta.listen', JSON.stringify(basicEventSepararConsulta.toJson()));

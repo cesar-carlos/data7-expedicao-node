@@ -1,5 +1,6 @@
 import path from 'path';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
+import { logCaughtError } from '../../infra/app.logger';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -113,7 +114,7 @@ export default class SqlServerExpedicaoSepararRepository implements LocalBaseRep
           .query(sqlCommand);
       });
     } catch (error: unknown) {
-      console.error('Erro em SqlServerExpedicaoSepararRepository.actonEntity:', error);
+      logCaughtError('Erro em SqlServerExpedicaoSepararRepository.actonEntity', error);
       throw wrapRepositoryError(error);
     }
   }

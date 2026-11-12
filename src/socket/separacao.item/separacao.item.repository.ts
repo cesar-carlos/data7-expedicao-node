@@ -1,6 +1,6 @@
 import { getLocalDbContext } from '../../di/database.context';
 import { DI_BIND } from '../../di/bind.tokens';
-import { pageForSeparacaoItens, pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
+import { pageLimitForGroups, Params, Pagination, OrderBy } from '../../contracts/local.base.params';
 
 import LocalBaseRepositoryContract from '../../contracts/local.base.repository.contract';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
@@ -10,6 +10,7 @@ import ExpedicaoItemSeparacaoDto from '../../dto/expedicao/expedicao.item.separa
 import AppDependencys from '../../aplication/app.dependencys';
 import SqlServerExpedicaoItemSeparacaoRepository from '../../repository/expedicao/sql.server.expedicao.item.separacao.repository';
 import SqlServerExpedicaoItemSeparacaoConsultaRepository from '../../repository/expedicao/sql.server.expedicao.item.separacao.consulta.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SeparacaoItemRepository {
   public async consultaResumo(
@@ -21,8 +22,8 @@ export default class SeparacaoItemRepository {
       const repository = this.repositoryResumoConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoItemSeparacaoResumoConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -54,10 +55,10 @@ export default class SeparacaoItemRepository {
   ): Promise<ExpedicaoItemSeparacaoConsultaDto[]> {
     try {
       const repository = this.repositoryConsulta();
-      const result = await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
+      const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoItemSeparacaoConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -68,9 +69,9 @@ export default class SeparacaoItemRepository {
   ): Promise<ExpedicaoItemSeparacaoDto[]> {
     try {
       const repository = this.repository();
-      return await repository.selectWhere(params, pageForSeparacaoItens(pagination), orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+      return await repository.selectWhere(params, pagination, orderBy);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -85,8 +86,8 @@ export default class SeparacaoItemRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -96,8 +97,8 @@ export default class SeparacaoItemRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -107,8 +108,8 @@ export default class SeparacaoItemRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

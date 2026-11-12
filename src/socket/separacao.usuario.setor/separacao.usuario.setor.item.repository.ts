@@ -8,6 +8,7 @@ import ExpedicaoSeparacaoUsuarioSetorConsultaDto from '../../dto/expedicao/exped
 import SqlServerExpedicaoSeparacaoUsuarioSetorRepository from '../../repository/expedicao/sql.server.expedicao.separacao.usuario.setor.repository';
 import ExpedicaoSeparacaoUsuarioSetorDto from '../../dto/expedicao/expedicao.separacao.usuario.setor.dto';
 import AppDependencys from '../../aplication/app.dependencys';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SeparacaoUsuarioSetorItemRepository {
   public async consulta(
@@ -19,8 +20,8 @@ export default class SeparacaoUsuarioSetorItemRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoSeparacaoUsuarioSetorConsultaDto[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -32,8 +33,8 @@ export default class SeparacaoUsuarioSetorItemRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -48,8 +49,8 @@ export default class SeparacaoUsuarioSetorItemRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -59,8 +60,8 @@ export default class SeparacaoUsuarioSetorItemRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -70,8 +71,8 @@ export default class SeparacaoUsuarioSetorItemRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

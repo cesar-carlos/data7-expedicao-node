@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_PAGE_LIMIT, SQL_INT_MAX } from '../contracts/local.base.pagination';
 
 export const usuarioConsultaQuerySchema = z.object({
   CodUsuario: z
@@ -52,10 +53,10 @@ export const usuarioConsultaQuerySchema = z.object({
   Limit: z
     .string()
     .optional()
-    .default('1000')
+    .default(String(DEFAULT_PAGE_LIMIT))
     .transform((val) => parseInt(val, 10))
-    .refine((val) => !isNaN(val) && val > 0 && val <= 1000, {
-      message: 'Limit deve ser um número válido entre 1 e 1000',
+    .refine((val) => !isNaN(val) && val > 0 && val <= SQL_INT_MAX, {
+      message: 'Limit deve ser um número válido maior que 0',
     }),
 });
 

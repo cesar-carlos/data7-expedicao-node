@@ -5,6 +5,12 @@ import { logSocketDuration, logSocketError } from './protocol/socket.logger';
 import type { NormalizedSocketRequest } from './protocol/normalized.socket.request';
 import SocketProtocolAdapter, { type LegacySocketRequestDefaults } from './protocol/socket.protocol.adapter';
 import SocketResponseBuilder from './protocol/socket.response.builder';
+import { classifyClientError, SocketClientError } from '../utils/repository.error';
+import {
+  enterSocketSqlScope,
+  leaveSocketSqlScope,
+  runWithSqlScope,
+} from '../infra/sql.request.scope';
 
 type ParsedSocketEventPayload = {
   raw: Record<string, unknown>;
@@ -95,14 +101,16 @@ export async function withSocketRequest(
     request,
     emitQuery(queryData) {
       rowCount = countRows(queryData);
-      socket.emit(
+      emitToSocket(
+        socket,
         request.responseIn,
         SocketResponseBuilder.serialize(SocketResponseBuilder.query(request, queryData)),
       );
     },
     emitMutation(mutationData) {
       rowCount = countRows(mutationData);
-      socket.emit(
+      emitToSocket(
+        socket,
         request.responseIn,
         SocketResponseBuilder.serialize(SocketResponseBuilder.mutation(request, mutationData)),
       );
@@ -121,8 +129,9 @@ export async function withSocketRequest(
     },
   };
 
+  const sqlScope = enterSocketSqlScope(socket);
   try {
-    await handler(context);
+    await runWithSqlScope(sqlScope, () => handler(context));
     logSocketDuration({
       event: request.eventName,
       socketId: socket.id,
@@ -140,7 +149,7 @@ export async function withSocketRequest(
       request.responseIn,
       request.session,
       error,
-      SocketErrorCode.INTERNAL_ERROR,
+      classifyClientError(error).code,
       request.requestId,
       request.eventName,
       Date.now() - startedAt,
@@ -148,10 +157,23 @@ export async function withSocketRequest(
       rowCount,
       listenRows,
     );
+  } finally {
+    leaveSocketSqlScope(socket, sqlScope);
   }
 }
 
 export { normalizeExpedicaoItemSequenceKey } from '../utils/expedicao.item.sequence';
+
+export function mutationBasicListenPayload(
+  items: Array<{ toJson: () => unknown }>,
+  request: { session: string; responseIn: string },
+): Record<string, unknown> {
+  return {
+    Session: request.session,
+    ResponseIn: request.responseIn,
+    Mutation: items.map((item) => item.toJson()),
+  };
+}
 
 export function convertSocketMutationPayload<T>(
   mutations: unknown[] | unknown,
@@ -164,18 +186,27 @@ export function convertSocketMutationPayload<T>(
     if (options.allowEmpty === true) {
       return [];
     }
-    throw new Error(`Invalid mutation payload for ${options.eventName}: expected at least one item`);
+    throw new SocketClientError(
+      `Invalid mutation payload for ${options.eventName}: expected at least one item`,
+      SocketErrorCode.INVALID_PAYLOAD,
+    );
   }
 
   return normalizedMutations.map((mutation, index) => {
     if (!isRecord(mutation)) {
-      throw new Error(`Invalid mutation payload for ${options.eventName}: item ${index} must be an object`);
+      throw new SocketClientError(
+        `Invalid mutation payload for ${options.eventName}: item ${index} must be an object`,
+        SocketErrorCode.INVALID_PAYLOAD,
+      );
     }
 
     for (const key of options.requiredKeys ?? []) {
       const value = mutation[key];
       if (value === undefined || value === null || (typeof value === 'string' && value.trim().length === 0)) {
-        throw new Error(`Invalid mutation payload for ${options.eventName}: missing ${key} on item ${index}`);
+        throw new SocketClientError(
+          `Invalid mutation payload for ${options.eventName}: missing ${key} on item ${index}`,
+          SocketErrorCode.INVALID_PAYLOAD,
+        );
       }
     }
 
@@ -183,7 +214,10 @@ export function convertSocketMutationPayload<T>(
       return mapper(mutation);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      throw new Error(`Invalid mutation payload for ${options.eventName}: ${message}`);
+      throw new SocketClientError(
+        `Invalid mutation payload for ${options.eventName}: ${message}`,
+        SocketErrorCode.INVALID_PAYLOAD,
+      );
     }
   });
 }
@@ -212,12 +246,95 @@ export async function mapWithConcurrency<TInput, TOutput>(
   return results;
 }
 
+export function requireSequenceValue(
+  sequence: { Valor?: number } | null | undefined,
+  label: string,
+): number {
+  const value = sequence?.Valor;
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
+    throw new SocketClientError(`Sequencia indisponivel (${label}).`, SocketErrorCode.INTERNAL_ERROR);
+  }
+  return value;
+}
+
+export function socketWhereHasKey(where: unknown, key: string): boolean {
+  const sqlText = legacyWhereSqlText(where);
+  if (sqlText !== undefined) {
+    return sqlFragmentHasKey(sqlText, key);
+  }
+  if (!Array.isArray(where)) return false;
+  return where.some((item) => {
+    if (!isRecord(item) || item.key !== key) return false;
+    const value = item.value;
+    if (value === undefined || value === null) return false;
+    if (typeof value === 'string' && value.trim().length === 0) return false;
+    if (typeof value === 'number' && value === 0) return false;
+    return true;
+  });
+}
+
+function legacyWhereSqlText(where: unknown): string | undefined {
+  if (typeof where === 'string') return where;
+  if (Array.isArray(where) && where.length > 0 && typeof where[0] === 'string') {
+    return where.join(' AND ');
+  }
+  return undefined;
+}
+
+function sqlFragmentHasKey(sql: string, key: string): boolean {
+  const ident = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const pattern = new RegExp(
+    `(?:^|[^\\w])(?:[\\w]+\\.)?(?:\\[${ident}\\]|${ident})\\s*=\\s*(?:N?'([^']*)'|([+-]?\\d+(?:\\.\\d+)?))`,
+    'ig',
+  );
+  let match = pattern.exec(sql);
+  while (match) {
+    const value = match[1] ?? match[2];
+    if (value !== undefined && value.trim() !== '' && Number(value) !== 0) {
+      return true;
+    }
+    match = pattern.exec(sql);
+  }
+  return false;
+}
+
+export function assertSocketWhereHasKey(where: unknown, key: string, eventName: string): void {
+  if (!socketWhereHasKey(where, key)) {
+    throw new SocketClientError(`${eventName} exige ${key} no Where.`, SocketErrorCode.INVALID_PAYLOAD);
+  }
+}
+
+export function sequenceNameFromWhere(where: unknown): string {
+  if (typeof where === 'string' && where.trim().length > 0) {
+    return where.trim();
+  }
+  if (Array.isArray(where) && where.length > 0) {
+    const first = where[0];
+    if (typeof first === 'string' && first.trim().length > 0) {
+      return first.trim();
+    }
+    if (isRecord(first)) {
+      const value = first.value ?? first.Nome ?? first.Name;
+      if (typeof value === 'string' && value.trim().length > 0) {
+        return value.trim();
+      }
+    }
+  }
+  if (isRecord(where)) {
+    const value = where.value ?? where.Nome ?? where.Name;
+    if (typeof value === 'string' && value.trim().length > 0) {
+      return value.trim();
+    }
+  }
+  throw new SocketClientError('Where da sequencia deve informar o nome.', SocketErrorCode.INVALID_PAYLOAD);
+}
+
 export function emitSocketQueryResponse(
   socket: Socket,
   request: Pick<NormalizedSocketRequest, 'session' | 'responseIn'>,
   data: unknown,
 ): void {
-  socket.emit(request.responseIn, SocketResponseBuilder.serialize(SocketResponseBuilder.query(request, data)));
+  emitToSocket(socket, request.responseIn, SocketResponseBuilder.serialize(SocketResponseBuilder.query(request, data)));
 }
 
 export function emitSocketMutationResponse(
@@ -225,7 +342,11 @@ export function emitSocketMutationResponse(
   request: Pick<NormalizedSocketRequest, 'session' | 'responseIn'>,
   mutation: unknown[],
 ): void {
-  socket.emit(request.responseIn, SocketResponseBuilder.serialize(SocketResponseBuilder.mutation(request, mutation)));
+  emitToSocket(
+    socket,
+    request.responseIn,
+    SocketResponseBuilder.serialize(SocketResponseBuilder.mutation(request, mutation)),
+  );
 }
 
 export function emitSocketError(
@@ -241,15 +362,16 @@ export function emitSocketError(
   rows = 0,
   listenRows = 0,
 ): void {
-  const messages = normalizeSocketError(error);
-  socket.emit(
+  const classified = classifyClientError(error, errorCode);
+  emitToSocket(
+    socket,
     responseIn,
     SocketResponseBuilder.serialize(
       SocketResponseBuilder.error(
         { responseIn, session },
-        messages,
+        [classified.clientMessage],
         {
-          code: errorCode,
+          code: classified.code,
           requestId,
         },
       ),
@@ -266,8 +388,10 @@ export function emitSocketError(
     listenRows,
     status: 'error',
     listenCount,
-    errorCode,
-    error: messages.join(' | '),
+    errorCode: classified.code,
+    error: classified.diagnostic && classified.diagnostic !== classified.clientMessage
+      ? `${classified.clientMessage} | ${classified.diagnostic}`
+      : classified.clientMessage,
   });
 }
 
@@ -278,24 +402,11 @@ export function resolveSocketErrorContext(
   return SocketProtocolAdapter.resolveLegacyErrorContext(data, defaultResponseIn);
 }
 
-function normalizeSocketError(error: unknown): string[] {
-  if (Array.isArray(error)) {
-    const messages = error
-      .map((item) => (typeof item === 'string' ? item : item instanceof Error ? item.message : String(item)))
-      .filter((message) => message.length > 0);
-
-    return messages.length > 0 ? messages : ['Unexpected socket error'];
+function emitToSocket(socket: Socket, responseIn: string, payload: string): void {
+  if (!socket.connected) {
+    return;
   }
-
-  if (error instanceof Error) {
-    return [error.message];
-  }
-
-  if (typeof error === 'string') {
-    return [error];
-  }
-
-  return ['Unexpected socket error'];
+  socket.emit(responseIn, payload);
 }
 
 function countRows(value: unknown): number {

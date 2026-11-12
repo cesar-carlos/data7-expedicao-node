@@ -10,6 +10,7 @@ import ExpedicaoCarrinhoPercursoAgrupamentoConsulta from '../../dto/expedicao/ex
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import SequenceDto from '../../dto/common.data/sequence.dto';
 import SqlServerExpedicaoCarrinhoPercursoAgrupamentoRepository from '../../repository/expedicao/sql.server.expedicao.carrinho.percurso.agrupamento.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class CarrinhoPercursoAgrupamentoRepository {
   public async consulta(
@@ -21,8 +22,8 @@ export default class CarrinhoPercursoAgrupamentoRepository {
       const repository = this.repositoryConsulta();
       const result = await repository.selectWhere(params, pagination, orderBy);
       return result as ExpedicaoCarrinhoPercursoAgrupamentoConsulta[];
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -34,8 +35,8 @@ export default class CarrinhoPercursoAgrupamentoRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -50,8 +51,8 @@ export default class CarrinhoPercursoAgrupamentoRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -68,8 +69,8 @@ export default class CarrinhoPercursoAgrupamentoRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -78,8 +79,8 @@ export default class CarrinhoPercursoAgrupamentoRepository {
       const name = 'Expedicao.CarrinhoPercursoAgrupamento_1';
       const repository = this.sequenceRepository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

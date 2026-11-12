@@ -1,6 +1,7 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import { emitSocketError, resolveSocketErrorContext } from '../socket/socket.event.helpers';
-import SocketErrorCode from '../socket/protocol/socket.error.code';
+import { cancelSocketSqlRequests } from '../infra/sql.request.scope';
+import { classifyClientError } from '../utils/repository.error';
 import { type SocketEventDefinition } from '../socket/protocol/socket.event.definition';
 import { logSocketLifecycle } from '../socket/protocol/socket.logger';
 import { instrumentServer, instrumentSocket } from '../socket/monitor/socket.monitor.instrument';
@@ -376,6 +377,7 @@ export default class AppSocket {
         });
 
         socket.on('disconnect', (reason: unknown) => {
+          cancelSocketSqlRequests(socket);
           detach();
           monitor.disconnect(socket.id, disconnectReason(reason));
           logSocketLifecycle('Socket client disconnected', {
@@ -433,7 +435,7 @@ export default class AppSocket {
 
           const defaultResponseIn = eventName.startsWith(`${socket.id} `) ? eventName : `${socket.id} ${eventName}`;
           const { responseIn, session } = resolveSocketErrorContext(args[0], defaultResponseIn);
-          emitSocketError(socket, responseIn, session, error, SocketErrorCode.INTERNAL_ERROR, undefined, eventName);
+          emitSocketError(socket, responseIn, session, error, classifyClientError(error).code, undefined, eventName);
         }
       });
     }) as typeof socket.on;

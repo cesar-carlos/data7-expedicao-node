@@ -24,6 +24,7 @@ alwaysApply: true
 
 ## Legacy Protocol
 
+- Client/server communication overview: `docs/comunicacao.md`. Event catalog: `docs/socket/README.md`. HTTP routes: `docs/http/README.md`.
 - The public wire contract remains legacy-compatible in this project. Do not introduce a public `ProtocolVersion` field or require `RequestId` from clients during this rollout.
 - Request channels stay in the current physical format: `${socket.id} <eventSuffix>`.
 - Server-side request parsing must go through `src/socket/socket.event.helpers.ts` and `src/socket/protocol/socket.protocol.adapter.ts`.
@@ -38,9 +39,13 @@ alwaysApply: true
   - `Mutation`
   - `Pagination`
   - `OrderBy`
+- Pagination, Where and consulta envelopes are documented in `docs/contratos/`. Start at `docs/contratos/README.md`. Catalog of `*.consulta` / `*.select` / mutation / `*.listen`: `docs/socket/README.md`. Indexes for those `WHERE` clauses: `docs/expedicao/indices.md`. Consulta `Where` prefers a `{ key, value }[]` list (`normalizeConsultaWhere` / `buildWhereParameterized`). A non-empty SQL string or `string[]` is a legacy shim for Flutter `QueryBuilder.buildSqlWhere()` and is interpolated into `WHERE` with a deprecation warning. `conferir.item.consulta` and `conferencia.item.consulta` require `CodCarrinho > 0` in either format.
+- On disconnect, cancel in-flight SQL requests for that socket (`cancelSocketSqlRequests`) before `removeAllListeners`. `io.emit` of `*.listen` must still run if the mutation already finished.
 - `ResponseIn` is optional. When omitted, the server must fall back to the default response channel for that event.
 - `Mutation` may arrive as a single object or array. Normalize internally, but preserve the visible legacy response shape.
 - Invalid payloads must still respond on the best available `ResponseIn` fallback instead of failing silently.
+- Do not emit to a socket that is already disconnected (`socket.connected === false`).
+- Missing sequence or `Valor <= 0` must abort the insert with `[INTERNAL_ERROR] Sequencia indisponivel (…)` — never persist PK 0.
 
 ### Emitted Response Envelope
 
@@ -57,12 +62,13 @@ alwaysApply: true
   - `ResponseIn`
   - `Error`
 - `Error` must be emitted as `string[]`, even when the source error was a single string or thrown `Error`.
+- Each `Error` string must be `[identifier] message` from `classifyClientError` in `src/utils/repository.error.ts` (example: `[50014] Carrinho sem itens para conferir...`). Do not send trigger-abort text or SQL object names to the client. Full table: `docs/expedicao/erros.md`.
 
 ### Listen Conventions
 
-- Broadcast channels keep the current `*.listen` naming.
-- Mutation-related broadcasts must preserve their existing payload family. Some channels emit `ExpedicaoMutationBasicEvent`, others emit `ExpedicaoMutationListenEvent`; do not unify them publicly unless a client migration is part of the task.
-- Preserve existing cross-feature broadcasts such as `separar.update.listen`, `conferir.item.update.listen`, and `separar.item.consulta.update.listen`.
+- Broadcast channels keep the current `*.listen` naming. Catalog of what the server emits: `docs/socket/listen.md`.
+- Mutation-related broadcasts must preserve their existing payload family. Some channels emit `ExpedicaoMutationBasicEvent`, others emit `ExpedicaoMutationListenEvent`, and the periodic/notify path emits `ExpedicaoBasicListenEvent` (`Data`); do not unify them publicly unless a client migration is part of the task.
+- Preserve existing cross-feature broadcasts such as `separar.update.listen`, `conferir.item.update.listen`, and `separar.item.consulta.update.listen`. Trigger 02 creating `Conferir` does not emit `conferir.insert.listen`.
 
 ### Internal Error Codes
 

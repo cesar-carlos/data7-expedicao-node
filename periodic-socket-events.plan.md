@@ -1,5 +1,7 @@
 <!-- 65fcde0c-aab2-4aef-bf7a-04b44aae3724 357b81b1-a0ee-400c-be45-2e195f30b1f7 -->
 
+Fonte vigente: [docs/socket/escuta.md](./docs/socket/escuta.md) e [docs/comunicacao.md](./docs/comunicacao.md). Este arquivo é o plano histórico.
+
 # Sistema de Emissões Periódicas e Eventos Broadcast Socket.IO
 
 ## Visão Geral

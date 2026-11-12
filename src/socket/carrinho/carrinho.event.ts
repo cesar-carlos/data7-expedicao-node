@@ -2,7 +2,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 import { pageLimitForGroups, Pagination, Params } from '../../contracts/local.base.params';
 import ExpedicaoCarrinhoConsultaDto from '../../dto/expedicao/expedicao.carrinho.consulta.dto';
 import ExpedicaoCarrinhoDto from '../../dto/expedicao/expedicao.carrinho.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import CarrinhoRepository from './carrinho.repository';
 
@@ -29,7 +29,7 @@ export default class CarrinhoEvent {
       convert: (mutation) => this.convert(mutation),
       beforeExecute: async (items) => {
         for (const item of items) {
-          item.CodCarrinho = (await this.repository.sequence())?.Valor ?? 0;
+          item.CodCarrinho = requireSequenceValue(await this.repository.sequence(), 'Carrinho');
         }
       },
       execute: async (items) => this.repository.insert(items),

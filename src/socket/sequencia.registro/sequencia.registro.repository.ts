@@ -5,14 +5,15 @@ import { Pagination, OrderBy } from '../../contracts/local.base.params';
 import AppDependencys from '../../aplication/app.dependencys';
 import LocalBaseRepositorySequenceContract from '../../contracts/local.base.repository.sequence.contract';
 import SequenceDto from '../../dto/common.data/sequence.dto';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SequenciaRegistroRepository {
   public async select(name: string, pagination?: Pagination, orderBy?: OrderBy): Promise<SequenceDto | undefined> {
     try {
       const repository = this.repository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

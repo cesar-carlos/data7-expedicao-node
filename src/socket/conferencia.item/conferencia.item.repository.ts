@@ -11,6 +11,7 @@ import SqlServerExpedicaoItemConferenciaRepository from '../../repository/expedi
 import SqlServerExpedicaoItemConferenciaConsultaRepository, {
   type ConferenciaQuantidadeTotal,
 } from '../../repository/expedicao/sql.server.expedicao.item.conferencia.consulta.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class ConferenciaItemRepository {
   public async consultaAny(
@@ -48,8 +49,8 @@ export default class ConferenciaItemRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -64,8 +65,8 @@ export default class ConferenciaItemRepository {
       }
 
       return inserteds;
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -75,8 +76,8 @@ export default class ConferenciaItemRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -86,8 +87,8 @@ export default class ConferenciaItemRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

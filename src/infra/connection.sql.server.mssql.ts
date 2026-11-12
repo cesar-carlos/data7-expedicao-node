@@ -1,14 +1,38 @@
 import { ConnectionPool, config as SqlConfig, Transaction, Request } from 'mssql';
 
-import createMssqlConfig from '../assets/config.msql';
+import createMssqlConfig, { resolveMssqlRuntimeOptions, type MssqlRuntimeOptions } from '../assets/config.msql';
+import { logAppError, logAppInfo, logAppWarn } from './app.logger';
+import { trackSqlRequest } from './sql.request.scope';
 
-/** Commit abaixo disso não vai para o log. O stdout do PM2 estava em centenas de MB. */
+/** Commit below this threshold stays out of the log. PM2 stdout was hundreds of MB. */
 const SLOW_TRANSACTION_LOG_MS = 1000;
+const GET_CONNECTION_MAX_RETRIES = 3;
+
+type PoolFactory = (config: SqlConfig) => ConnectionPool;
+
+type PoolCounters = {
+  size?: number;
+  available?: number;
+  pending?: number;
+  borrowed?: number;
+};
+
+type HealthProbe = 'ok' | 'busy' | 'fail';
+
+type TrackedPool = ConnectionPool & { __sqlScopeTracked?: boolean } & PoolCounters;
+
+type TimedRequest = Request & { timeout?: number };
+
+export function isSqlPoolAcquireTimeout(error: unknown): boolean {
+  const message = error instanceof Error ? error.message : String(error);
+  return /resource.?request timed out|timeout: resource|acquire.*timeout|ETIMEOUT/i.test(message);
+}
 
 export default class ConnectionSqlServerMssql {
-  private static instance: ConnectionSqlServerMssql;
+  private static instance: ConnectionSqlServerMssql | undefined;
   private pool: ConnectionPool | null = null;
-  private isClosing: boolean = false;
+  private openingPool: ConnectionPool | null = null;
+  private isClosing = false;
 
   private initializationPromise: Promise<void> | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
@@ -16,6 +40,9 @@ export default class ConnectionSqlServerMssql {
   private consecutiveHealthFailures = 0;
   private reconnectPromise: Promise<void> | null = null;
   private initializing = false;
+  private untrackedRequest: ConnectionPool['request'] | null = null;
+  private runtime: MssqlRuntimeOptions = resolveMssqlRuntimeOptions();
+  private readonly createPool: PoolFactory;
 
   private static readonly healthFailuresBeforeReconnect = 2;
 
@@ -40,19 +67,21 @@ export default class ConnectionSqlServerMssql {
     }
   >();
 
-  private constructor() {}
+  private constructor(createPool?: PoolFactory) {
+    this.createPool = createPool ?? ((config) => new ConnectionPool(config));
+  }
 
   private async initPool(): Promise<void> {
     if (this.initializationPromise) {
       return this.initializationPromise;
     }
 
-    if (this.pool && this.pool.connected) {
+    if (this.pool?.connected) {
       return;
     }
 
     if (this.isClosing) {
-      throw new Error('Cannot initialize pool while closing');
+      throw new Error('Não é possível inicializar o pool enquanto ele está fechando');
     }
 
     this.initializationPromise = this.doInitialize();
@@ -71,75 +100,91 @@ export default class ConnectionSqlServerMssql {
         attempt: this.connectionMetrics.totalConnections + 1,
       });
 
+      this.runtime = resolveMssqlRuntimeOptions();
       const config = createMssqlConfig();
       const poolConfig: SqlConfig = {
         ...config,
-        connectionTimeout: 30000,
-        requestTimeout: 30000,
-        pool: {
-          max: 50,
-          min: 2,
-          idleTimeoutMillis: 30000,
-          acquireTimeoutMillis: 60000,
-        },
+        connectionTimeout: this.runtime.connectionTimeout,
+        requestTimeout: this.runtime.requestTimeout,
+        pool: this.runtime.pool,
         options: {
           ...config.options,
           enableArithAbort: true,
         },
-      } as SqlConfig;
+      };
 
-      const pool = new ConnectionPool(poolConfig);
+      const pool = this.createPool(poolConfig);
+      this.openingPool = pool;
+      try {
+        this.bindPoolEvents(pool);
+        await pool.connect();
+      } catch (connectError) {
+        try {
+          await pool.close();
+        } catch {
+          // The pool never opened; close only avoids an orphan TDS socket.
+        }
+        throw connectError;
+      } finally {
+        if (this.openingPool === pool) {
+          this.openingPool = null;
+        }
+      }
+
+      if (this.isClosing) {
+        try {
+          await pool.close();
+        } catch {
+          // Shutdown won the race with connect().
+        }
+        throw new Error('Não é possível inicializar o pool enquanto ele está fechando');
+      }
+
       this.pool = pool;
-
-      pool.on('connect', () => {
-        this.connectionMetrics.totalConnections++;
-        this.connectionMetrics.lastConnectionTime = new Date();
-        this.logInfo('Pool de conexão conectado com sucesso', {
-          totalConnections: this.connectionMetrics.totalConnections,
-          timestamp: this.connectionMetrics.lastConnectionTime,
-        });
-        this.startHeartbeat();
+      this.ensureRequestTracking(pool);
+      this.connectionMetrics.totalConnections++;
+      this.connectionMetrics.lastConnectionTime = new Date();
+      this.logInfo('Pool de conexão conectado com sucesso', {
+        totalConnections: this.connectionMetrics.totalConnections,
+        timestamp: this.connectionMetrics.lastConnectionTime,
+        poolMax: this.runtime.pool.max,
+        poolMin: this.runtime.pool.min,
       });
-
-      pool.on('close', () => {
-        if (this.pool !== pool) return;
-        this.logInfo('Pool de conexão fechado');
-        this.pool = null;
-        this.stopHeartbeat();
-      });
-
-      pool.on('error', (err) => {
-        this.connectionMetrics.failedConnections++;
-        this.logError('Erro no pool de conexão', err, {
-          failedConnections: this.connectionMetrics.failedConnections,
-        });
-        if (this.initializing || this.isClosing || this.reconnectPromise) return;
-        if (this.pool !== pool) return;
-        void this.reconnectSingleFlight();
-      });
-
-      await pool.connect();
+      this.startHeartbeat();
     } catch (error) {
       this.connectionMetrics.failedConnections++;
       this.logError('Erro ao inicializar pool', error, {
         failedConnections: this.connectionMetrics.failedConnections,
       });
-      const failed = this.pool;
       this.pool = null;
+      this.untrackedRequest = null;
       this.stopHeartbeat();
-      if (failed) {
-        try {
-          await failed.close();
-        } catch {
-          // o pool já falhou ao abrir; o close só evita conexão órfã
-        }
-      }
       throw new Error(
         `Falha ao inicializar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
       );
     } finally {
       this.initializing = false;
     }
+  }
+
+  private bindPoolEvents(pool: ConnectionPool): void {
+    pool.on('error', (err) => {
+      this.connectionMetrics.failedConnections++;
+      this.logError('Erro no pool de conexão', err, {
+        failedConnections: this.connectionMetrics.failedConnections,
+      });
+      if (this.initializing || this.isClosing || this.reconnectPromise) return;
+      if (this.pool !== pool) return;
+      void this.reconnectSingleFlight();
+    });
+
+    pool.on('close', () => {
+      if (this.pool !== pool) return;
+      this.logInfo('Pool de conexão fechado');
+      this.pool = null;
+      this.untrackedRequest = null;
+      this.stopHeartbeat();
+    });
   }
 
   public static getInstance(): ConnectionSqlServerMssql {
@@ -149,13 +194,41 @@ export default class ConnectionSqlServerMssql {
     return ConnectionSqlServerMssql.instance;
   }
 
-  async getConnection(): Promise<ConnectionPool> {
-    return this.getConnectionWithRetry(3);
+  /** Replaces the singleton so tests can inject a fake pool factory. */
+  static startTestInstance(createPool: PoolFactory): ConnectionSqlServerMssql {
+    const instance = new ConnectionSqlServerMssql(createPool);
+    ConnectionSqlServerMssql.instance = instance;
+    return instance;
   }
 
-  private async getConnectionWithRetry(maxRetries: number = 3): Promise<ConnectionPool> {
-    if (this.pool?.connected) {
-      return this.pool;
+  async getConnection(): Promise<ConnectionPool> {
+    const pool = await this.getConnectionWithRetry(GET_CONNECTION_MAX_RETRIES);
+    this.ensureRequestTracking(pool);
+    return pool;
+  }
+
+  private ensureRequestTracking(pool: ConnectionPool): void {
+    const tracked = pool as TrackedPool;
+    if (tracked.__sqlScopeTracked) return;
+
+    const originalRequest = pool.request.bind(pool);
+    this.untrackedRequest = originalRequest;
+    pool.request = ((...args: Parameters<ConnectionPool['request']>) => {
+      const request = originalRequest(...args);
+      trackSqlRequest(request);
+      return request;
+    }) as ConnectionPool['request'];
+    tracked.__sqlScopeTracked = true;
+  }
+
+  private async getConnectionWithRetry(maxRetries: number = GET_CONNECTION_MAX_RETRIES): Promise<ConnectionPool> {
+    if (this.isClosing) {
+      throw new Error('Não é possível obter conexão enquanto o pool está fechando');
+    }
+
+    if (this.initializationPromise) {
+      await this.initializationPromise;
+      if (this.pool?.connected) return this.pool;
     }
 
     if (this.reconnectPromise) {
@@ -163,7 +236,16 @@ export default class ConnectionSqlServerMssql {
       if (this.pool?.connected) return this.pool;
     }
 
-    if (this.pool && !this.pool.connected) {
+    if (this.pool?.connected) {
+      return this.pool;
+    }
+
+    if (this.pool?.connecting) {
+      await this.initPool();
+      if (this.pool?.connected) return this.pool;
+    }
+
+    if (this.pool && !this.pool.connected && !this.pool.connecting) {
       this.logInfo('Pool desconectado, tentando reconectar...', {
         reconnections: this.connectionMetrics.reconnections,
       });
@@ -178,6 +260,10 @@ export default class ConnectionSqlServerMssql {
     let lastError: Error | null = null;
 
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      if (this.isClosing) {
+        throw new Error('Não é possível obter conexão enquanto o pool está fechando');
+      }
+
       try {
         await this.initPool();
 
@@ -196,11 +282,11 @@ export default class ConnectionSqlServerMssql {
         this.logError(`Tentativa ${attempt} de ${maxRetries} falhou`, error, {
           attempt,
           maxRetries,
-          willRetry: attempt < maxRetries,
+          willRetry: attempt < maxRetries && !this.isClosing,
         });
 
-        if (attempt < maxRetries) {
-          const delay = 1000 * attempt; // Backoff exponencial
+        if (attempt < maxRetries && !this.isClosing) {
+          const delay = Math.min(1000 * 2 ** (attempt - 1), 4000);
           this.logInfo(`Aguardando ${delay}ms antes da próxima tentativa...`);
           await new Promise((resolve) => setTimeout(resolve, delay));
         }
@@ -222,17 +308,37 @@ export default class ConnectionSqlServerMssql {
     try {
       this.stopHeartbeat();
 
-      // Rollback de todas as transações ativas antes de fechar
       if (this.activeTransactions.size > 0) {
         this.logInfo(`Fazendo rollback de ${this.activeTransactions.size} transações ativas antes de fechar o pool`);
         await this.rollbackAllTransactions();
       }
 
-      if (this.pool) {
-        if (this.pool.connected) {
-          await this.pool.close();
+      const opening = this.openingPool;
+      this.openingPool = null;
+      const pool = this.pool;
+      this.pool = null;
+      this.untrackedRequest = null;
+
+      const toClose = [opening, pool].filter((item, index, list): item is ConnectionPool => {
+        return item !== null && list.indexOf(item) === index;
+      });
+
+      for (const candidate of toClose) {
+        try {
+          await candidate.close();
+        } catch (error) {
+          this.logError('Erro ao fechar pool', error);
+          throw new Error(
+            `Falha ao fechar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+          );
         }
-        this.pool = null;
+      }
+
+      if (this.initializationPromise) {
+        await this.initializationPromise.catch(() => undefined);
+      }
+
+      if (toClose.length > 0) {
         this.logInfo('Pool de conexão fechado com sucesso', {
           totalConnections: this.connectionMetrics.totalConnections,
           failedConnections: this.connectionMetrics.failedConnections,
@@ -241,35 +347,49 @@ export default class ConnectionSqlServerMssql {
           failedTransactions: this.connectionMetrics.failedTransactions,
         });
       }
-    } catch (error) {
-      this.logError('Erro ao fechar pool', error);
-      this.pool = null;
-      throw new Error(
-        `Falha ao fechar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-      );
     } finally {
       this.isClosing = false;
     }
   }
 
   async healthCheck(): Promise<boolean> {
-    try {
-      if (!this.pool || !this.pool.connected) {
-        return false;
-      }
+    const probe = await this.probeHealth();
+    return probe === 'ok' || probe === 'busy';
+  }
 
-      const result = await this.pool.request().query('SELECT 1 as health');
-      const isHealthy = result.recordset.length > 0;
-
-      if (!isHealthy) {
-        this.logError('Health check falhou: resultado inválido');
-      }
-
-      return isHealthy;
-    } catch (error) {
-      this.logError('Health check falhou', error);
-      return false;
+  private async probeHealth(): Promise<HealthProbe> {
+    const pool = this.pool;
+    if (!pool || !pool.connected) {
+      return 'fail';
     }
+
+    const counters = readPoolCounters(pool);
+    if (isPoolBusy(counters)) {
+      return 'busy';
+    }
+
+    try {
+      const request = this.createUntrackedRequest(pool);
+      request.timeout = this.runtime.healthCheckTimeoutMs;
+      const result = await request.query('SELECT 1 as health');
+      if (result.recordset.length === 0) {
+        this.logError('Health check falhou: resultado inválido');
+        return 'fail';
+      }
+      return 'ok';
+    } catch (error) {
+      if (isSqlPoolAcquireTimeout(error)) {
+        this.logInfo('Health check omitido: pool ocupado (acquire timeout)');
+        return 'busy';
+      }
+      this.logError('Health check falhou', error);
+      return 'fail';
+    }
+  }
+
+  private createUntrackedRequest(pool: ConnectionPool): TimedRequest {
+    const makeRequest = this.untrackedRequest ?? pool.request.bind(pool);
+    return makeRequest() as TimedRequest;
   }
 
   getPoolStats() {
@@ -277,10 +397,15 @@ export default class ConnectionSqlServerMssql {
       return null;
     }
 
+    const counters = readPoolCounters(this.pool);
     return {
       connected: this.pool.connected,
       connecting: this.pool.connecting,
       healthy: this.pool.healthy,
+      size: counters.size,
+      available: counters.available,
+      pending: counters.pending,
+      borrowed: counters.borrowed,
     };
   }
 
@@ -294,14 +419,6 @@ export default class ConnectionSqlServerMssql {
     };
   }
 
-  // ==================== TRANSACTION CONTROL METHODS ====================
-
-  /**
-   * Inicia uma nova transação
-   * @param transactionId - ID único para a transação (opcional, será gerado se não fornecido)
-   * @param timeoutMs - Timeout da transação em milissegundos (padrão: 30 segundos)
-   * @returns ID da transação
-   */
   async beginTransaction(transactionId?: string, timeoutMs: number = 30000): Promise<string> {
     const pool = await this.getConnection();
     const txId = transactionId || this.generateTransactionId();
@@ -339,10 +456,6 @@ export default class ConnectionSqlServerMssql {
     }
   }
 
-  /**
-   * Confirma uma transação
-   * @param transactionId - ID da transação
-   */
   async commitTransaction(transactionId: string): Promise<void> {
     const txData = this.activeTransactions.get(transactionId);
 
@@ -382,10 +495,6 @@ export default class ConnectionSqlServerMssql {
     }
   }
 
-  /**
-   * Desfaz uma transação
-   * @param transactionId - ID da transação
-   */
   async rollbackTransaction(transactionId: string): Promise<void> {
     const txData = this.activeTransactions.get(transactionId);
 
@@ -414,7 +523,7 @@ export default class ConnectionSqlServerMssql {
       this.logSlowTransaction('rollback', duration);
     } catch (error) {
       this.connectionMetrics.failedTransactions++;
-      this.activeTransactions.delete(transactionId); // Remove mesmo em caso de erro
+      this.activeTransactions.delete(transactionId);
       this.connectionMetrics.activeTransactions = this.activeTransactions.size;
 
       this.logError(`Erro ao fazer rollback da transação ${transactionId}`, error);
@@ -424,11 +533,6 @@ export default class ConnectionSqlServerMssql {
     }
   }
 
-  /**
-   * Obtém uma requisição SQL associada a uma transação
-   * @param transactionId - ID da transação
-   * @returns Request object para executar comandos SQL na transação
-   */
   getTransactionRequest(transactionId: string): Request {
     const txData = this.activeTransactions.get(transactionId);
 
@@ -440,9 +544,9 @@ export default class ConnectionSqlServerMssql {
   }
 
   /**
-   * Executa um único comando no autocommit do SQL Server.
-   * Um statement já é atômico; BEGIN/COMMIT em volta só acrescentava duas idas à rede.
-   * O timeout do comando continua sendo o requestTimeout do pool.
+   * Runs one command on SQL Server autocommit.
+   * A single statement is already atomic; wrapping BEGIN/COMMIT added two extra round trips.
+   * Real transactions stay opt-in via beginTransaction so legacy collectors keep the same commit boundary.
    */
   async executeInTransaction<T>(
     operation: (request: Request, transactionId: string) => Promise<T>,
@@ -452,9 +556,6 @@ export default class ConnectionSqlServerMssql {
     return operation(pool.request(), 'autocommit');
   }
 
-  /**
-   * Lista todas as transações ativas
-   */
   getActiveTransactions(): Array<{
     id: string;
     startTime: Date;
@@ -468,9 +569,6 @@ export default class ConnectionSqlServerMssql {
     }));
   }
 
-  /**
-   * Força o rollback de todas as transações ativas
-   */
   async rollbackAllTransactions(): Promise<void> {
     const activeIds = Array.from(this.activeTransactions.keys());
 
@@ -490,7 +588,7 @@ export default class ConnectionSqlServerMssql {
   }
 
   private generateTransactionId(): string {
-    return `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+    return `tx_${Date.now()}_${Math.random().toString(36).slice(2, 11)}`;
   }
 
   private reconnectSingleFlight(): Promise<void> {
@@ -508,6 +606,7 @@ export default class ConnectionSqlServerMssql {
     this.logInfo('Reconectando o pool de conexão...');
     const previous = this.pool;
     this.pool = null;
+    this.untrackedRequest = null;
     this.stopHeartbeat();
     this.consecutiveHealthFailures = 0;
 
@@ -523,14 +622,7 @@ export default class ConnectionSqlServerMssql {
     await this.initPool();
   }
 
-  private getHeartbeatIntervalMs(): number {
-    const raw = process.env.SQL_HEARTBEAT_INTERVAL_MS;
-    if (!raw) return 30000;
-    const n = parseInt(raw, 10);
-    return Number.isFinite(n) && n >= 5000 ? n : 30000;
-  }
-
-  /** Pré-conecta o pool e valida com SELECT 1 (menos latência na primeira requisição). */
+  /** Opens the pool and validates it with SELECT 1 so the first request is not cold. */
   async warmup(): Promise<void> {
     try {
       await this.getConnection();
@@ -542,10 +634,10 @@ export default class ConnectionSqlServerMssql {
 
   private startHeartbeat(): void {
     if (this.heartbeatInterval) {
-      return; // Já está rodando
+      return;
     }
 
-    const intervalMs = this.getHeartbeatIntervalMs();
+    const intervalMs = this.runtime.heartbeatIntervalMs;
 
     this.heartbeatInterval = setInterval(() => {
       void this.runHeartbeat();
@@ -561,8 +653,8 @@ export default class ConnectionSqlServerMssql {
     try {
       if (!this.pool?.connected) return;
 
-      const isHealthy = await this.healthCheck();
-      if (isHealthy) {
+      const probe = await this.probeHealth();
+      if (probe === 'ok' || probe === 'busy') {
         this.consecutiveHealthFailures = 0;
         return;
       }
@@ -595,21 +687,16 @@ export default class ConnectionSqlServerMssql {
 
   private logSlowTransaction(action: 'commit' | 'rollback', durationMs: number): void {
     if (durationMs < SLOW_TRANSACTION_LOG_MS) return;
-    console.log(`[DB] Transação lenta action=${action} durationMs=${durationMs}`);
+    logAppWarn(`Transação lenta`, { action, durationMs });
   }
 
-  private logInfo(message: string, metadata?: any): void {
-    console.log(`[DB] ${message}`, {
-      timestamp: new Date().toISOString(),
-      ...metadata,
-    });
+  private logInfo(message: string, metadata?: Record<string, unknown>): void {
+    logAppInfo(message, metadata);
   }
 
-  private logError(message: string, error?: any, metadata?: any): void {
-    console.error(`[DB] ${message}`, {
-      timestamp: new Date().toISOString(),
+  private logError(message: string, error?: unknown, metadata?: Record<string, unknown>): void {
+    logAppError(message, {
       error: error instanceof Error ? error.message : error,
-      stack: error instanceof Error ? error.stack : undefined,
       ...metadata,
     });
   }
@@ -617,7 +704,38 @@ export default class ConnectionSqlServerMssql {
   static async shutdown(): Promise<void> {
     if (ConnectionSqlServerMssql.instance) {
       await ConnectionSqlServerMssql.instance.closePool();
-      ConnectionSqlServerMssql.instance = null as any;
+      ConnectionSqlServerMssql.instance = undefined;
     }
   }
+
+  /** Drops the singleton after tests. Heartbeat is stopped even if close hangs. */
+  static async resetForTests(): Promise<void> {
+    const instance = ConnectionSqlServerMssql.instance;
+    if (!instance) return;
+    instance.stopHeartbeat();
+    instance.pool = null;
+    instance.openingPool = null;
+    instance.untrackedRequest = null;
+    instance.initializationPromise = null;
+    instance.reconnectPromise = null;
+    instance.isClosing = false;
+    ConnectionSqlServerMssql.instance = undefined;
+  }
+}
+
+function readPoolCounters(pool: ConnectionPool): PoolCounters {
+  const counters = pool as TrackedPool;
+  return {
+    size: typeof counters.size === 'number' ? counters.size : undefined,
+    available: typeof counters.available === 'number' ? counters.available : undefined,
+    pending: typeof counters.pending === 'number' ? counters.pending : undefined,
+    borrowed: typeof counters.borrowed === 'number' ? counters.borrowed : undefined,
+  };
+}
+
+function isPoolBusy(counters: PoolCounters): boolean {
+  if (counters.available !== 0) return false;
+  const pending = counters.pending ?? 0;
+  const borrowed = counters.borrowed ?? 0;
+  return pending > 0 || borrowed > 0;
 }

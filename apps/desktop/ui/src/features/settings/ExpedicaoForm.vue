@@ -44,6 +44,30 @@ const store = useSettingsStore();
         @blur="store.saveOnExit()"
       />
     </div>
+    <div class="span-4">
+      <q-input
+        :model-value="store.draft.sqlPoolMax"
+        type="number"
+        outlined
+        dense
+        hide-bottom-space
+        label="Máximo de conexões SQL"
+        @update:model-value="store.draft.sqlPoolMax = asNumber($event)"
+        @blur="store.saveOnExit()"
+      />
+    </div>
+    <div class="span-4">
+      <q-input
+        :model-value="store.draft.sqlPoolMin"
+        type="number"
+        outlined
+        dense
+        hide-bottom-space
+        label="Mínimo de conexões SQL"
+        @update:model-value="store.draft.sqlPoolMin = asNumber($event)"
+        @blur="store.saveOnExit()"
+      />
+    </div>
   </div>
   <h2 class="section-title section-gap">Opções</h2>
   <q-list class="option-list">

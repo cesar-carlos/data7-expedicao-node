@@ -1,4 +1,5 @@
 import PeriodicListenContract from '../contracts/periodic.listen.contract';
+import { logAppError, logAppInfo } from '../infra/app.logger';
 
 const MAX_BACKOFF_EXPONENT = 5;
 const MAX_BACKOFF_MS = 120_000;
@@ -26,7 +27,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
    */
   public start(): void {
     if (this.running) {
-      console.log(`[${this.constructor.name}] Já está em execução`);
+      logAppInfo(`${this.constructor.name} já está em execução`);
       return;
     }
 
@@ -34,7 +35,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
     this.paused = false;
     this.consecutiveFailures = 0;
 
-    console.log(`[${this.constructor.name}] Iniciado com intervalo base de ${this.intervalTime}ms`);
+    logAppInfo(`${this.constructor.name} iniciado`, { intervalMs: this.intervalTime });
     void this.runTick();
   }
 
@@ -43,7 +44,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
    */
   public stop(): void {
     if (!this.running) {
-      console.log(`[${this.constructor.name}] Não está em execução`);
+      logAppInfo(`${this.constructor.name} não está em execução`);
       return;
     }
 
@@ -56,7 +57,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
     this.paused = false;
     this.consecutiveFailures = 0;
 
-    console.log(`[${this.constructor.name}] Parado`);
+    logAppInfo(`${this.constructor.name} parado`);
   }
 
   /**
@@ -64,17 +65,17 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
    */
   public pause(): void {
     if (!this.running) {
-      console.log(`[${this.constructor.name}] Não está em execução`);
+      logAppInfo(`${this.constructor.name} não está em execução`);
       return;
     }
 
     if (this.paused) {
-      console.log(`[${this.constructor.name}] Já está pausado`);
+      logAppInfo(`${this.constructor.name} já está pausado`);
       return;
     }
 
     this.paused = true;
-    console.log(`[${this.constructor.name}] Pausado`);
+    logAppInfo(`${this.constructor.name} pausado`);
   }
 
   /**
@@ -82,17 +83,17 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
    */
   public resume(): void {
     if (!this.running) {
-      console.log(`[${this.constructor.name}] Não está em execução`);
+      logAppInfo(`${this.constructor.name} não está em execução`);
       return;
     }
 
     if (!this.paused) {
-      console.log(`[${this.constructor.name}] Não está pausado`);
+      logAppInfo(`${this.constructor.name} não está pausado`);
       return;
     }
 
     this.paused = false;
-    console.log(`[${this.constructor.name}] Retomado`);
+    logAppInfo(`${this.constructor.name} retomado`);
   }
 
   public isRunning(): boolean {
@@ -155,16 +156,10 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
 
   private logEmitError(error: unknown): void {
     const name = this.constructor.name;
-    if (error instanceof Error) {
-      console.error(`[${name}] Erro ao emitir dados:`, error.message);
-      if (error.stack) {
-        console.error(error.stack);
-      }
-    } else {
-      console.error(`[${name}] Erro ao emitir dados:`, error);
-    }
-    console.error(
-      `[${name}] Falhas consecutivas: ${this.consecutiveFailures}; próximo intervalo (ms): ${this.computeNextDelayMs()}`,
-    );
+    logAppError(`${name} erro ao emitir dados`, {
+      error: error instanceof Error ? error.message : String(error),
+      consecutiveFailures: this.consecutiveFailures,
+      nextDelayMs: this.computeNextDelayMs(),
+    });
   }
 }

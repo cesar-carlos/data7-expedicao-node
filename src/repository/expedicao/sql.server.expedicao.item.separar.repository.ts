@@ -1,5 +1,6 @@
 import path from 'path';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
+import { logCaughtError } from '../../infra/app.logger';
 
 import sql, { ConnectionPool } from 'mssql';
 import { Params, Pagination, OrderBy } from '../../contracts/local.base.params';
@@ -121,7 +122,7 @@ export default class SqlServerExpedicaoItemSepararRepository
           .query(sqlCommand);
       });
     } catch (error: unknown) {
-      console.error('Erro em SqlServerExpedicaoItemSepararRepository.actonEntity:', error);
+      logCaughtError('Erro em SqlServerExpedicaoItemSepararRepository.actonEntity', error);
       throw wrapRepositoryError(error);
     }
   }
@@ -156,7 +157,7 @@ export default class SqlServerExpedicaoItemSepararRepository
         throw new Error('Nenhum registro foi inserido');
       });
     } catch (error: unknown) {
-      console.error('Erro em SqlServerExpedicaoItemSepararRepository.actonEntityWithReturn:', error);
+      logCaughtError('Erro em SqlServerExpedicaoItemSepararRepository.actonEntityWithReturn', error);
       throw wrapRepositoryError(error);
     }
   }

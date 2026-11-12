@@ -1,22 +1,19 @@
-/** Página quando o cliente não manda LIMIT. A view de expedição não aguenta 1000 linhas de uma vez. */
-export const DEFAULT_PAGE_LIMIT = 100;
-/** Teto mesmo se o cliente pedir mais. */
-export const MAX_PAGE_LIMIT = 1000;
+/** Página quando o cliente não manda LIMIT. */
+export const DEFAULT_PAGE_LIMIT = 1500;
+/** Teto só do padrão e do refresh interno. Um LIMIT do cliente não usa este valor. */
+export const MAX_PAGE_LIMIT = 1500;
+/** Teto técnico do parâmetro SQL INT. */
+export const SQL_INT_MAX = 2_147_483_647;
 
 export function clampPageLimit(value: number): number {
   if (!Number.isFinite(value)) return DEFAULT_PAGE_LIMIT;
   return Math.min(MAX_PAGE_LIMIT, Math.max(1, Math.floor(value)));
 }
 
-/**
- * ItemSepararEstoque and ItemSeparacaoEstoque return the separation lines to the collector.
- * The generic 100-row default drops items on larger orders. An explicit LIMIT other than that default stays as sent.
- * Remove when those events page by item instead of loading the separation in one read.
- */
-export function pageForSeparacaoItens(pagination?: Pagination): Pagination {
-  const current = pagination ?? Pagination.create();
-  if (current.getLimit() !== DEFAULT_PAGE_LIMIT) return current;
-  return Pagination.create(MAX_PAGE_LIMIT, current.getOffset(), current.getPage());
+/** Limite explícito do cliente: inteiro >= 1, sem o teto de página. */
+export function readUserPageLimit(value: number): number {
+  if (!Number.isFinite(value)) return DEFAULT_PAGE_LIMIT;
+  return Math.min(SQL_INT_MAX, Math.max(1, Math.floor(value)));
 }
 
 /** Limite de um refresh em lote: algumas linhas por chave, sem passar do teto da página. */
@@ -33,6 +30,26 @@ function readPageNumber(raw: string | null, fallback: number): number {
   return Math.max(0, Math.floor(parsed));
 }
 
+function firstQueryValue(params: URLSearchParams | undefined, keys: string[]): string | null {
+  if (!params) return null;
+  for (const key of keys) {
+    const value = params.get(key);
+    if (value !== null && value !== '') return value;
+  }
+  return null;
+}
+
+function firstObjectNumber(record: Record<string, unknown>, keys: string[]): number | undefined {
+  for (const key of keys) {
+    if (!(key in record) || record[key] === undefined || record[key] === null || record[key] === '') {
+      continue;
+    }
+    const parsed = Number(record[key]);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return undefined;
+}
+
 export class Pagination {
   public limit: number;
   public offset: number;
@@ -40,9 +57,10 @@ export class Pagination {
 
   private constructor(query?: string) {
     const params = query ? new URLSearchParams(query) : undefined;
-    this.limit = clampPageLimit(params?.get('LIMIT') ? Number(params.get('LIMIT')) : DEFAULT_PAGE_LIMIT);
-    this.offset = readPageNumber(params?.get('OFFSET') ?? null, 0);
-    this.page = readPageNumber(params?.get('PAGE') ?? null, 1);
+    const limitRaw = firstQueryValue(params, ['LIMIT', 'limit', 'TOP', 'top', '$top']);
+    this.limit = limitRaw === null ? DEFAULT_PAGE_LIMIT : readUserPageLimit(Number(limitRaw));
+    this.offset = readPageNumber(firstQueryValue(params, ['OFFSET', 'offset', 'SKIP', 'skip', '$skip']), 0);
+    this.page = readPageNumber(firstQueryValue(params, ['PAGE', 'page']), 1);
   }
 
   static fromObject(obj?: { limit?: number; offset?: number; page?: number }): Pagination {
@@ -53,6 +71,32 @@ export class Pagination {
   static fromQueryString(queryString?: string): Pagination {
     if (!queryString) return new Pagination();
     return new Pagination(queryString);
+  }
+
+  /** Absent/empty client pagination stays undefined so the default page is applied later. */
+  static fromClientInput(value: unknown): Pagination | undefined {
+    if (value === undefined || value === null) return undefined;
+
+    if (typeof value === 'number') {
+      return Pagination.create(readUserPageLimit(value));
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (!trimmed) return undefined;
+      return Pagination.fromQueryString(trimmed);
+    }
+
+    if (typeof value === 'object' && !Array.isArray(value)) {
+      const record = value as Record<string, unknown>;
+      const limit = firstObjectNumber(record, ['LIMIT', 'limit', 'TOP', 'top', '$top']);
+      const offset = firstObjectNumber(record, ['OFFSET', 'offset', 'SKIP', 'skip', '$skip']);
+      const page = firstObjectNumber(record, ['PAGE', 'page']);
+      if (limit === undefined && offset === undefined && page === undefined) return undefined;
+      return Pagination.create(limit ?? DEFAULT_PAGE_LIMIT, offset ?? 0, page ?? 1);
+    }
+
+    return undefined;
   }
 
   static create(limit: number = DEFAULT_PAGE_LIMIT, offset: number = 0, page: number = 1): Pagination {

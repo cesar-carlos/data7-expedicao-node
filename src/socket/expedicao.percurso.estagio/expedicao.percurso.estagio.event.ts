@@ -1,6 +1,6 @@
 import { Server as SocketIOServer, Socket } from 'socket.io';
 import ExpedicaoPercursoEstagioDto from '../../dto/expedicao/expedicao.percurso.estagio.dto';
-import { convertSocketMutationPayload } from '../socket.event.helpers';
+import { convertSocketMutationPayload, requireSequenceValue } from '../socket.event.helpers';
 import SocketCrudRegistrar from '../socket.crud.registrar';
 import ExpedicaoPercursoEstagioRepository from './expedicao.percurso.estagio.repository';
 
@@ -21,7 +21,7 @@ export default class ExpedicaoPercursoEstagioEvent {
       convert: (mutation) => this.convert(mutation),
       beforeExecute: async (items) => {
         for (const item of items) {
-          item.CodPercursoEstagio = (await this.repository.sequence())?.Valor ?? 0;
+          item.CodPercursoEstagio = requireSequenceValue(await this.repository.sequence(), 'PercursoEstagio');
         }
       },
       execute: async (items) => this.repository.insert(items),

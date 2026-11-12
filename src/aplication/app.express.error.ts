@@ -1,3 +1,8 @@
+import {
+  classifyClientError,
+  httpStatusForClientError,
+} from '../utils/repository.error';
+
 export default class AppExpressError extends Error {
   readonly statusCode: number;
   readonly code: string;
@@ -21,15 +26,11 @@ export default class AppExpressError extends Error {
       return error;
     }
 
-    if (error instanceof Error) {
-      return new AppExpressError({
-        message: error.message,
-      });
-    }
-
+    const classified = classifyClientError(error);
     return new AppExpressError({
-      message: 'Unexpected application error',
-      details: error,
+      message: classified.clientMessage,
+      statusCode: httpStatusForClientError(classified),
+      code: classified.code,
     });
   }
 }

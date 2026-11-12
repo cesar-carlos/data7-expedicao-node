@@ -12,6 +12,7 @@ import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.c
 import ExpedicaoSepararDto from '../../dto/expedicao/expedicao.separar.dto';
 import SequenceDto from '../../dto/common.data/sequence.dto';
 import SqlServerExpedicaoSepararConsultaRepository from '../../repository/expedicao/sql.server.expedicao.separar.consulta.repository';
+import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SepararRepository {
   public async consulta(
@@ -65,8 +66,8 @@ export default class SepararRepository {
     try {
       const repository = this.repository();
       return await repository.selectWhere(params, pagination, orderBy);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -76,8 +77,8 @@ export default class SepararRepository {
       for (const el of models) {
         await repository.insert(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -87,8 +88,8 @@ export default class SepararRepository {
       for (const el of models) {
         await repository.update(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -98,8 +99,8 @@ export default class SepararRepository {
       for (const el of models) {
         await repository.delete(el);
       }
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 
@@ -108,8 +109,8 @@ export default class SepararRepository {
       const name = 'Expedicao.SepararEstoque_Sequencia_1';
       const repository = this.sequenceRepository();
       return await repository.select(name);
-    } catch (error: any) {
-      throw new Error(error.message);
+    } catch (error: unknown) {
+      throw wrapRepositoryError(error);
     }
   }
 

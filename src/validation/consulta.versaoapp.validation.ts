@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { DEFAULT_PAGE_LIMIT, SQL_INT_MAX } from '../contracts/local.base.pagination';
 
 export const consultaVersaoAppQuerySchema = z.object({
   NomeApp: z
@@ -37,8 +38,8 @@ export const consultaVersaoAppQuerySchema = z.object({
   Limit: z
     .union([z.string(), z.number()])
     .transform((val) => (typeof val === 'string' ? parseInt(val, 10) : val))
-    .refine((val) => !isNaN(val) && val > 0 && val <= 1000, 'Limit deve ser entre 1 e 1000')
-    .default(1000),
+    .refine((val) => !isNaN(val) && val > 0 && val <= SQL_INT_MAX, 'Limit deve ser um número maior que 0')
+    .default(DEFAULT_PAGE_LIMIT),
 });
 
 export type ConsultaVersaoAppQuery = z.infer<typeof consultaVersaoAppQuerySchema>;
