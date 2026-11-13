@@ -9,6 +9,8 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
   private running: boolean = false;
   private paused: boolean = false;
   private consecutiveFailures: number = 0;
+  private generation = 0;
+  private emitting = false;
   protected intervalTime: number;
 
   constructor(intervalTime: number = 8000) {
@@ -32,6 +34,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
     }
 
     this.running = true;
+    this.generation += 1;
     this.paused = false;
     this.consecutiveFailures = 0;
 
@@ -54,6 +57,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
     }
 
     this.running = false;
+    this.generation += 1;
     this.paused = false;
     this.consecutiveFailures = 0;
 
@@ -109,7 +113,7 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
   }
 
   private async runTick(): Promise<void> {
-    if (!this.running) {
+    if (!this.running || this.emitting) {
       return;
     }
 
@@ -118,15 +122,31 @@ export default abstract class BasePeriodicListenService implements PeriodicListe
       return;
     }
 
+    const generation = this.generation;
+    this.emitting = true;
     try {
       await this.emitData();
-      this.consecutiveFailures = 0;
+      if (generation === this.generation) this.consecutiveFailures = 0;
     } catch (error: unknown) {
-      this.consecutiveFailures += 1;
-      this.logEmitError(error);
+      if (generation === this.generation) {
+        this.consecutiveFailures += 1;
+        this.logEmitError(error);
+      } else {
+        logAppError(`${this.constructor.name} erro ao emitir dados`, {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+    } finally {
+      this.emitting = false;
     }
 
     if (!this.running) {
+      return;
+    }
+
+    // A restart waits for the previous emission without inheriting its backoff.
+    if (generation !== this.generation) {
+      void this.runTick();
       return;
     }
 

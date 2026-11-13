@@ -33,6 +33,7 @@ export default class ConnectionSqlServerMssql {
   private pool: ConnectionPool | null = null;
   private openingPool: ConnectionPool | null = null;
   private isClosing = false;
+  private closingPromise: Promise<void> | null = null;
 
   private initializationPromise: Promise<void> | null = null;
   private heartbeatInterval: NodeJS.Timeout | null = null;
@@ -300,58 +301,60 @@ export default class ConnectionSqlServerMssql {
   }
 
   async closePool(): Promise<void> {
-    if (this.isClosing) {
-      return;
-    }
+    if (this.closingPromise) return this.closingPromise;
 
     this.isClosing = true;
-
-    try {
-      this.stopHeartbeat();
-
-      if (this.activeTransactions.size > 0) {
-        this.logInfo(`Fazendo rollback de ${this.activeTransactions.size} transações ativas antes de fechar o pool`);
-        await this.rollbackAllTransactions();
-      }
-
-      // mssql rejects close() during connect(). Keep shutdown active until
-      // initialization settles; doInitialize closes a pool opened during shutdown.
-      if (this.initializationPromise) {
-        await this.initializationPromise.catch(() => undefined);
-      }
-
-      const opening = this.openingPool;
-      this.openingPool = null;
-      const pool = this.pool;
-      this.pool = null;
-      this.untrackedRequest = null;
-
-      const toClose = [opening, pool].filter((item, index, list): item is ConnectionPool => {
-        return item !== null && list.indexOf(item) === index;
-      });
-
-      for (const candidate of toClose) {
-        try {
-          await candidate.close();
-        } catch (error) {
-          this.logError('Erro ao fechar pool', error);
-          throw new Error(
-            `Falha ao fechar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
-          );
-        }
-      }
-
-      if (toClose.length > 0) {
-        this.logInfo('Pool de conexão fechado com sucesso', {
-          totalConnections: this.connectionMetrics.totalConnections,
-          failedConnections: this.connectionMetrics.failedConnections,
-          reconnections: this.connectionMetrics.reconnections,
-          totalTransactions: this.connectionMetrics.totalTransactions,
-          failedTransactions: this.connectionMetrics.failedTransactions,
-        });
-      }
-    } finally {
+    // Every shutdown caller must await the same cleanup, including failures.
+    this.closingPromise = this.doClosePool().finally(() => {
       this.isClosing = false;
+      this.closingPromise = null;
+    });
+    return this.closingPromise;
+  }
+
+  private async doClosePool(): Promise<void> {
+    this.stopHeartbeat();
+
+    if (this.activeTransactions.size > 0) {
+      this.logInfo(`Fazendo rollback de ${this.activeTransactions.size} transações ativas antes de fechar o pool`);
+      await this.rollbackAllTransactions();
+    }
+
+    // mssql rejects close() during connect(). Keep shutdown active until
+    // initialization settles; doInitialize closes a pool opened during shutdown.
+    if (this.initializationPromise) {
+      await this.initializationPromise.catch(() => undefined);
+    }
+
+    const opening = this.openingPool;
+    this.openingPool = null;
+    const pool = this.pool;
+    this.pool = null;
+    this.untrackedRequest = null;
+
+    const toClose = [opening, pool].filter((item, index, list): item is ConnectionPool => {
+      return item !== null && list.indexOf(item) === index;
+    });
+
+    for (const candidate of toClose) {
+      try {
+        await candidate.close();
+      } catch (error) {
+        this.logError('Erro ao fechar pool', error);
+        throw new Error(
+          `Falha ao fechar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
+        );
+      }
+    }
+
+    if (toClose.length > 0) {
+      this.logInfo('Pool de conexão fechado com sucesso', {
+        totalConnections: this.connectionMetrics.totalConnections,
+        failedConnections: this.connectionMetrics.failedConnections,
+        reconnections: this.connectionMetrics.reconnections,
+        totalTransactions: this.connectionMetrics.totalTransactions,
+        failedTransactions: this.connectionMetrics.failedTransactions,
+      });
     }
   }
 
@@ -722,6 +725,7 @@ export default class ConnectionSqlServerMssql {
     instance.initializationPromise = null;
     instance.reconnectPromise = null;
     instance.isClosing = false;
+    instance.closingPromise = null;
     ConnectionSqlServerMssql.instance = undefined;
   }
 }

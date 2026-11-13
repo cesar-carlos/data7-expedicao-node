@@ -116,7 +116,23 @@ Itens 1 a 4 da continuação implementados sem alterações em `src/`:
 
 Validação desta etapa: `npm test -- --run` com **241 aprovados e 8 ignorados**, `npx tsc --noEmit`, nove cenários de benchmark e execução do comparador. Os testes HTTP/Socket.IO precisam de loopback autorizado; no sandbox, seis casos falharam com bloqueio de conexão local e passaram na repetição com permissão. Os ignorados já existiam.
 
-O item 5 (investigação e eventual correção da concorrência de `stop/start` e de fechamentos simultâneos) permanece fora desta etapa. Estes testes não afirmam cobertura dessa concorrência nem validam recuperação contra SQL Server real. Contratos HTTP/Socket.IO, limites, prazos, critérios de reconexão e comportamento do runtime permanecem inalterados.
+O item 5 foi tratado na etapa seguinte, abaixo. Os testes dos itens 1 a 4 não validam recuperação contra SQL Server real. Naquela etapa, contratos HTTP/Socket.IO, limites, prazos, critérios de reconexão e código do runtime permaneceram inalterados.
+
+### Item 5 — coordenação de reinício e encerramento (2026-11-13)
+
+Dois problemas internos foram reproduzidos antes da correção, com cinco casos de teste falhando:
+
+- `stop/start` na mesma instância iniciava novas emissões com a anterior ainda pendente. No teste de reinícios repetidos, ocorreram 13 chamadas antes de liberar a primeira. A conclusão antiga também podia alterar o contador de falhas e o timer do ciclo novo.
+- Uma segunda chamada de `closePool()` resolvia enquanto a primeira ainda aguardava o driver. O segundo chamador recebia sucesso prematuro, inclusive quando o fechamento posteriormente falhava.
+
+Correções limitadas a `BasePeriodicListenService` e `ConnectionSqlServerMssql`:
+
+- O listener identifica cada ciclo de execução e mantém uma única emissão pendente por instância. Um reinício aguarda essa emissão terminar e só então inicia o ciclo atual, respeitando pausa ou nova parada. Falhas antigas continuam registradas, mas não alteram o backoff do ciclo novo. `stop()` continua síncrono e não cancela a consulta/emissão já iniciada; os efeitos dessa emissão ainda podem terminar depois da parada. Instâncias diferentes continuam independentes.
+- `closePool()` compartilha o resultado do fechamento em andamento. Todos os chamadores concorrentes aguardam a conclusão e recebem a mesma falha, se houver. A referência compartilhada e o indicador de fechamento são liberados ao final, permitindo chamadas posteriores. A ordem de rollback, espera pela inicialização e fechamento do driver, assim como a mensagem de erro, foi preservada.
+
+Essas correções mudam somente a coordenação nos cenários de corrida comprovados: o reinício deixa de sobrepor consultas, e o segundo fechamento deixa de anunciar conclusão antes da hora. Não alteram assinaturas públicas, rotas, eventos, envelopes, SQL, limites, intervalos normais, critérios de reconexão ou política de cancelamento. Uma emissão que nunca conclua impede outro ciclo na mesma instância; não foi introduzido timeout adicional.
+
+Foram acrescentados sete casos, incluindo sucesso/erro da emissão antiga, reinícios repetidos, pausa, parada antes da conclusão, backoff do ciclo novo e sucesso/erro compartilhado no fechamento. Validação: **248 testes aprovados e 8 ignorados**, `npx tsc --noEmit` e `git diff --check` sem erros. A suíte completa usou permissão de loopback para HTTP/Socket.IO. Os testes de concorrência usam relógio e driver simulados; não representam validação contra SQL Server real. Relatórios anteriores de benchmark permanecem como referências históricas, sem alegação de ganho de desempenho nesta correção.
 
 ## 4. Levantamentos que travam o kick automático
 

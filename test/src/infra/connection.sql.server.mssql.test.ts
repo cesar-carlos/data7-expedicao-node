@@ -231,6 +231,34 @@ describe('ConnectionSqlServerMssql', () => {
     await closing;
   });
 
+  it.each([false, true])('should make concurrent close callers await the same outcome (failure: %s)', async (fails) => {
+    const pool = createFakePool();
+    const connection = ConnectionSqlServerMssql.startTestInstance(() => pool as unknown as ConnectionPool);
+    await connection.getConnection();
+    let finish!: () => void;
+    pool.close = vi.fn(() => new Promise<void>((resolve, reject) => {
+      finish = () => fails ? reject(new Error('close failure')) : resolve();
+    }));
+    const outcomes: string[] = [];
+    const observe = () => connection.closePool().then(
+      () => { outcomes.push('closed'); },
+      (error: unknown) => { outcomes.push(error instanceof Error ? error.message : String(error)); },
+    );
+    const first = observe();
+    const second = observe();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(outcomes).toEqual([]);
+    expect(pool.close).toHaveBeenCalledTimes(1);
+    finish();
+    await Promise.all([first, second]);
+    expect(outcomes).toEqual(Array(2).fill(fails ? 'Falha ao fechar pool de conexão: close failure' : 'closed'));
+    // A completed close must not leave a stale shared promise or closing flag.
+    await expect(connection.closePool()).resolves.toBeUndefined();
+    expect(pool.close).toHaveBeenCalledTimes(1);
+    expect(connection.getMetrics().heartbeatActive).toBe(false);
+  });
+
   it('should not count a busy pool as a failed health check', async () => {
     const created: FakePool[] = [];
     const connection = ConnectionSqlServerMssql.startTestInstance(() => {

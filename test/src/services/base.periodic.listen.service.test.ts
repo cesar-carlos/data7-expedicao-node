@@ -12,6 +12,82 @@ describe('BasePeriodicListenService scheduling', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => { vi.clearAllTimers(); vi.useRealTimers(); });
 
+  it.each([false, true])('should serialize restart behind an old emission without inheriting its failure (failure: %s)', async (fails) => {
+    const service = new Listener(1000);
+    let finish!: () => void;
+    service.emit.mockImplementationOnce(() => new Promise<void>((resolve, reject) => {
+      finish = () => fails ? reject(new Error('old failure')) : resolve();
+    }));
+    service.start();
+    service.stop();
+    service.start();
+    service.stop();
+    service.start();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(service.emit).toHaveBeenCalledTimes(1);
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(service.emit).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(1);
+    await vi.advanceTimersByTimeAsync(999);
+    expect(service.emit).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(service.emit).toHaveBeenCalledTimes(3);
+  });
+
+  it('should honor pause and stop while a restart waits for the previous emission', async () => {
+    const service = new Listener(1000);
+    let finish!: () => void;
+    service.emit.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    service.start();
+    service.stop();
+    service.start();
+    service.pause();
+    finish();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(service.emit).toHaveBeenCalledTimes(1);
+    service.stop();
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(service.emit).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it('should abandon a pending restart when stopped before the emission completes', async () => {
+    const service = new Listener(1000);
+    let finish!: () => void;
+    service.emit.mockImplementationOnce(() => new Promise<void>(resolve => { finish = resolve; }));
+    service.start();
+    service.stop();
+    service.start();
+    service.stop();
+    finish();
+    await vi.advanceTimersByTimeAsync(10000);
+    expect(service.emit).toHaveBeenCalledTimes(1);
+    expect(vi.getTimerCount()).toBe(0);
+    service.start();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(service.emit).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(1);
+  });
+
+  it('should apply backoff only to failures in the restarted cycle', async () => {
+    const service = new Listener(1000);
+    let finish!: () => void;
+    service.emit.mockImplementationOnce(() => new Promise<void>((_resolve, reject) => {
+      finish = () => reject(new Error('old failure'));
+    })).mockRejectedValueOnce(new Error('new failure'));
+    service.start();
+    service.stop();
+    service.start();
+    finish();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(service.emit).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1999);
+    expect(service.emit).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(service.emit).toHaveBeenCalledTimes(3);
+  });
+
   it('should pause emissions and resume on the next scheduled tick', async () => {
     const service = new Listener(1000);
     service.start();
