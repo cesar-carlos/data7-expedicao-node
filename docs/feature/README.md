@@ -1,5 +1,7 @@
 # Features e planos de evolução
 
+Complemento da Fase 0 (2026-11-13): testes de agendamento periódico e recuperação do pool, comparador local de relatórios e benchmark ampliado para nove cenários. Veja [medições e comparação](./desempenho-consultas.md). Esta etapa altera somente testes, ferramentas de desenvolvimento e documentação; nenhum arquivo de produção em `src/` foi alterado.
+
 Esta pasta separa recursos presentes no código de propostas ainda não implementadas. Revisão do código local: **2026-11-13**. Isso não confirma implantação em produção, configuração da base ou versão publicada dos coletores. Contrato vigente: [comunicação](../comunicacao.md) e [socket](../socket/README.md).
 
 | Plano | Estado | Dono |

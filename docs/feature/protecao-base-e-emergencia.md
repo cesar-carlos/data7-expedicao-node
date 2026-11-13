@@ -105,6 +105,19 @@ O cancelamento SQL também foi preservado: novos testes verificam a implementaç
 
 ---
 
+### Complemento da Fase 0 — testes e medições (2026-11-13)
+
+Itens 1 a 4 da continuação implementados sem alterações em `src/`:
+
+1. `base.periodic.listen.service.test.ts`: pausa e retomada no tick agendado, backoff após falhas, recuperação do intervalo normal, teto de 120 segundos e parada durante emissão pendente com sucesso ou erro. O teste também protege contra sobreposição durante uma execução contínua. Parar não cancela a emissão em andamento; impede o próximo agendamento.
+2. `connection.sql.server.mssql.test.ts`: recuperação após sucesso, pool ocupado ou acquire timeout; reconexão após duas falhas consecutivas compartilhada com pedidos concorrentes; ausência de probes sobrepostos; encerramento durante probe pendente sem novo agendamento. Pool e relógio são simulados, sem SQL Server real.
+3. Comparador local de relatórios: diferenças de mediana/p95, identificação de ambiente/configuração e mudanças de cenários, com testes de validação. Não impõe limite temporal à suíte.
+4. Benchmark ampliado: filtros combinados com página 3 e serialização de 500/1500 linhas. Método, limitações e comandos em [desempenho-consultas](./desempenho-consultas.md).
+
+Validação desta etapa: `npm test -- --run` com **241 aprovados e 8 ignorados**, `npx tsc --noEmit`, nove cenários de benchmark e execução do comparador. Os testes HTTP/Socket.IO precisam de loopback autorizado; no sandbox, seis casos falharam com bloqueio de conexão local e passaram na repetição com permissão. Os ignorados já existiam.
+
+O item 5 (investigação e eventual correção da concorrência de `stop/start` e de fechamentos simultâneos) permanece fora desta etapa. Estes testes não afirmam cobertura dessa concorrência nem validam recuperação contra SQL Server real. Contratos HTTP/Socket.IO, limites, prazos, critérios de reconexão e comportamento do runtime permanecem inalterados.
+
 ## 4. Levantamentos que travam o kick automático
 
 Estes pontos são a razão de a Fase 4 estar **bloqueada**. Não ignorar na implementação futura.

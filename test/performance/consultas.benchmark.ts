@@ -47,12 +47,15 @@ interface Scenario {
   operations: number;
   expectedBackendCalls: number;
   expectedBinds: number;
+  expectedRows?: typeof rows;
   run: () => Promise<Observation>;
 }
 
-function socketScenario(mode: 'shared' | 'distinct' | 'separate-sockets' | 'sequential'): Scenario {
+function socketScenario(mode: 'shared' | 'distinct' | 'separate-sockets' | 'sequential', rowCount = 20): Scenario {
+  const responseRows = Array.from({ length: rowCount }, (_, i) => ({ CodEmpresa: 1, CodProduto: i + 1, Quantidade: 10 }));
   return {
-    name: `socket-${mode}`, operations: burst,
+    name: `socket-${mode}${rowCount === 20 ? '' : `-rows-${rowCount}`}`, operations: burst,
+    expectedRows: responseRows,
     expectedBackendCalls: mode === 'shared' ? 1 : burst, expectedBinds: 0,
     async run() {
       const result: Observation = { backendCalls: 0, responses: 0, binds: 0, payloads: [] };
@@ -66,14 +69,14 @@ function socketScenario(mode: 'shared' | 'distinct' | 'separate-sockets' | 'sequ
         {
           Session: mode === 'separate-sockets' ? `bench-${i}` : 'bench', ResponseIn: `reply-${i}`,
           Where: [{ key: 'CodEmpresa', value: mode === 'distinct' ? i + 1 : 1 }],
-          Pagination: 'LIMIT=20&OFFSET=0&PAGE=1', OrderBy: 'order_by=CodProduto&order_direction=ASC',
+          Pagination: `LIMIT=${rowCount}&OFFSET=0&PAGE=1`, OrderBy: 'order_by=CodProduto&order_direction=ASC',
         },
         { defaultResponseIn: 'bench separar.consulta', eventName: 'separar.consulta', kind: 'query' },
         async ({ emitQuery }) => {
           result.backendCalls++;
           // A deterministic event-loop barrier keeps the burst in flight without a timed sleep.
           await new Promise<void>((done) => setImmediate(done));
-          emitQuery(rows);
+          emitQuery(responseRows);
         },
       );
       if (mode === 'sequential') {
@@ -86,15 +89,17 @@ function socketScenario(mode: 'shared' | 'distinct' | 'separate-sockets' | 'sequ
   };
 }
 
-function helperScenario(inValues: number): Scenario {
-  const params = inValues
+function helperScenario(inValues: number, mixed = false): Scenario {
+  const params = mixed
+    ? [Params.equals('CodEmpresa', 1), Params.like('Descricao', 'PROD%'), Params.between('CodProduto', 10, 200), Params.isNull('Cancelado')]
+    : inValues
     ? [Params.in('CodProduto', Array.from({ length: inValues }, (_, i) => i + 1))]
     : [Params.equals('CodEmpresa', 1), Params.equals('Situacao', 'AGUARDANDO')];
-  const pagination = Pagination.create(20);
-  const order = OrderBy.create('CodProduto', 'ASC');
+  const pagination = mixed ? Pagination.create(100, 200, 3) : Pagination.create(20);
+  const order = OrderBy.create('CodProduto', mixed ? 'DESC' : 'ASC');
   return {
-    name: inValues ? 'query-helper-in-500' : 'query-helper-equality', operations: helperIterations,
-    expectedBackendCalls: helperIterations, expectedBinds: (inValues || 2) * helperIterations + 2 * helperIterations,
+    name: mixed ? 'query-helper-mixed-page-3' : inValues ? 'query-helper-in-500' : 'query-helper-equality', operations: helperIterations,
+    expectedBackendCalls: helperIterations, expectedBinds: (mixed ? 4 : inValues || 2) * helperIterations + 2 * helperIterations,
     async run() {
       const result: Observation = { backendCalls: 0, responses: 0, binds: 0, payloads: [] };
       const pool = { request: () => ({
@@ -117,7 +122,7 @@ function verify(scenario: Scenario, result: Observation): void {
   for (const { event, payload } of result.payloads) {
     const parsed = JSON.parse(payload);
     assert.equal(parsed.ResponseIn, event);
-    assert.deepEqual(parsed.Data, rows);
+    assert.deepEqual(parsed.Data, scenario.expectedRows ?? rows);
     assert.equal(parsed.Error, undefined);
   }
   if (result.payloads.length) assert.equal(new Set(result.payloads.map(p => p.event)).size, burst);
@@ -145,7 +150,9 @@ function sourceFingerprint(): string {
 }
 
 async function main(): Promise<void> {
-  const scenarios = [helperScenario(0), helperScenario(500), ...(['shared', 'distinct', 'separate-sockets', 'sequential'] as const).map(socketScenario)];
+  const scenarios = [helperScenario(0), helperScenario(500), helperScenario(0, true),
+    ...(['shared', 'distinct', 'separate-sockets', 'sequential'] as const).map(mode => socketScenario(mode)),
+    socketScenario('distinct', 500), socketScenario('distinct', 1500)];
   const timings = new Map(scenarios.map(s => [s.name, [] as number[]]));
   // Rotate scenario order to reduce systematic warmup/order bias.
   for (let round = -warmup; round < samples; round++) {
@@ -171,6 +178,7 @@ async function main(): Promise<void> {
       const median = (sorted[Math.floor((samples - 1) / 2)]! + sorted[Math.floor(samples / 2)]!) / 2;
       return { scenario: s.name, operationsPerSample: s.operations,
         expectedBackendCallsPerSample: s.expectedBackendCalls, expectedBindsPerSample: s.expectedBinds,
+        rowsPerResponse: (s.expectedRows ?? rows).length,
         medianMs: median, p95Ms: sorted[Math.ceil(samples * 0.95) - 1],
         operationsPerSecondAtMedian: s.operations * 1000 / median, samplesMs: raw };
     }),

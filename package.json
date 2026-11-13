@@ -18,7 +18,8 @@
     "format": "npx prettier './src/**/*.ts' './src/**/*.js' --write",
     "start": "node ./dist.loja/src/server.js",
     "test": "vitest",
-    "bench:consultas": "ts-node test/performance/consultas.benchmark.ts"
+    "bench:consultas": "ts-node test/performance/consultas.benchmark.ts",
+    "bench:consultas:compare": "ts-node test/performance/consultas.compare.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

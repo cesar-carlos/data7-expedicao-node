@@ -97,6 +97,7 @@ describe('ConnectionSqlServerMssql', () => {
     PASSWORD_DATABASE: process.env.PASSWORD_DATABASE,
     DATABASE_NAME: process.env.DATABASE_NAME,
     DATABASE_HOST: process.env.DATABASE_HOST,
+    SQL_HEARTBEAT_INTERVAL_MS: process.env.SQL_HEARTBEAT_INTERVAL_MS,
   };
 
   beforeEach(() => {
@@ -104,10 +105,12 @@ describe('ConnectionSqlServerMssql', () => {
     process.env.PASSWORD_DATABASE = 'x';
     process.env.DATABASE_NAME = 'db';
     process.env.DATABASE_HOST = 'localhost';
+    process.env.SQL_HEARTBEAT_INTERVAL_MS = '30000';
   });
 
   afterEach(async () => {
     await ConnectionSqlServerMssql.resetForTests();
+    vi.useRealTimers();
     for (const [key, value] of Object.entries(previousEnv)) {
       if (value === undefined) {
         delete process.env[key];
@@ -277,6 +280,77 @@ describe('ConnectionSqlServerMssql', () => {
   it('should treat acquire timeout as a busy pool, not a dead one', () => {
     expect(isSqlPoolAcquireTimeout(new Error('Timeout: ResourceRequest timed out'))).toBe(true);
     expect(isSqlPoolAcquireTimeout(new Error('Login failed'))).toBe(false);
+  });
+
+  it.each(['success', 'busy', 'acquire-timeout'])('should reset consecutive heartbeat failures after %s', async (recovery) => {
+    vi.useFakeTimers();
+    const pool = createFakePool();
+    const connection = ConnectionSqlServerMssql.startTestInstance(() => pool as unknown as ConnectionPool);
+    await connection.getConnection();
+    pool.requestQuery.mockRejectedValueOnce(new Error('network failure'));
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(connection.getMetrics().reconnections).toBe(0);
+    if (recovery === 'busy') { pool.available = 0; pool.pending = 1; }
+    if (recovery === 'acquire-timeout') pool.requestQuery.mockRejectedValueOnce(new Error('ResourceRequest timed out'));
+    await vi.advanceTimersByTimeAsync(30000);
+    pool.available = 2; pool.pending = 0;
+    pool.requestQuery.mockRejectedValueOnce(new Error('network failure'));
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(connection.getMetrics().reconnections).toBe(0);
+    expect(pool.closeCalls).toBe(0);
+    expect(pool.requestQuery).toHaveBeenCalledTimes(recovery === 'busy' ? 2 : 3);
+  });
+
+  it('should share heartbeat reconnection with concurrent connection requests', async () => {
+    vi.useFakeTimers();
+    const pools: FakePool[] = [];
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const connection = ConnectionSqlServerMssql.startTestInstance(() => {
+      const pool = createFakePool();
+      if (pools.length === 1) {
+        const connect = pool.connect;
+        pool.connect = async () => { await gate; await connect(); };
+      }
+      pools.push(pool);
+      return pool as unknown as ConnectionPool;
+    });
+    await connection.getConnection();
+    pools[0]!.requestQuery.mockRejectedValue(new Error('network failure'));
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(pools).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(pools).toHaveLength(2);
+    const first = connection.getConnection();
+    const second = connection.getConnection();
+    release();
+    expect(await first).toBe(await second);
+    expect(await first).toBe(pools[1]);
+    expect(pools[0]!.closeCalls).toBe(1);
+    expect(connection.getMetrics().reconnections).toBe(1);
+    await vi.advanceTimersByTimeAsync(30000);
+    expect(pools[1]!.requestQuery).toHaveBeenCalledTimes(1);
+    expect(pools).toHaveLength(2);
+  });
+
+  it('should avoid overlapping probes and stop heartbeat scheduling on shutdown', async () => {
+    vi.useFakeTimers();
+    const pool = createFakePool();
+    const connection = ConnectionSqlServerMssql.startTestInstance(() => pool as unknown as ConnectionPool);
+    await connection.getConnection();
+    let release!: () => void;
+    pool.requestQuery.mockImplementationOnce(() => new Promise((resolve) => {
+      release = () => resolve({ recordset: [{ health: 1 }] });
+    }));
+    await vi.advanceTimersByTimeAsync(90000);
+    expect(pool.requestQuery).toHaveBeenCalledTimes(1);
+    await connection.closePool();
+    release();
+    await vi.advanceTimersByTimeAsync(90000);
+    expect(pool.requestQuery).toHaveBeenCalledTimes(1);
+    expect(pool.closeCalls).toBe(1);
+    expect(connection.getMetrics().heartbeatActive).toBe(false);
+    expect(connection.getMetrics().reconnections).toBe(0);
   });
 
   it('should reset LOCK_TIMEOUT and cancel the request when a tracked query fails', async () => {
