@@ -2,7 +2,7 @@
 
 Pedido: `${socket.id} <evento>`. Envelope: [consulta Socket.IO](../contratos/consulta-socket.md).
 
-`consulta` usa SQL em `src/sql/` (view com joins) e devolve `*ConsultaDto`. `select` lê a tabela e devolve o DTO de gravação. Os dois aceitam `Where`, `Pagination` e `OrderBy`. Sem `LIMIT`, a página é 1500 — [paginação](../contratos/paginacao.md).
+`consulta` usa SQL em `src/sql/` (view com joins) e devolve `*ConsultaDto`. `select` lê a tabela e devolve o DTO de gravação. Os dois aceitam `Where`, `Pagination` e `OrderBy`. `Where` é lista `{ key, value }` — [Where](../contratos/where.md). Sem `LIMIT`, a página é 1500 — [paginação](../contratos/paginacao.md).
 
 Índices desses `WHERE`: [índices](../expedicao/indices.md).
 

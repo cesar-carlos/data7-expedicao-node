@@ -3,7 +3,7 @@
 **Estado:** Fase 0 entregue no Node (`main`, 2026-11-13). O restante é trabalho futuro.  
 **Base:** SQL Server (`Estacao`). Expedição **não** roda em Sybase. SSMS é só a ferramenta de administração.  
 **Clientes:** `app_expedicao` e `exp` — o mesmo Socket.IO. Mudança de envelope quebra os dois.  
-**Coletores em 2026-11-13 (agente Flutter):** desktop já escuta `servidor.emergencia.listen`. `exp` já manda `Where` indexável e consome o listen periódico; **falta** o listener de emergência.
+**Coletores em 2026-11-13 (agente Flutter):** desktop já escuta `servidor.emergencia.listen`. Fonte atual dos dois manda `Where` lista `{ key, value }`; `exp` já filtra setor/data de forma indexável e consome o listen periódico. Build **publicado antigo** ainda pode emitir `buildSqlWhere()` (warn no servidor, consulta segue). **Falta** no `exp` o listener de emergência.
 
 Este plano não substitui as regras de domínio. Antes de alterar consulta, lock ou listen: [regras](../expedicao/regras.md) 25–27, [proteções do coletor](../socket/protecoes-cliente.md), [listen](../socket/listen.md), [índices](../expedicao/indices.md).
 
@@ -42,7 +42,7 @@ Sintoma original: `separar.consulta` lenta, timeout de 30 s, lock compartilhado 
 | Request Node que estoura 30 s **sem** `cancel()` | Worker e lock ficam no SQL Server |
 | Pool compartilhado (máx. 20) | Um cliente barulhento disputa slot com todos |
 
-O coletor publicado **não pode** ser recusado: build **antigo** do `exp` ainda pode mandar esses `LIKE` (o servidor reescreve); o `exp` **atual** já manda `CodSetorEstoque =` e intervalo de `DataEmissao` em lista `{ key, value }`; `Where` string SQL legado ainda existe; handshake sem token; `LIMIT` explícito é respeitado (regra 12 e 26).
+O coletor publicado **não pode** ser recusado: build **antigo** do `exp` ainda pode mandar esses `LIKE` (o servidor reescreve); a fonte **atual** dos dois Flutter já manda lista `{ key, value }` (`exp`: `buildWhereParams()`; desktop: `buildWhereList()`), com `CodSetorEstoque =` e intervalo de `DataEmissao` no `exp`; `Where` string SQL legado ainda existe no fio de builds antigos (warn, não `Error`); handshake sem token; `LIMIT` explícito é respeitado (regra 12 e 26).
 
 ---
 
@@ -161,16 +161,16 @@ Cada fase é um PR separado. Não juntar kick automático com recusa de `LIKE`.
 
 ### Fase 3 — Higiene no coletor (sem breaking no servidor)
 
-O `exp` atual **já** cumpre: `CodSetorEstoque =`, intervalo de `DataEmissao`, `buildWhereParams()`, aplica o `Data` de `separar.consulta.listen`, não retenta `[SQL-CONN]`. Não voltar ao `LIKE`.
+A fonte atual do `exp` **já** cumpre: `CodSetorEstoque =`, intervalo de `DataEmissao`, `buildWhereParams()`, aplica o `Data` de `separar.consulta.listen`, não retenta `[SQL-CONN]`. A fonte atual do desktop já manda `buildWhereList()`. Não voltar ao `LIKE` nem a `buildSqlWhere()` no emit.
 
-Ainda vale para build antigo em campo e para o desktop se filtrar lista:
+Ainda vale para **build antigo em campo** (o warn `Consulta Where em SQL cru` no servidor é esse caso):
 
-- `CodSetorEstoque =` e data por igualdade/intervalo.
+- `CodSetorEstoque =` e data por igualdade/intervalo. Não mandar `EXISTS` montado no cliente.
 - `Where` lista `{ key, value }`.
 - Não disparar `separar.consulta` no tick de `separar.consulta.listen`.
 - Não relançar `[SQL-CONN]` em loop imediato.
 
-O servidor **não** recusa o modo antigo (shim do `LIKE`) enquanto houver build velho em campo.
+O servidor **não** recusa o modo antigo (shim do `LIKE` e string SQL) enquanto houver build velho em campo. Contrato: [Where](../contratos/where.md).
 
 ### Fase 4 — Kick automático (bloqueada)
 
@@ -202,7 +202,7 @@ Depois dos coletores novos em campo, **um** item por vez, com flag e rollback:
 | Item | Quebra se ligar cedo |
 | --- | --- |
 | Recusar `LIKE` não coberto pelo shim | Lista `exp` |
-| Recusar string SQL no `Where` | `QueryBuilder.buildSqlWhere()` |
+| Recusar string SQL no `Where` | `QueryBuilder.buildSqlWhere()` ainda no fio de build antigo |
 | Teto rígido de `LIMIT` explícito | Página menor |
 | Token no handshake | Conexão recusada |
 | Rate limit com erro (não fila) | Pedidos extras falham |

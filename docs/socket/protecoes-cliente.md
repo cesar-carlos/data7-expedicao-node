@@ -9,7 +9,7 @@ Dois coletores, o mesmo Socket.IO:
 | Desktop | `D:\Developer\Data7\Expedicao\Flutter\app_expedicao` |
 | `exp` | `D:\Developer\Data7\Expedicao\Flutter\app\exp` |
 
-Envelope, `Where` e página: [comunicação](../comunicacao.md), [contratos](../contratos/README.md). Listen de negócio: [listen](./listen.md).
+Envelope, `Where` e página: [comunicação](../comunicacao.md), [contratos](../contratos/README.md). Como montar o `Where` (lista `{ key, value }`, Dart, o que não mandar): [Where](../contratos/where.md). Listen de negócio: [listen](./listen.md).
 
 ## Como ler o estado
 
@@ -19,7 +19,7 @@ Envelope, `Where` e página: [comunicação](../comunicacao.md), [contratos](../
 | **Escutar agora** | Canal novo já emite. Cliente antigo ignora. Cliente novo **deve** registrar o listener. |
 | **Ainda não** | Não quebra hoje. Prepare o código. Quando ligar, o app antigo pode falhar se não estiver pronto. |
 
-Nada abaixo recusa o payload que os coletores já mandam (`LIKE` de setor/data em **build antigo**, string SQL no `Where`, `LIMIT` explícito, handshake sem token). O `exp` atual já manda `CodSetorEstoque =` e intervalo de `DataEmissao`.
+Nada abaixo recusa o payload que os coletores já mandam (`LIKE` de setor/data em **build antigo**, string SQL no `Where`, `LIMIT` explícito, handshake sem token). A **fonte atual** dos dois Flutter já manda lista `{ key, value }` e, no `exp`, `CodSetorEstoque =` com intervalo de `DataEmissao`. Build **publicado antigo** ainda pode mandar `QueryBuilder.buildSqlWhere()` — o servidor atende e só grava warn.
 
 ---
 
@@ -35,15 +35,17 @@ O servidor protege a base **sem** mudar JSON de pedido/resposta das consultas at
 | Cancel no timeout do Node | Estoura 30 s → cancela a request SQL | Continua `[SQL-CONN]` |
 | Página antes do `STRING_AGG` | `OFFSET/FETCH` na base; agregação de setor/usuário depois | Lista não varre `ItemSepararEstoque` inteira |
 | Teto padrão 1500 | Sem `LIMIT` do cliente, a página é 1500 | Igual ao contrato antigo |
+| Warn de SQL cru no `Where` | String / `string[]` entra no `WHERE`; log `Consulta Where em SQL cru (legado QueryBuilder)` | **Não** recebe `Error`. A consulta devolve `Data`. No painel Windows a linha pode aparecer na aba Erros (stderr) |
 
 ### O que o cliente já deve fazer (não é breaking, é higiene)
 
-1. Preferir `CodSetorEstoque =` em vez de `LIKE` em `CodSetoresEstoque`. **`exp` já manda igualdade.**
-2. Preferir igualdade ou intervalo de `DataEmissao`, não `LIKE 'yyyy-MM-dd%'`. **`exp` já manda `>=` / `<`.**
-3. Preferir `Where` como lista `{ key, value }`, não string SQL. **`exp` já usa `buildWhereParams()`.**
+1. Preferir `CodSetorEstoque =` em vez de `LIKE` em `CodSetoresEstoque`. **Fonte do `exp` já manda igualdade.** Não montar `EXISTS` em `ItemSepararEstoque` no cliente.
+2. Preferir igualdade ou intervalo de `DataEmissao`, não `LIKE 'yyyy-MM-dd%'`. **Fonte do `exp` já manda `>=` / `<`.**
+3. Mandar `Where` como lista `{ key, value }`. **`exp`:** `buildWhereParams()`. **Desktop:** `buildWhereList()`. **Não** emitir `buildSqlWhere()`. Fonte atual dos dois já faz isso; APK / instalador antigo no campo ainda gera o warn.
 4. **Não** disparar outra `separar.consulta` no mesmo tick de `separar.consulta.listen`. Usar o `Data` do listen. **`exp` já aplica o snapshot.**
 5. Tratar `[SQL-1222]` como “tente de novo”, não como payload inválido.
 6. Tratar `[SQL-CONN]` como timeout/falha de conexão. Não relançar a mesma consulta em loop imediato. **`exp` já não retenta `[SQL-CONN]`.**
+7. Não tratar o warn de SQL cru como falha de consulta. Não há prefixo `[…]` no Socket por causa disso.
 
 Regra 26 em [expedição](../expedicao/regras.md). Shim: [Where](../contratos/where.md).
 
@@ -145,8 +147,8 @@ Estas mudanças **não** estão ligadas. Quando forem, o servidor avisará neste
 
 | Proteção | Risco se o app não estiver pronto | Como se preparar agora |
 | --- | --- | --- |
-| Recusar `LIKE` não indexado com `[INVALID_PAYLOAD]` | Lista de separar de **build antigo** do `exp` quebra | `exp` atual já manda `CodSetorEstoque =` e data por intervalo; não voltar ao `LIKE` |
-| Recusar string SQL no `Where` | `QueryBuilder.buildSqlWhere()` deixa de funcionar | Mandar lista `{ key, value }` |
+| Recusar `LIKE` não indexado com `[INVALID_PAYLOAD]` | Lista de separar de **build antigo** do `exp` quebra | Fonte do `exp` já manda `CodSetorEstoque =` e data por intervalo; não voltar ao `LIKE` |
+| Recusar string SQL no `Where` | APK / desktop **publicado antigo** que ainda emite `buildSqlWhere()` quebra | Fonte atual: `buildWhereParams()` / `buildWhereList()`. Não voltar ao SQL cru |
 | Cortar `LIMIT` explícito num teto (hoje o cliente manda e o servidor respeita) | Página menor que a esperada | Não depender de `LIMIT` enorme; paginar |
 | Token no handshake Socket.IO | Conexão recusada | Deixar o cliente **capaz** de mandar token; hoje **não** mandar / **não** exigir |
 | Rate limit de `*.consulta` por socket | Pedidos extras atrasam ou recebem erro | Não martelar consulta; confiar no listen e no dedup |
@@ -154,7 +156,7 @@ Estas mudanças **não** estão ligadas. Quando forem, o servidor avisará neste
 | Desconectar automaticamente quem segura lock / satura o pool | Socket cai | Escutar `servidor.emergencia.listen` e tratar `Acao=desconectar` |
 | `READ_COMMITTED_SNAPSHOT` na `Estacao` | Nenhum no JSON | Só DBA; o app não muda |
 
-Handshake **continua sem token**. `LIMIT` explícito **continua respeitado**. String SQL no `Where` **continua aceita** (com aviso no log).
+Handshake **continua sem token**. `LIMIT` explícito **continua respeitado**. String SQL no `Where` **continua aceita** (warn no log; não é `Error` no Socket; no Windows a aba Erros pinta stderr de vermelho).
 
 Plano de implementação futura (kick automático, RCSI, breaking): [feature](../feature/protecao-base-e-emergencia.md). Kick automático **não** está na fila enquanto o risco for falso positivo.
 
@@ -168,8 +170,10 @@ Formato: `[identificador] mensagem`. Tabela: [erros](../expedicao/erros.md).
 | --- | --- |
 | `[SQL-1222]` | Lista esperou lock além de `SQL_LOCK_TIMEOUT_MS` |
 | `[SQL-CONN]` | Timeout 30 s / falha de conexão; a request SQL foi cancelada |
-| `[INVALID_PAYLOAD]` | Envelope inválido (`CodCarrinho` ausente em item a conferir, etc.). **Ainda não** cobre `LIKE` de setor |
+| `[INVALID_PAYLOAD]` | Envelope inválido (`CodCarrinho` ausente em item a conferir, objeto que não é lista nem SQL, etc.). **Ainda não** cobre `LIKE` de setor nem string SQL no `Where` |
 | `[50014]` … | Trigger / regra de conferência. Não é proteção de lista |
+
+O texto `[app] Consulta Where em SQL cru (legado QueryBuilder)` **não** é um desses prefixos. Não chega no `Error` do Socket. Contrato: [Where](../contratos/where.md).
 
 Não embrulhar com `Exception('Erro ao X: $e')` nem dump `AppError{...}`. Desktop: `AppError.display`. `exp`: `DataError.message`.
 
@@ -184,7 +188,8 @@ Estado em 2026-11-13. O desktop já cumpre o canal de emergência. O `exp` ainda
 | Listener global de `servidor.emergencia.listen` com `allEvent: true` | Feito | **Escutar agora** |
 | UI para `Mensagem` | Feito | **Escutar agora** |
 | Caminho de `Acao=desconectar` (parar consultas, não reconectar em loop) | Feito | **Escutar agora** |
-| `Where` de setor/data em igualdade (não mandar `LIKE`) | N/A na lista (não filtra setor com `LIKE`) | Feito |
+| `Where` de setor/data em igualdade (não mandar `LIKE` nem `EXISTS`) | N/A na lista (não filtra setor com `LIKE`) | Fonte: feito. Build antigo no campo: shim no servidor |
+| `Where` lista `{ key, value }` (`buildWhereList` / `buildWhereParams`, não `buildSqlWhere` no fio) | Fonte: feito. Build antigo: SQL cru + warn | Fonte: feito. Build antigo: SQL cru + warn |
 | Não refazer `separar.consulta` no tick do listen periódico | — | Feito |
 | Não inventar handshake com token **ainda** | Feito | Feito |
 

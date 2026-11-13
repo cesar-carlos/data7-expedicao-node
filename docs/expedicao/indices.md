@@ -25,7 +25,7 @@ O 09 **não** altera tabela, coluna nem chave. Pode rodar de novo. **Não** cria
 | `D:\Developer\Data7\Expedicao\Flutter\app_expedicao` | Igualdade: documento (`CodEmpresa` + `CodSepararEstoque` / `CodConferir`), origem, carrinho, código de barras |
 | `D:\Developer\Data7\Expedicao\Flutter\app\exp` | O mesmo, mais lista com `Situacao IN`, `CodSetorEstoque =` e `DataEmissao` em intervalo. `LIKE` de setor/data só em build antigo; a API reescreve para `EXISTS` / data e **não** recusa o pedido |
 
-Envelope do filtro: [Where](../contratos/where.md). Eventos que usam esses `WHERE`: [consultas Socket.IO](../socket/consultas.md).
+Envelope do filtro: lista `{ key, value }` — [Where](../contratos/where.md). SQL cru no fio ainda funciona (warn no servidor) e **não** usa bind. Eventos: [consultas Socket.IO](../socket/consultas.md).
 
 ## O que a PK e o UNIQUE já cobrem
 

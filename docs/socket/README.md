@@ -4,7 +4,7 @@ Catálogo dos eventos registrados em `src/socket/` e em `src/aplication/app.sock
 
 HTTP e Socket.IO na mesma porta, sem token: [comunicação](../comunicacao.md).
 
-O envelope (`Where`, `Pagination`, `OrderBy`, `Mutation`, resposta `Data` / `Error`) fica em [contratos](../contratos/README.md). `Where` das consultas é lista `{ key, value }` ou string SQL legado. O corpo no fio é JSON string. Aqui entra **qual evento existe**, o que consulta, o que grava e o que o servidor emite em `*.listen`.
+O envelope (`Where`, `Pagination`, `OrderBy`, `Mutation`, resposta `Data` / `Error`) fica em [contratos](../contratos/README.md). `Where` das consultas é lista `{ key, value }` (o coletor deve mandar isso). String SQL legado ainda entra, com warn no log — não é `Error` no Socket. O corpo no fio é JSON string. Aqui entra **qual evento existe**, o que consulta, o que grava e o que o servidor emite em `*.listen`.
 
 Domínio de expedição (situação, trigger, erro, índice): [expedição](../expedicao/README.md).
 

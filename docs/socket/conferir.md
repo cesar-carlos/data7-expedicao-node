@@ -24,7 +24,15 @@ Itens a conferir. `ItemConferir` **não** tem `CodCarrinho`. A coluna vem do joi
 
 `ItemCarrinhoPercurso` = `CarrinhoPercursoEstagio.Item` do estágio da **separação**, não do `CONFERINDO`.
 
-A janela do carrinho **tem** que mandar `CodCarrinho` (`> 0`) no `Where` junto com `CodEmpresa` e `CodConferir`. Sem o campo o servidor responde `[INVALID_PAYLOAD] conferir.item.consulta exige CodCarrinho no Where.` Regra 14 em [regras](../expedicao/regras.md).
+A janela do carrinho **tem** que mandar `CodCarrinho` (`> 0`) no `Where` junto com `CodEmpresa` e `CodConferir`. Sem o campo o servidor responde `[INVALID_PAYLOAD] conferir.item.consulta exige CodCarrinho no Where.` Regra 14 em [regras](../expedicao/regras.md). Formato: lista `{ key, value }`, não `CodEmpresa = 1 AND …` — [Where](../contratos/where.md).
+
+```json
+[
+  { "key": "CodEmpresa", "value": 1 },
+  { "key": "CodConferir", "value": 287622 },
+  { "key": "CodCarrinho", "value": 523 }
+]
+```
 
 SQL: `expedicao.item.conferir.consulta.sql`. Índice: `IX_ItemConferir_Percurso` em `(CodEmpresa, CodCarrinhoPercurso, ItemCarrinhoPercurso)`.
 
@@ -38,7 +46,7 @@ Item da separação visto no contexto da conferência. SQL: `expedicao.conferir.
 
 ### `conferencia.item.consulta`
 
-Scans (`ItemConferencia`). Exige `CodCarrinho` (`> 0`) no `Where`, igual ao item a conferir. Sem o campo: `[INVALID_PAYLOAD] conferencia.item.consulta exige CodCarrinho no Where.` Índice: `IX_ItemConferencia_Percurso`.
+Scans (`ItemConferencia`). Exige `CodCarrinho` (`> 0`) no `Where`, igual ao item a conferir. Sem o campo: `[INVALID_PAYLOAD] conferencia.item.consulta exige CodCarrinho no Where.` Índice: `IX_ItemConferencia_Percurso`. Mesma lista `{ key, value }` do item a conferir.
 
 ### `*.select`
 

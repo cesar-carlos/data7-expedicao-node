@@ -36,7 +36,7 @@ O corpo Socket.IO (pedido e resposta) é JSON **string**. O cliente precisa acei
 
 Timeout típico no coletor `exp`: HTTP 10s de conexão / 30s de leitura; Socket.IO 30s por pedido.
 
-Proteções de lista **não** mudam envelope nem recusam pedido publicado: `LIKE` de setor/data é reescrito, consultas iguais no mesmo socket compartilham o SQL (cada `ResponseIn` recebe `Data`), `SET LOCK_TIMEOUT` no `SELECT`, cancel no timeout. Handshake **continua sem token**. [Where](./contratos/where.md). Regras 26–27 em [expedição](./expedicao/regras.md). O que já está no ar vs o que ainda não: [proteções](./socket/protecoes-cliente.md).
+Proteções de lista **não** mudam envelope nem recusam pedido publicado: `LIKE` de setor/data é reescrito, consultas iguais no mesmo socket compartilham o SQL (cada `ResponseIn` recebe `Data`), `SET LOCK_TIMEOUT` no `SELECT`, cancel no timeout. Handshake **continua sem token**. String SQL no `Where` **continua aceita** (warn no log; na aba Erros do Windows isso aparece vermelho porque stderr vira “erro” — a consulta não falhou). [Where](./contratos/where.md). Regras 26–27 em [expedição](./expedicao/regras.md). O que já está no ar vs o que ainda não: [proteções](./socket/protecoes-cliente.md).
 
 ## HTTP que o coletor usa
 
@@ -83,9 +83,9 @@ Os Flutter montam o envelope legado e emitem JSON string:
 }
 ```
 
-`Where` das consultas é lista de `{ key, value }` ou string SQL do `QueryBuilder.buildSqlWhere()` (legado). Mutação: o coletor `exp` manda um objeto em `Mutation`; o servidor normaliza para array.
+`Where` das consultas é lista `{ key, value }` (`exp`: `buildWhereParams()`; desktop: `buildWhereList()`). String SQL do `QueryBuilder.buildSqlWhere()` continua aceita: o servidor grava warn e executa; o coletor **não** recebe `Error`. Mutação: o coletor `exp` manda um objeto em `Mutation`; o servidor normaliza para array.
 
-Sem `Pagination` no JSON, a página é 1500. [Paginação](./contratos/paginacao.md). [Where](./contratos/where.md).
+Sem `Pagination` no JSON, a página é 1500. [Paginação](./contratos/paginacao.md). Contrato e exemplos Dart: [Where](./contratos/where.md).
 
 ## Socket.IO — resposta
 

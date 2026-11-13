@@ -10,7 +10,7 @@ Como o canal se relaciona com HTTP: [comunicação](../comunicacao.md).
 
 ## Pedido
 
-`Where` das consultas é lista de `{ key, value, operator? }` ou, no coletor antigo, string SQL (`QueryBuilder.buildSqlWhere()`). Detalhe: [Where](./where.md).
+`Where` das consultas é lista de `{ key, value, operator? }`. String SQL (`QueryBuilder.buildSqlWhere()`) ainda entra, com warn no servidor — **não** vira `Error` no Socket. Detalhe e Dart: [Where](./where.md).
 
 ```json
 {
@@ -74,7 +74,7 @@ Emitida no canal `ResponseIn` (o UUID do pedido), como JSON string:
 
 Mutação: `Mutation` no lugar de `Data`. Lista vazia é sucesso, não erro.
 
-Erro: `Error` como `string[]` no formato `[identificador] mensagem`, mais `Code` e `RequestId` opcionais. [Erros](../expedicao/erros.md).
+Erro: `Error` como `string[]` no formato `[identificador] mensagem`, mais `Code` e `RequestId` opcionais. [Erros](../expedicao/erros.md). O warn `Consulta Where em SQL cru (legado QueryBuilder)` **não** entra neste envelope.
 
 ## Eventos que usam este contrato
 

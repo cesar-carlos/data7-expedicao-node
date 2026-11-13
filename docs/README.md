@@ -34,7 +34,7 @@ docs/
 ## Contratos
 
 - [Paginação](./contratos/paginacao.md) — `LIMIT` 1500, `OFFSET/FETCH`, unidade de medida; `separar.consulta` pagina **antes** do `STRING_AGG`
-- [Where](./contratos/where.md) — lista `{ key, value }` (preferida) ou string SQL legado
+- [Where](./contratos/where.md) — lista `{ key, value }` (o que o coletor deve mandar); string SQL legado ainda aceita, com warn no log (não é `Error` no Socket)
 - [Consulta Socket.IO](./contratos/consulta-socket.md)
 - [Consulta HTTP](./contratos/consulta-http.md)
 
@@ -91,3 +91,5 @@ O processo lê o `.env`. O modelo está em `.env.exemple`.
 | `SQL_HEALTHCHECK_TIMEOUT_MS` | Opcional. Padrão 2000. `SELECT 1` do heartbeat; pool cheio não reconecta |
 
 O aplicativo Windows instala em `C:\Program Files\Data7 Expedicao`. Se já houver uma cópia, o instalador remove o programa antigo e grava a nova no mesmo lugar. A configuração fica em `%ProgramData%\data7-expedicao\config.json`, compartilhada por todos os usuários, e essa pasta não é apagada na atualização nem na desinstalação. A senha do banco não volta para a tela depois de gravada. HTTP e Socket.IO aceitam qualquer origem e não exigem token. O monitor `/internal/sockets` só responde no loopback.
+
+Console e aba **Erros** leem stdout/stderr do processo Node. `console.warn` (entre eles `Consulta Where em SQL cru (legado QueryBuilder)`) vai para stderr e o supervisor trata **todo** stderr como erro: a linha fica na aba Erros e em `%ProgramData%\data7-expedicao\errors.log`. A consulta do coletor **não** falhou — [Where](./contratos/where.md).

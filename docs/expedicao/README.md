@@ -8,7 +8,7 @@ Leia nesta ordem:
 2. [Situações](./situacoes.md) — `SP` não é `SEPARADO`. Item e carrinho usam alfabetos diferentes.
 3. [Separação → conferência](./fluxo-separacao-conferencia.md) — quem cria `Conferir`, como o item se liga ao carrinho.
 4. [Triggers](./triggers.md) — fechamento da separação, geração da conferência e bloqueios (`THROW`).
-5. [Erros](./erros.md) — prefixo `[50014]` / `[SQL-208]` no Socket.IO, HTTP e coletor.
+5. [Erros](./erros.md) — prefixo `[50014]` / `[SQL-208]` no Socket.IO, HTTP e coletor. Warn de SQL cru no `Where` **não** é um desses prefixos.
 6. [Índices](./indices.md) — `WHERE` dos Flutter e scripts `07`/`08`/`09` na `Estacao`.
 
 Paginação e envelope: [contratos](../contratos/README.md). Catálogo dos eventos Socket.IO (`separar.consulta`, `conferir.item.consulta`, …): [socket](../socket/README.md). Como o cliente fala com o processo: [comunicação](../comunicacao.md).

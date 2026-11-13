@@ -9,7 +9,7 @@ Domínio de expedição (situação, trigger, erro, índice) fica em [../expedic
 ## Leia nesta ordem
 
 1. [Paginação](./paginacao.md) — `LIMIT` 1500, `OFFSET/FETCH`, exceções
-2. [Where](./where.md) — lista `{ key, value }` (preferida) ou string SQL legado. Índices: [expedição / índices](../expedicao/indices.md)
+2. [Where](./where.md) — lista `{ key, value }` (o que o coletor deve mandar). String SQL legado ainda aceita, com warn no log (não é `Error` no Socket). Índices: [expedição / índices](../expedicao/indices.md)
 3. [Consulta Socket.IO](./consulta-socket.md) — `Where`, `Pagination`, `OrderBy`, resposta `Data`
 4. [Consulta HTTP](./consulta-http.md) — `Page`, `Offset`, `Limit`, resposta `data`/`total`
 

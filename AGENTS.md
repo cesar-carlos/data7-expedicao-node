@@ -21,7 +21,7 @@ Regras de separacao, conferencia, situacoes, triggers, erros e indices ficam em 
 Comece por `docs/expedicao/README.md` e `docs/expedicao/regras.md` antes de alterar fluxo de carrinho, conferir ou tratamento de erro dessas consultas. O formato `[50014] mensagem` esta em `docs/expedicao/erros.md`. Indices de `WHERE`: `docs/expedicao/indices.md` (scripts `07`/`08`/`09` em `D:\Developer\Data7\Expedicao\Expedicao Correcoes`). Erro FireDAC 1934 `ANSI_WARNINGS` em `dbo.Produto`: rode o `07`. 1934 em `Conferir`: UX filtrado (`03`) — triggers `01`/`02`/`04`/`05`/`06` ficam com `ANSI_WARNINGS ON`. SQL 334 no insert de estagio: Node precisa de `OUTPUT … INTO` (script `06`). `ConferirResumo` e gravado pela `02` (grade do ERP). O arquivo `trigger & procedure\10` esta incompleto. Pacote unico para aplicar na Estacao: `RODAR.sql` (ordem dos pedacos = prefixo `00 -` … `09 -`).
 
 Contratos de paginacao e consulta (Where, LIMIT 1500, envelope Socket.IO, HTTP) ficam em `docs/contratos/`.
-Comece por `docs/contratos/README.md` antes de alterar helper de consulta, `Pagination`, `Params` ou eventos `*.consulta`. `Where` das consultas e lista `{ key, value }` (preferida) ou string SQL legado (`QueryBuilder.buildSqlWhere()`).
+Comece por `docs/contratos/README.md` antes de alterar helper de consulta, `Pagination`, `Params` ou eventos `*.consulta`. `Where` das consultas e lista `{ key, value }` (o coletor deve mandar isso) ou string SQL legado (`QueryBuilder.buildSqlWhere()`). String SQL gera warn `Consulta Where em SQL cru` e **nao** `Error` no Socket; no painel Windows stderr vira aba Erros. Contrato e Dart: `docs/contratos/where.md`.
 
 Rotas HTTP de login e usuarios: `docs/http/`. Comece por `docs/http/README.md`.
 

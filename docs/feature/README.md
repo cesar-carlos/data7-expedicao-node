@@ -6,4 +6,4 @@ Planos de implementação **ainda não ligados** (ou só parcialmente). Contrato
 | --- | --- | --- |
 | [Proteção da base, canal de emergência e disconnect](./protecao-base-e-emergencia.md) | Fase 0 no Node. Fase 1: desktop já escuta; `exp` falta. Kick automático **proibido** até critério anti-falso-positivo. | Este repositório + Flutter + DBA da `Estacao` |
 
-Guia que os agentes dos coletores já podem seguir: [proteções-cliente](../socket/protecoes-cliente.md).
+Guia que os agentes dos coletores já podem seguir: [proteções-cliente](../socket/protecoes-cliente.md). Contrato do `Where` (lista `{ key, value }`, Dart, warn ≠ erro): [Where](../contratos/where.md).

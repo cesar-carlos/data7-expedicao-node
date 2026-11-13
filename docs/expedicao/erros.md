@@ -34,7 +34,7 @@ O contrato legado permanece:
 | `[SQL-153]` | `FETCH NEXT` 0 / NULL | `LIMIT` inválido. O helper agora clampa para ≥ 1 — [paginação](../contratos/paginacao.md). |
 | `[SQL-547]`, `[SQL-2627]`, … | Erro SQL conhecido, sem nome de tabela | Integridade, duplicata, lock, conversão. |
 | `[SQL-208]` e outros `[SQL-n]` | Erro SQL sem mapeamento específico | Ver o log do servidor (texto técnico depois do `\|`). |
-| `[INVALID_PAYLOAD]` | Envelope Socket inválido | `Where` que não é lista nem SQL, `Mutation` inválida, `CodCarrinho` ausente nas consultas de item. |
+| `[INVALID_PAYLOAD]` | Envelope Socket inválido | `Where` que não é lista nem SQL, `Mutation` inválida, `CodCarrinho` ausente nas consultas de item. String SQL no `Where` **não** gera este prefixo. |
 | `[UNAUTHORIZED]` | Sem permissão | Login / sessão. A conexão Socket.IO **ainda não** autentica. |
 | `[NOT_FOUND]` | Registro ausente | Sequência inexistente; estágio sem `CodCarrinho` no insert de scan. |
 | `[INTERNAL_ERROR]` | Falha não classificada | Sequência com `Valor <= 0`; resto no log. |
@@ -116,5 +116,11 @@ Abrir carrinho sem snapshot, com as triggers na `Estacao`:
 `errorCode` + `error=[prefixo] mensagem | texto técnico`.
 
 O trecho depois de ` | ` é diagnóstico (nome de objeto, abort da trigger). Não vai no `Error` do cliente.
+
+### O que não é erro do coletor
+
+`[app] Consulta Where em SQL cru (legado QueryBuilder)` é **warn** de contrato legado (`logAppWarn` em `consulta.sql.helper.ts`). A consulta executa e a resposta é `Data`. Não há prefixo `[…]` no Socket.
+
+No aplicativo Windows a linha pode aparecer na aba **Erros** porque stderr inteiro é classificado como falha (`log-buffer.ts`). Ignorar nesse caso. Contrato: [Where](../contratos/where.md).
 
 Testes: `test/src/utils/repository.error.test.ts` e `test/src/aplication/app.express.error.test.ts`.

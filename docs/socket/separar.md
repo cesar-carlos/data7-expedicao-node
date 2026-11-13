@@ -16,9 +16,16 @@ SQL: `src/sql/expedicao/expedicao.separar.consulta.sql`. DTO: `ExpedicaoSepararC
 
 A base (alias `SepararConsulta`) é só `SepararEstoque` + tipo + prioridade. `STRING_AGG` de setor e usuário fica em `OUTER APPLY` **depois** desse alias. O helper acrescenta `WHERE` / `ORDER BY` / `OFFSET/FETCH` no mesmo nível, para o SQL Server cortar a página **antes** de agregar. Envolver o `STRING_AGG` de novo numa derived table (`SELECT * FROM (…aggs…) SepararConsulta`) faz a lista varrer `ItemSepararEstoque` inteira, estourar `SQL_REQUEST_TIMEOUT_MS` (30 s) e segurar lock compartilhado — o ERP espera para gravar. Não subir o timeout para esconder isso.
 
-`WHERE` típico: `CodEmpresa`, `Situacao IN (...)`, `CodSetorEstoque = <id>`.
+`WHERE` típico: `CodEmpresa`, `Situacao IN (...)`, `CodSetorEstoque = <id>`. Mandar lista `{ key, value }`. Não interpolar SQL nem montar o `EXISTS` no cliente — [Where](../contratos/where.md).
 
-`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque` (usa o alias `SepararConsulta`). O `exp` atual manda essa igualdade. `LIKE` em `CodSetoresEstoque` (`'%3%'`) e em `DataEmissao` (`'yyyy-MM-dd%'`) **não é recusado**: vira o mesmo `EXISTS` / igualdade ou intervalo, para build antigo não quebrar. Código: `src/repository/common/separar.consulta.where.ts`.
+```json
+[
+  { "key": "Situacao", "operator": "IN", "value": ["AGUARDANDO", "SEPARANDO"] },
+  { "key": "CodSetorEstoque", "value": 3 }
+]
+```
+
+`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque` (usa o alias `SepararConsulta`). A fonte atual do `exp` manda essa igualdade. `LIKE` em `CodSetoresEstoque` (`'%3%'`) e em `DataEmissao` (`'yyyy-MM-dd%'`) **não é recusado**: vira o mesmo `EXISTS` / igualdade ou intervalo, para build antigo não quebrar. Código: `src/repository/common/separar.consulta.where.ts`.
 
 `DataEmissao` na view é `SepararEstoque.Data` (`DATE`). O `exp` atual manda intervalo (`>=` / `<`); o shim cobre o `LIKE`.
 
