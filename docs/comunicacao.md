@@ -60,7 +60,7 @@ Detalhe: [login](./http/login-app.md), [usuários](./http/usuario-consulta.md), 
 | `GET` | `/expedicao/versaoapp` | Lista de versão do app |
 | `POST` | `/expedicao/separacao/notify` | Emite `separar.update.listen` (`{ Data }`). 204 |
 | `PUT` | `/expedicao/conferir/notify` | Emite `conferir.update.listen` (`{ Mutation }`). 204 |
-| `GET` | `/internal/sockets` | Monitor. Só loopback; outro origin recebe 404 vazio |
+| `GET` | `/internal/sockets` | Monitor. Só endereço remoto loopback; demais endereços recebem 404 vazio |
 | `GET` | `/internal/sockets/:socketId` | Detalhe e trace do cliente |
 | `POST` | `/internal/sockets/emergencia` | Emite `servidor.emergencia.listen`. 204. Loopback. Não é fluxo do coletor |
 
@@ -109,4 +109,6 @@ A trigger 02 **não** emite `conferir.insert.listen`. O coletor `exp` escuta `se
 
 ## Monitor
 
-`src/socket/monitor/`. Lista clientes, bytes, eventos lentos e trace. Só `127.0.0.1` / `::1`. Fora do loopback a rota finge 404 para não aparecer na API pública.
+`src/socket/monitor/`. Lista clientes, bytes, eventos lentos e trace. Aceita `127.0.0.1`, `::1` e `::ffff:127.0.0.1`. A verificação usa `req.socket.remoteAddress`, não o cabeçalho `Origin` nem `X-Forwarded-For`. Fora do loopback responde 404 vazio.
+
+`GET /health` indica que o HTTP responde; não consulta o banco. Rotas gerais legadas e detalhes operacionais: [HTTP](./http/README.md), [operação](./operacao.md).

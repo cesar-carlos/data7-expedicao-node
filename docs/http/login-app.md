@@ -74,6 +74,8 @@ GET /expedicao/login-app?CodLoginApp=1
 
 Lista paginada: `message`, `data`, `total`, `page`, `limit`, `totalPages`, `offset`.
 
+Limitações atuais: a prioridade é `CodLoginApp` → `Nome` → `Ativo=S`, sem combinar filtros. `Ativo=N` sozinho retorna a lista geral. `Offset` é ajustado ao início da página que o contém. Detalhes: [consulta HTTP](../contratos/consulta-http.md#compatibilidade-e-limitações-atuais).
+
 Por `CodLoginApp`:
 
 ```json

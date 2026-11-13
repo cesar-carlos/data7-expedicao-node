@@ -9,6 +9,7 @@ import { Server as SocketIOServer } from 'socket.io';
 import ApiRoute from '../route/api.router';
 import AppSocket from './app.socket.config';
 import appErrorMiddleware from '../middleware/app.error.middleware';
+import { disposeServidorEmergencia } from '../services/servidor.emergencia.service';
 
 export default class AppApi {
   private port: number = process.env.SERVER_PORT ? parseInt(process.env.SERVER_PORT) : 3000;
@@ -78,6 +79,8 @@ export default class AppApi {
     if (!this.isStarted && !this.httpServer.listening) {
       return;
     }
+
+    disposeServidorEmergencia(this.io);
 
     await new Promise<void>((resolve) => {
       this.io.close(() => resolve());

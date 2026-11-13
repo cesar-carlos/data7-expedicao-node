@@ -3,6 +3,14 @@ import AppExpressError from '../aplication/app.express.error';
 
 type ControllerAction = (req: Request, res: Response, next: NextFunction) => Promise<void> | void;
 
+/**
+ * Legacy HTTP compatibility: an offset selects its containing page, not an
+ * arbitrary row. Keep this adapter until a client pagination migration exists.
+ */
+export function resolveLegacyHttpPage(page: number, offset: number | undefined, limit: number): number {
+  return offset !== undefined ? Math.floor(offset / limit) + 1 : page;
+}
+
 export function handleController(action: ControllerAction): RequestHandler {
   return async (req, res, next) => {
     try {

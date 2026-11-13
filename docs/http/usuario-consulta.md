@@ -21,6 +21,8 @@ GET /usuarios?CodEmpresa=1&Page=2&Limit=50
 
 Lista: `message`, `data`, `total`, `page`, `limit`, `totalPages`. `offset` entra em `consultarTodos` e na busca por nome; por `CodEmpresa` ou só `Ativo=S` a resposta pode omitir `offset`.
 
+Limitações atuais: os filtros seguem a prioridade `CodUsuario` → `NomeUsuario` → `CodEmpresa` → `Ativo=S`, sem combinação. `Ativo=N` é aceito, mas sozinho retorna a lista geral. `Offset` é ajustado ao início da página que o contém. Exemplos e compatibilidade: [consulta HTTP](../contratos/consulta-http.md#compatibilidade-e-limitações-atuais).
+
 Por `CodUsuario`:
 
 ```json

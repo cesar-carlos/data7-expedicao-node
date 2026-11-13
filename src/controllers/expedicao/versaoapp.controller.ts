@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { ConsultaVersaoAppQuery } from '../../validation/consulta.versaoapp.validation';
 import ConsultaVersaoAppService from '../../services/consulta.versaoapp.service';
-import { handleController } from '../controller.helpers';
+import { handleController, resolveLegacyHttpPage } from '../controller.helpers';
 
 export default class VersaoAppController {
   public static get = handleController(async (req: Request, res: Response): Promise<void> => {
@@ -9,13 +9,7 @@ export default class VersaoAppController {
     const { NomeApp, CodVersaoApp, Ativo, Page, Offset, Limit } = (req as any)
       .validatedQuery as ConsultaVersaoAppQuery;
 
-    let currentPage: number;
-
-    if (Offset !== undefined) {
-      currentPage = Math.floor(Offset / Limit) + 1;
-    } else {
-      currentPage = Page;
-    }
+    const currentPage = resolveLegacyHttpPage(Page, Offset, Limit);
 
     const currentLimit = Limit;
 

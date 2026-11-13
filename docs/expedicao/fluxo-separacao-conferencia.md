@@ -52,22 +52,22 @@ A correção das triggers está em [Triggers](./triggers.md).
 
 ## Diagnóstico rápido
 
-Para um `CodConferir` e um `CodCarrinhoPercurso` suspeitos:
+Para um `CodConferir` e um `CodCarrinhoPercurso` suspeitos, informe também `@CodEmpresa` para não misturar registros de empresas diferentes:
 
 ```sql
 SELECT ItemCarrinhoPercurso, COUNT(*) qtd, SUM(Quantidade) qty
 FROM Expedicao.ItemConferir
-WHERE CodConferir = @CodConferir
+WHERE CodEmpresa = @CodEmpresa AND CodConferir = @CodConferir
 GROUP BY ItemCarrinhoPercurso;
 
 SELECT ise.ItemCarrinhoPercurso, ise.Situacao, COUNT(*) qtd, SUM(ise.Quantidade) qty
 FROM Expedicao.ItemSeparacaoEstoque ise
-WHERE ise.CodCarrinhoPercurso = @CodCarrinhoPercurso
+WHERE ise.CodEmpresa = @CodEmpresa AND ise.CodCarrinhoPercurso = @CodCarrinhoPercurso
 GROUP BY ise.ItemCarrinhoPercurso, ise.Situacao;
 
 SELECT Item, Origem, CodOrigem, CodCarrinho, Situacao, DataInicio, HoraInicio
 FROM Expedicao.CarrinhoPercursoEstagio
-WHERE CodCarrinhoPercurso = @CodCarrinhoPercurso
+WHERE CodEmpresa = @CodEmpresa AND CodCarrinhoPercurso = @CodCarrinhoPercurso
 ORDER BY Item;
 ```
 

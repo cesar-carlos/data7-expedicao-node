@@ -17,7 +17,8 @@
     "build:wind:loja": "tsc --outDir ./dist.loja && copyfiles ./package.json ./dist.loja/src/ && copyfiles ./.env ./dist.loja/src/ && copyfiles ./src/sql/**/* ./dist.loja/",
     "format": "npx prettier './src/**/*.ts' './src/**/*.js' --write",
     "start": "node ./dist.loja/src/server.js",
-    "test": "vitest"
+    "test": "vitest",
+    "bench:consultas": "ts-node test/performance/consultas.benchmark.ts"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

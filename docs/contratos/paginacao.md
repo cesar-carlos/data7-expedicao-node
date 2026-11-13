@@ -20,7 +20,7 @@ Constantes: `src/contracts/local.base.pagination.ts`.
 | `MAX_PAGE_LIMIT` | 1500 | Teto só do padrão e do refresh interno |
 | `SQL_INT_MAX` | 2147483647 | Teto técnico de um `LIMIT` explícito |
 
-Regras:
+Regras do parser Socket.IO e do helper SQL (HTTP valida a query antes, conforme [consulta HTTP](./consulta-http.md)):
 
 - Sem `LIMIT` → 1500.
 - `LIMIT` 0 → 1.

@@ -5,20 +5,14 @@ import { UpdateLoginAppRequest, UpdateLoginAppQuery } from '../../validation/log
 import ConsultaLoginAppService from '../../services/consulta.login.app.service';
 import LoginAppService from '../../services/login.app.service';
 import AppExpressError from '../../aplication/app.express.error';
-import { handleController } from '../controller.helpers';
+import { handleController, resolveLegacyHttpPage } from '../controller.helpers';
 
 export default class LoginAppController {
   public static get = handleController(async (req: Request, res: Response): Promise<void> => {
     const consultaService = new ConsultaLoginAppService();
     const { Nome, CodLoginApp, Ativo, Page, Offset, Limit } = (req as any).validatedQuery as ConsultaLoginAppQuery;
 
-    let currentPage: number;
-
-    if (Offset !== undefined) {
-      currentPage = Math.floor(Offset / Limit) + 1;
-    } else {
-      currentPage = Page;
-    }
+    const currentPage = resolveLegacyHttpPage(Page, Offset, Limit);
 
     const currentLimit = Limit;
 

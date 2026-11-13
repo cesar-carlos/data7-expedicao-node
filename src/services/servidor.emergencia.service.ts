@@ -22,15 +22,26 @@ export function getServidorEmergenciaIo(): SocketIOServer {
   return boundIo;
 }
 
-export function clearServidorEmergenciaTimersForTests(): void {
+function clearServidorEmergenciaTimers(): void {
   for (const timer of disconnectTimers.values()) {
     clearTimeout(timer);
   }
   disconnectTimers.clear();
 }
 
+/** Release only the server being stopped; a stale instance must not unbind its replacement. */
+export function disposeServidorEmergencia(io: SocketIOServer): void {
+  if (boundIo !== io) return;
+  clearServidorEmergenciaTimers();
+  boundIo = undefined;
+}
+
+export function clearServidorEmergenciaTimersForTests(): void {
+  clearServidorEmergenciaTimers();
+}
+
 export function resetServidorEmergenciaForTests(): void {
-  clearServidorEmergenciaTimersForTests();
+  clearServidorEmergenciaTimers();
   boundIo = undefined;
 }
 

@@ -2,6 +2,9 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import type { Server as SocketIOServer, Socket } from 'socket.io';
 
 import ServidorEmergenciaService, {
+  bindServidorEmergenciaIo,
+  disposeServidorEmergencia,
+  getServidorEmergenciaIo,
   resetServidorEmergenciaForTests,
 } from '../../../src/services/servidor.emergencia.service';
 import {
@@ -10,11 +13,93 @@ import {
 } from '../../../src/socket/protocol/servidor.emergencia';
 
 afterEach(() => {
-  vi.useRealTimers();
   resetServidorEmergenciaForTests();
+  vi.useRealTimers();
 });
 
+function emergencyFixture() {
+  vi.useFakeTimers();
+  const makeSocket = (id: string) => ({ id, connected: true, emit: vi.fn(), disconnect: vi.fn() });
+  const target = makeSocket('a');
+  const other = makeSocket('b');
+  const sockets = new Map([[target.id, target], [other.id, other]]);
+  const io = { emit: vi.fn(), sockets: { sockets } } as unknown as SocketIOServer;
+  const service = new ServidorEmergenciaService(io);
+  const disconnect = (prazoMs = 100) => buildServidorEmergenciaMensagem({
+    Nivel: 'desconectar', Mensagem: 'Manutencao', PrazoMs: prazoMs,
+  });
+  const aviso = buildServidorEmergenciaMensagem({ Nivel: 'aviso', Mensagem: 'Continuar', Acao: 'nenhuma' });
+  return { io, service, target, other, sockets, makeSocket, disconnect, aviso };
+}
+
 describe('ServidorEmergenciaService', () => {
+  it.each(['individual', 'broadcast'] as const)('should replace the pending %s deadline', (mode) => {
+    const f = emergencyFixture();
+    const send = (ms: number) => mode === 'individual'
+      ? f.service.emitToSocket('a', f.disconnect(ms)) : f.service.emitToAll(f.disconnect(ms));
+    send(100);
+    vi.advanceTimersByTime(40);
+    send(200);
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(199);
+    expect(f.target.disconnect).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(f.target.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    expect(f.other.disconnect).toHaveBeenCalledTimes(mode === 'broadcast' ? 1 : 0);
+    expect(vi.getTimerCount()).toBe(0);
+  });
+
+  it.each(['individual', 'broadcast'] as const)('should cancel only the %s timer with Acao=nenhuma', (mode) => {
+    const f = emergencyFixture();
+    f.service.emitToSocket('a', f.disconnect(100));
+    f.service.emitToAll(f.disconnect(200));
+    const result = mode === 'individual'
+      ? f.service.emitToSocket('a', f.aviso) : f.service.emitToAll(f.aviso);
+    expect(result?.disconnectScheduled).toBe(false);
+    expect(vi.getTimerCount()).toBe(1);
+    vi.advanceTimersByTime(100);
+    expect(f.target.disconnect).toHaveBeenCalledTimes(mode === 'broadcast' ? 1 : 0);
+    expect(f.other.disconnect).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(100);
+    expect(f.target.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    expect(f.other.disconnect).toHaveBeenCalledTimes(mode === 'individual' ? 1 : 0);
+  });
+
+  it('should retain broadcast recipients connected when the deadline expires', () => {
+    const f = emergencyFixture();
+    f.service.emitToAll(f.disconnect());
+    const late = f.makeSocket('late');
+    f.sockets.set(late.id, late);
+    f.other.connected = false;
+    vi.advanceTimersByTime(100);
+    expect(f.target.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    expect(late.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+    expect(f.other.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('should dispose timers and release the server without executing pending actions', () => {
+    const f = emergencyFixture();
+    bindServidorEmergenciaIo(f.io);
+    f.service.emitToSocket('a', f.disconnect());
+    f.service.emitToAll(f.disconnect(200));
+    disposeServidorEmergencia(f.io);
+    disposeServidorEmergencia(f.io);
+    expect(vi.getTimerCount()).toBe(0);
+    expect(() => getServidorEmergenciaIo()).toThrow(/nao inicializado/);
+    vi.advanceTimersByTime(1000);
+    expect(f.target.disconnect).not.toHaveBeenCalled();
+    expect(f.other.disconnect).not.toHaveBeenCalled();
+  });
+
+  it('should ignore disposal of a different server', () => {
+    const f = emergencyFixture();
+    bindServidorEmergenciaIo(f.io);
+    f.service.emitToSocket('a', f.disconnect());
+    disposeServidorEmergencia({} as SocketIOServer);
+    expect(getServidorEmergenciaIo()).toBe(f.io);
+    vi.advanceTimersByTime(100);
+    expect(f.target.disconnect).toHaveBeenCalledExactlyOnceWith(true);
+  });
   it('should broadcast Data on servidor.emergencia.listen', () => {
     const emit = vi.fn();
     const io = {

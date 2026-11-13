@@ -164,7 +164,7 @@ describe('ConnectionSqlServerMssql', () => {
     expect(created[0]?.closeCalls).toBe(0);
   });
 
-  it('should close a pool that is still connecting', async () => {
+  it.each([false, true])('should wait for an opening pool before closing (connect fails: %s)', async (fails) => {
     let releaseConnect: (() => void) | undefined;
     const gate = new Promise<void>((resolve) => {
       releaseConnect = resolve;
@@ -178,23 +178,32 @@ describe('ConnectionSqlServerMssql', () => {
         pool.connecting = true;
         await gate;
         pool.connecting = false;
+        if (fails) throw new Error('connection failed');
         pool.connected = true;
       };
       const originalClose = pool.close.bind(pool);
       pool.close = async () => {
+        if (pool.connecting) throw new Error('Cannot close a pool while it is connecting');
         await originalClose();
-        releaseConnect?.();
       };
       created.push(pool);
       return pool as unknown as ConnectionPool;
     });
 
     const pending = connection.getConnection();
+    const rejected = expect(pending).rejects.toThrow(/fechando|Falha ao inicializar/);
     await vi.waitFor(() => expect(created).toHaveLength(1));
-    await connection.closePool();
+    const closing = connection.closePool();
+    const closed = expect(closing).resolves.toBeUndefined();
+    expect(created[0]?.closeCalls).toBe(0);
+    releaseConnect?.();
 
-    await expect(pending).rejects.toThrow(/fechando|Falha ao inicializar/);
+    await closed;
+    await rejected;
     expect(created[0]?.closeCalls).toBeGreaterThan(0);
+    expect(created[0]?.connectCalls).toBe(1);
+    expect(connection.getPoolStats()).toBeNull();
+    expect(connection.getMetrics().heartbeatActive).toBe(false);
   });
 
   it('should fail fast while the pool is closing', async () => {

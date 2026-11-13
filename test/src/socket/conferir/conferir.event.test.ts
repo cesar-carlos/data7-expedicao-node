@@ -1,52 +1,37 @@
 import { v4 as uuidv4 } from 'uuid';
-import { io, Socket } from 'socket.io-client';
-import { expect, test, describe, afterAll } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
+import { OrderBy } from '../../../../src/contracts/local.base.orderby';
+import ConferirRepository from '../../../../src/socket/conferir/conferir.repository';
+import ExpedicaoConferirConsultaDto from '../../../../src/dto/expedicao/expedicao.conferir.consulta.dto';
+import { requestSocket, startSocketTestServer } from '../../../helpers/socket.server';
 
-import App from '../../../../src/aplication/app';
-
-describe('Teste conferencia de pedidos socket', () => {
-  const testPort = String(3100 + Math.floor(Math.random() * 1000));
-  process.env.SERVER_PORT = testPort;
-  const app = new App();
-
-  afterAll(async () => {
-    await app.stop();
-  });
-
-  test('Deve consultar as conferencia via socket', async () => {
-    await app.execute();
-
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-
-    const socket: Socket = io(`http://localhost:${testPort}`);
-    await new Promise((resolve) => setTimeout(resolve, 100));
-
-    const event = `${socket.id} conferir.consulta`;
-    const responseIn = uuidv4();
-    const params = '';
-
-    const send = {
-      Session: socket.id,
-      ResponseIn: responseIn,
-      Where: params,
-    };
-
-    socket.emit(event, JSON.stringify(send));
-
-    const responsePromise = new Promise((resolve) => {
-      socket.on(responseIn, (receiver) => {
-        const payload = typeof receiver === 'string' ? JSON.parse(receiver) : receiver;
-        socket.off(responseIn);
-        resolve(payload);
-      });
+describe('conferir socket contract', () => {
+  test('should return serialized repository rows on the requested reply channel', async () => {
+    const row = new ExpedicaoConferirConsultaDto({
+      CodEmpresa: 1, CodConferir: 42, Origem: 'SE', CodOrigem: 7,
+      Situacao: 'AGUARDANDO', CodCarrinhoPercurso: 9,
+      DataLancamento: new Date('2026-01-01T00:00:00.000Z'), HoraLancamento: '08:00',
+      TipoEntidade: 'C', CodEntidade: 1, NomeEntidade: 'Cliente de teste',
+      CodPrioridade: 1, NomePrioridade: 'Normal', Historico: '', Observacao: '',
     });
-
-    const payload = (await responsePromise) as { Data?: unknown[]; Error?: string };
-    expect(payload.Data).toBeDefined();
-    expect(payload.Data).toBeInstanceOf(Array);
-    expect(payload).toHaveProperty('ResponseIn', responseIn);
-    expect(payload).not.toHaveProperty('EesposeIn');
-
-    socket.close();
+    const consulta = vi.spyOn(ConferirRepository.prototype, 'consulta').mockResolvedValue([row]);
+    const server = await startSocketTestServer();
+    try {
+      const socket = await server.connect();
+      const responseIn = uuidv4();
+      const wirePayload = await requestSocket(socket, 'conferir.consulta', {
+        Session: socket.id, ResponseIn: responseIn, Where: '',
+      });
+      expect(typeof wirePayload).toBe('string');
+      const payload: unknown = JSON.parse(String(wirePayload));
+      expect(payload).toEqual({
+        Session: socket.id, ResponseIn: responseIn,
+        Data: JSON.parse(JSON.stringify([row.toJson()])),
+      });
+      expect(consulta).toHaveBeenCalledExactlyOnceWith('', undefined, OrderBy.fromQueryString());
+    } finally {
+      await server.close();
+      vi.restoreAllMocks();
+    }
   });
-}, 15000);
+});

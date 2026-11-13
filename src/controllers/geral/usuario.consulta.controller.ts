@@ -2,7 +2,7 @@ import { Request, Response } from 'express';
 
 import { UsuarioConsultaQuery } from '../../validation/usuario.consulta.validation';
 import UsuarioConsultaService from '../../services/usuario.consulta.service';
-import { handleController } from '../controller.helpers';
+import { handleController, resolveLegacyHttpPage } from '../controller.helpers';
 
 export default class UsuarioConsultaController {
   public static get = handleController(async (req: Request, res: Response): Promise<void> => {
@@ -10,13 +10,7 @@ export default class UsuarioConsultaController {
     const { CodUsuario, NomeUsuario, CodEmpresa, Ativo, Page, Offset, Limit } = (req as any)
       .validatedQuery as UsuarioConsultaQuery;
 
-    let currentPage: number;
-
-    if (Offset !== undefined) {
-      currentPage = Math.floor(Offset / Limit) + 1;
-    } else {
-      currentPage = Page;
-    }
+    const currentPage = resolveLegacyHttpPage(Page, Offset, Limit);
 
     const currentLimit = Limit;
 

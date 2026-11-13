@@ -41,7 +41,7 @@ O contrato legado permanece:
 
 O cliente **não** recebe nome de objeto, constraint nem `The transaction ended in the trigger`. Isso fica só no log.
 
-`conferir.insert` no Socket.IO usa o mesmo `[50016]` do índice: o pré-check da aplicação chama `conferirDuplicateOriginError()`; se dois pedidos passam juntos, o unique da base ainda mapeia 2601/2627 → 50016.
+`conferir.insert` no Socket.IO usa `[50016]`: o pré-check da aplicação chama `conferirDuplicateOriginError()`. A proteção de unicidade na base corrigida é a trigger `04`. O mapeamento de 2601/2627 do antigo `UX_Conferir_OrigemAtiva` permanece por compatibilidade; esse índice filtrado deve ser removido pelo script `03` por causa do FireDAC 1934.
 
 ## THROW da conferência
 
@@ -53,11 +53,11 @@ O cliente **não** recebe nome de objeto, constraint nem `The transaction ended 
 | `[50013]` | `ItemConferir` origem `SE` apontando para estágio inválido | Item a conferir deve apontar para estagio de separacao… |
 | `[50016]` | `conferir.insert` com origem já ativa, ou trigger `04` | Ja existe conferencia ativa… |
 
-Se o script `03 -` falhar com 50016 na `Estacao`: rode `03a - diagnostico-conferir-duplicadas.sql`, depois `03b - cancelar-conferir-duplicadas.sql`, depois o `03 -` de novo. O `03b -` cancela extras (`Situacao = CANCELADA`) e preserva uma conferência por origem (a que tem scan / carrinho aberto / mais item separado).
+Para investigar conferências duplicadas, use `03a - diagnostico-conferir-duplicadas.sql`. O `03b - cancelar-conferir-duplicadas.sql` é uma correção de dados: cancela extras (`Situacao = CANCELADA`) segundo os critérios do pacote externo. Confira o diagnóstico e o `LEIA-ME.md` antes de aplicá-lo. O script `03` atual remove o índice filtrado; não cria a proteção de unicidade. A ordem completa está em [Triggers](./triggers.md).
 
 Cancelar carrinho **não** gera `THROW`.
 
-Scripts: `D:\Developer\Data7\Expedicao\Expedicao Correcoes\`. Ainda não aplicados na `Estacao`. Sem esses scripts o servidor não inventa o `50014`; a tela volta a ficar vazia.
+Scripts: `D:\Developer\Data7\Expedicao\Expedicao Correcoes\`. A documentação registra aplicação do pacote e ajustes na `Estacao` em 2026-11-12 — [Triggers](./triggers.md). Esse registro histórico não substitui a verificação da base em uso. Sem a trigger correspondente o servidor não inventa o `50014`.
 
 ## SQL interno mapeado
 

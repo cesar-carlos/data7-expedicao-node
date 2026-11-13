@@ -314,6 +314,12 @@ export default class ConnectionSqlServerMssql {
         await this.rollbackAllTransactions();
       }
 
+      // mssql rejects close() during connect(). Keep shutdown active until
+      // initialization settles; doInitialize closes a pool opened during shutdown.
+      if (this.initializationPromise) {
+        await this.initializationPromise.catch(() => undefined);
+      }
+
       const opening = this.openingPool;
       this.openingPool = null;
       const pool = this.pool;
@@ -333,10 +339,6 @@ export default class ConnectionSqlServerMssql {
             `Falha ao fechar pool de conexão: ${error instanceof Error ? error.message : 'Erro desconhecido'}`,
           );
         }
-      }
-
-      if (this.initializationPromise) {
-        await this.initializationPromise.catch(() => undefined);
       }
 
       if (toClose.length > 0) {

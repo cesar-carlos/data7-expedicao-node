@@ -23,7 +23,9 @@ Comportamento do timer (`SepararPeriodicListenService`):
 - Uma execução por vez. Falha registra e aplica backoff exponencial (até 120 s). O timer **não** cancela a request SQL no disconnect do socket. O `SELECT` usa o mesmo `SET LOCK_TIMEOUT` das listas (`SQL_LOCK_TIMEOUT_MS`, padrão 5 s) e cancela a request se o Node estourar o timeout.
 - Várias instâncias Node (PM2 cluster / réplicas) cada uma tem o próprio timer.
 
-Timeout de 30 s nesta consulta chega ao cliente como `[SQL-CONN] Falha de conexao com o banco.` O diagnóstico no log é `Timeout: Request failed to complete in 30000ms` — a request não terminou; o pool pode continuar saudável (`GET /usuarios` rápido). Não subir `SQL_REQUEST_TIMEOUT_MS`: a sessão segura lock por mais tempo. [Erros](../expedicao/erros.md).
+Falha no timer é registrada no log (`SepararPeriodicListenService erro ao emitir dados`, com `consecutiveFailures` e `nextDelayMs`) e não emite `Data` nem envelope `Error` naquele tick. Não há `ResponseIn` de cliente para responder. O próximo ciclo tenta novamente após o backoff. Já um pedido explícito `separar.consulta` que estoura o timeout recebe `[SQL-CONN] Falha de conexao com o banco.` O pool pode continuar saudável (`GET /usuarios` rápido). Não subir `SQL_REQUEST_TIMEOUT_MS` para esconder lentidão. [Erros](../expedicao/erros.md).
+
+O primeiro ciclo começa ao iniciar o serviço. Os 8 segundos padrão são contados após o término de cada ciclo; o tempo da consulta se soma ao intervalo. Um cliente que entra enquanto já há outros conectados não força um novo snapshot se o payload não mudou: a carga inicial da tela deve fazer sua própria consulta.
 
 O desligamento do processo encerra o timer.
 

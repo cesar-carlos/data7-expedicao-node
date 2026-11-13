@@ -21,7 +21,7 @@ Paginação e envelope: [contratos](../contratos/README.md). Catálogo dos event
 | Coletor desktop | `D:\Developer\Data7\Expedicao\Flutter\app_expedicao` | Separar e conferir na tela. `addConferir` está comentado. |
 | Coletor `exp` | `D:\Developer\Data7\Expedicao\Flutter\app\exp` | Mesmo contrato Socket.IO. Login/usuários por HTTP. |
 | Triggers | `D:\Developer\Data7\Expedicao\trigger & procedure` | Fecham a separação e geram a conferência. |
-| Correção SQL | `D:\Developer\Data7\Expedicao\Expedicao Correcoes` | Triggers, índice único, índices de consulta (`WHERE` dos Flutter) e `THROW` 50011–50016. Ainda não aplicados na `Estacao`. |
+| Correção SQL | `D:\Developer\Data7\Expedicao\Expedicao Correcoes` | Triggers, remoção do índice único filtrado, índices de consulta e `THROW` 50011–50016. Aplicação registrada em 2026-11-12; [triggers](./triggers.md). |
 
 Os dois Flutter consomem este servidor. Mudança de contrato Socket.IO quebra os dois.
 

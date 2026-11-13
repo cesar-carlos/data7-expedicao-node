@@ -12,6 +12,7 @@ Comece por [comunicação](./comunicacao.md) se a dúvida é “como o cliente f
 docs/
 |- README.md              este índice
 |- comunicacao.md         HTTP + Socket.IO no mesmo processo
+|- operacao.md            preparar ambiente, compilar, executar e diagnosticar
 |- contratos/             envelope, Where, página
 |- http/                  login, usuários, health, notify, monitor
 |- socket/                catálogo de eventos, escuta periódica e proteções para os coletores
@@ -68,7 +69,9 @@ docs/
 
 ## Configuração
 
-O processo lê o `.env`. O modelo está em `.env.exemple`.
+Preparação, comandos e diagnóstico: [execução e operação](./operacao.md).
+
+O processo procura o primeiro `.env` na pasta do entrypoint, na pasta pai e no diretório de trabalho, nessa ordem. Variáveis já presentes no ambiente têm precedência. O modelo está em `.env.exemple`; preencha `LOCAL_DATABASE=sql_server` e as credenciais antes de iniciar. No aplicativo Windows, a configuração é injetada pelo supervisor.
 
 | Variável | Uso |
 | --- | --- |
@@ -89,6 +92,10 @@ O processo lê o `.env`. O modelo está em `.env.exemple`.
 | `SQL_REQUEST_TIMEOUT_MS` | Opcional. Padrão 30000. Não subir para esconder lista lenta; o Node cancela a request nesse timeout |
 | `SQL_LOCK_TIMEOUT_MS` | Opcional. Padrão 5000, entre 0 e 30000. `SET LOCK_TIMEOUT` só nas listas. `0` desliga |
 | `SQL_HEALTHCHECK_TIMEOUT_MS` | Opcional. Padrão 2000. `SELECT 1` do heartbeat; pool cheio não reconecta |
+| `APP_LOG_LEVEL` | Opcional. Padrão `info`; aceita `debug`, `info`, `warn`, `error`. Filtra o logger da aplicação |
+| `SOCKET_LOG_LEVEL` | Opcional. Padrão `info`; mesmos níveis, para o logger Socket.IO |
+| `SOCKET_SLOW_EVENT_MS` | Opcional. Padrão 2000; número positivo. Limiar de evento lento |
+| `NODE_ENV` | `production` seleciona log HTTP `combined` e omite stacks nos handlers globais de erro |
 
 O aplicativo Windows instala em `C:\Program Files\Data7 Expedicao`. Se já houver uma cópia, o instalador remove o programa antigo e grava a nova no mesmo lugar. A configuração fica em `%ProgramData%\data7-expedicao\config.json`, compartilhada por todos os usuários, e essa pasta não é apagada na atualização nem na desinstalação. A senha do banco não volta para a tela depois de gravada. HTTP e Socket.IO aceitam qualquer origem e não exigem token. O monitor `/internal/sockets` só responde no loopback.
 

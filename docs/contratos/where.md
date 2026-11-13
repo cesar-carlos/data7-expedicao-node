@@ -68,7 +68,7 @@ socket.emit('$sessionId $evento', jsonEncode({
 
 Caminho: `normalizeConsultaWhere` → `buildWhereParameterized`.
 
-`Where` omitido, `null` ou `''` vira lista vazia (sem filtro SQL). A página continua no teto 1500.
+`Where` omitido, `null` ou `''` vira lista vazia (sem filtro SQL). Sem paginação explícita, vale o padrão 1500; `LIMIT` informado pelo cliente segue o [contrato de paginação](./paginacao.md).
 
 ## String SQL (legado)
 
@@ -126,7 +126,7 @@ Não é filtro SQL. `Where` é o **nome** da sequência (`Produto_Sequencia`, �
 | `Params.greaterThan` / `greaterThanOrEqual` | `>` / `>=` |
 | `Params.lessThan` / `lessThanOrEqual` | `<` / `<=` |
 | `Params.like` / `notLike` | `LIKE` / `NOT LIKE` |
-| `Params.in` / `notIn` | `IN` / `NOT IN` (lista vazia em `IN` vira `1=0`; lista enorme é fatiada no teto 2100) |
+| `Params.in` / `notIn` | `IN` / `NOT IN` (lista vazia em `IN` vira `1=0`; limites e fatiamento abaixo) |
 | `Params.isNull` / `isNotNull` | `IS NULL` / `IS NOT NULL` (sem `value`; o coletor antigo `operator: 'IS'` + `value: null` vira `IS NULL`) |
 | `Params.between` | `BETWEEN` — valor `[min, max]` |
 | `Params.custom` | `CUSTOM` — só no `build` legado; consultas paginadas **não** devem receber isso do cliente |
@@ -145,11 +145,13 @@ Refresh interno (`consultaAny` / `buildWhereAnyOf`) monta um `OR` por chave. 800
 | --- | --- | --- |
 | `SQL_MAX_PARAMS` | 2100 | Limite do SQL Server |
 | `SQL_PARAM_BUDGET` | 2000 | Orçamento do `WHERE` (reserva paginação e extras) |
-| `SQL_IN_CHUNK` | 500 | Tamanho de `IN` / `NOT IN` grande |
+| `SQL_IN_CHUNK` | 500 | Tamanho das fatias de `IN`; `NOT IN` não é dividido entre requests |
 
 Cada fatia roda um `SELECT`. Os `recordset` são concatenados e só então o `OFFSET/FETCH` (ou o recorte em memória) aplica o teto de linhas. `pageLimitForGroups` **não** fatia binds.
 
-`IN` com milhares de valores no `executeSelectWhere` usa o mesmo orçamento. Não interpolar a lista no SQL para “fugir” do 2100.
+O caminho comum de `executeSelectWhere` expande um `IN` grande e usa o mesmo orçamento quando não há o modo especial de `separar.consulta` nem callback `applyExtra`. `NOT IN` não é dividido entre requests, pois concatenar os resultados mudaria o filtro. Um grupo individual ainda pode exceder o orçamento (por exemplo, vários filtros grandes no mesmo grupo); o helper não garante que todo payload arbitrário caiba no limite. Não interpolar a lista no SQL para “fugir” do 2100.
+
+Quando há várias requests, `OrderBy` ordena cada fatia; a concatenação não reordena globalmente nem remove duplicatas entre fatias. O recorte de página acontece em memória depois dessa concatenação. Esse caminho atende o refresh interno e não equivale a uma consulta globalmente ordenada em todos os casos.
 
 No salvar carrinho, se o lote for do mesmo estágio (`CodEmpresa` + documento + `CodCarrinhoPercurso` + `ItemCarrinhoPercurso`), o refresh usa um `WHERE` de 4 parâmetros em vez de um `OR` por item. Lote misto cai no chunk. Contrato Socket (`Mutation` lista) não muda.
 

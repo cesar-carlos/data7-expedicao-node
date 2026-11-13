@@ -55,7 +55,7 @@ INSERT CarrinhoPercursoEstagio origem CO
 trigger 06  — THROW 50014 se o carrinho não tem ItemConferir no estágio SE
 ```
 
-Cancelar carrinho **não** gera `THROW`. A 01 não fecha a separação.
+Cancelar um estágio não basta para fechar a separação. No script `01` corrigido, a mudança para `CANCELADA` também inicia a avaliação: o fechamento só ocorre se não houver estágio `SE` aberto e a quantidade pendente for `<= 0`, desconsiderando itens dos estágios cancelados. Portanto, cancelar o último estágio aberto pode permitir o fechamento quando os demais carrinhos já atenderam a quantidade. A `01` não contém `THROW` próprio; as triggers encadeadas continuam validando suas regras.
 
 ## THROW
 
