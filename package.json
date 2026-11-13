@@ -1,7 +1,7 @@
 {
   "name": "server-api-data7",
   "author": "cesar carlos",
-  "version": "1.1.8",
+  "version": "1.1.9",
   "description": "Servidor data7 para integração",
   "bin": "./dist.loja/src/server.js",
   "main": "server.js",
