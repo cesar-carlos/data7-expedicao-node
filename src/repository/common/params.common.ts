@@ -3,7 +3,18 @@ import sql from 'mssql';
 import type { Request } from 'mssql';
 import { logCaughtError } from '../../infra/app.logger';
 
-import { Params, Param, ComparisonOperator } from '../../contracts/local.base.params';
+import {
+  Params,
+  Param,
+  ComparisonOperator,
+  normalizeComparisonOperator,
+  isNullComparisonOperator,
+} from '../../contracts/local.base.params';
+import {
+  expandSepararConsultaParam,
+  isSepararSetorFilterKey,
+  separarSetorExistsSql,
+} from './separar.consulta.where';
 
 export type ParameterizedWhere = {
   whereFragment: string;
@@ -66,35 +77,40 @@ function appendComparison(
   state: WhereBuild,
   context?: ExpedicaoSepararConsultaContext,
 ): void {
+  if (context === 'expedicao-separar-consulta') {
+    const expanded = expandSepararConsultaParam(param);
+    if (expanded.length !== 1 || expanded[0] !== param) {
+      for (const item of expanded) {
+        appendComparisonExpanded(item, state, context);
+      }
+      return;
+    }
+  }
+
+  appendComparisonExpanded(param, state, context);
+}
+
+function appendComparisonExpanded(
+  param: Param,
+  state: WhereBuild,
+  context?: ExpedicaoSepararConsultaContext,
+): void {
   if (!Params.isValid(param)) return;
 
-  const op = param.operator || ComparisonOperator.EQUALS;
+  const op = normalizeComparisonOperator(param.operator);
   if (op === ComparisonOperator.CUSTOM) {
     throw new Error('operator CUSTOM requer ParamsCommonRepository.build (legacy)');
   }
 
-  if (context === 'expedicao-separar-consulta' && param.key === 'CodSetorEstoque') {
-    assertSqlIdentifier(param.key, 'WHERE');
-    const name = state.nextName();
-    state.bindings.push({ name, type: inferSqlType(param.value), value: param.value });
-    state.fragments.push(`EXISTS (
-          SELECT *
-          FROM Expedicao.ItemSepararEstoque ise
-          WHERE ise.CodEmpresa = SepararConsulta.CodEmpresa
-            AND ise.CodSepararEstoque = SepararConsulta.CodSepararEstoque
-            AND ise.CodSetorEstoque = @${name}
-        )`);
+  if (context === 'expedicao-separar-consulta' && isSepararSetorFilterKey(param.key)) {
+    appendSepararSetorFilter(param, op, state);
     return;
   }
 
   assertSqlIdentifier(param.key, 'WHERE');
 
-  if (op === ComparisonOperator.IS_NULL) {
-    state.fragments.push(`${param.key} IS NULL`);
-    return;
-  }
-  if (op === ComparisonOperator.IS_NOT_NULL) {
-    state.fragments.push(`${param.key} IS NOT NULL`);
+  if (isNullComparisonOperator(op)) {
+    state.fragments.push(`${param.key} ${op}`);
     return;
   }
 
@@ -130,6 +146,22 @@ function appendComparison(
   const name = state.nextName();
   state.bindings.push({ name, type: inferSqlType(param.value), value: param.value });
   state.fragments.push(`${param.key} ${op} @${name}`);
+}
+
+function appendSepararSetorFilter(param: Param, op: string, state: WhereBuild): void {
+  assertSqlIdentifier('CodSetorEstoque', 'WHERE');
+  const name = state.nextName();
+  state.bindings.push({ name, type: inferSqlType(param.value), value: param.value });
+
+  if (op === ComparisonOperator.LIKE || op === ComparisonOperator.NOT_LIKE) {
+    state.fragments.push(
+      separarSetorExistsSql(`CONVERT(varchar(20), ise.CodSetorEstoque) LIKE @${name}`, op === ComparisonOperator.NOT_LIKE),
+    );
+    return;
+  }
+
+  const negated = op === ComparisonOperator.NOT_EQUALS;
+  state.fragments.push(separarSetorExistsSql(`ise.CodSetorEstoque = @${name}`, negated));
 }
 
 function newWhereBuild(): WhereBuild {

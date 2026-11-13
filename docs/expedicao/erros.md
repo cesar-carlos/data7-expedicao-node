@@ -29,7 +29,9 @@ O contrato legado permanece:
 | Prefixo | Significa | O que fazer |
 | --- | --- | --- |
 | `[50011]`–`[50099]` | `THROW` de regra na base | Ler a mensagem. A tabela está em [Triggers](./triggers.md). |
-| `[SQL-CONN]` | Falha de conexão / login / timeout | Conferir SQL Server e `.env`. |
+| `[SQL-CONN]` | Falha de conexão / login / **timeout de request** | Conferir SQL Server e `.env`. Se `GET /usuarios` responde rápido, o pool está no ar: a consulta não terminou em 30 s. O Node **cancela** a request nesse timeout para soltar lock; o texto para o cliente não muda. Não subir `SQL_REQUEST_TIMEOUT_MS`. [Separar](../socket/separar.md). |
+| `[SQL-1222]` | `LOCK_TIMEOUT` na lista | `SET LOCK_TIMEOUT` nas consultas (padrão 5 s, `SQL_LOCK_TIMEOUT_MS`). O coletor já trata como “registro em uso”. Não é recusa de payload. |
+| `[SQL-153]` | `FETCH NEXT` 0 / NULL | `LIMIT` inválido. O helper agora clampa para ≥ 1 — [paginação](../contratos/paginacao.md). |
 | `[SQL-547]`, `[SQL-2627]`, … | Erro SQL conhecido, sem nome de tabela | Integridade, duplicata, lock, conversão. |
 | `[SQL-208]` e outros `[SQL-n]` | Erro SQL sem mapeamento específico | Ver o log do servidor (texto técnico depois do `\|`). |
 | `[INVALID_PAYLOAD]` | Envelope Socket inválido | `Where` que não é lista nem SQL, `Mutation` inválida, `CodCarrinho` ausente nas consultas de item. |
@@ -49,7 +51,7 @@ O cliente **não** recebe nome de objeto, constraint nem `The transaction ended 
 | `[50014]` | Insert de estágio `CO` sem `ItemConferir` daquele carrinho | Carrinho sem itens para conferir… |
 | `[50012]` | Conferência obrigatória sem item em carrinho `SEPARADO` | Nao e possivel gerar conferencia sem item… |
 | `[50013]` | `ItemConferir` origem `SE` apontando para estágio inválido | Item a conferir deve apontar para estagio de separacao… |
-| `[50016]` | `conferir.insert` com origem já ativa, trigger `04`, ou índice `UX_Conferir_OrigemAtiva` | Ja existe conferencia ativa… |
+| `[50016]` | `conferir.insert` com origem já ativa, ou trigger `04` | Ja existe conferencia ativa… |
 
 Se o script `03 -` falhar com 50016 na `Estacao`: rode `03a - diagnostico-conferir-duplicadas.sql`, depois `03b - cancelar-conferir-duplicadas.sql`, depois o `03 -` de novo. O `03b -` cancela extras (`Situacao = CANCELADA`) e preserva uma conferência por origem (a que tem scan / carrinho aberto / mais item separado).
 
@@ -65,15 +67,16 @@ Scripts: `D:\Developer\Data7\Expedicao\Expedicao Correcoes\`. Ainda não aplicad
 | `[SQL-515]` | NULL obrigatório | Campo obrigatorio ausente. |
 | `[SQL-547]` | FK | Registro relacionado impede esta operacao. |
 | `[SQL-1205]` | deadlock | Conflito de gravacao. Tente novamente. |
-| `[SQL-1222]` | lock | O registro esta em uso. Tente novamente. |
+| `[SQL-1222]` | lock / `LOCK_TIMEOUT` de lista | O registro esta em uso. Tente novamente. |
 | `[SQL-334]` | `OUTPUT` sem `INTO` em tabela com trigger | Nao foi possivel gravar o registro no banco. |
-| `[SQL-1934]` | `ANSI_WARNINGS OFF` + índice filtrado (`UX_Conferir_OrigemAtiva` no Finalizar Carrinho) | Falha ao gravar no banco (opcoes SET). |
-| `[SQL-2601]` / `[SQL-2627]` | unique genérico | Registro duplicado. (`UX_Conferir_OrigemAtiva` vira `[50016]`) |
+| `[SQL-1934]` | `ANSI_WARNINGS OFF` + índice filtrado (FireDAC no `UPDATE Expedicao.Conferir`, Local Erro 886) | Falha ao gravar no banco (opcoes SET). Rode o script `03` (DROP do UX). |
+| `[SQL-2601]` / `[SQL-2627]` | unique genérico | Registro duplicado. |
 | `[SQL-3609]` | abort da trigger sem `THROW` 50xxx | A operacao foi recusada pela regra do banco. |
 | `[SQL-8134]` | divisão | Operacao numerica invalida. |
 | `[SQL-8152]` | truncamento | Texto maior do que o campo permite. |
 | `[SQL-8003]` | mais de 2100 parâmetros no mesmo request | Muitos itens nesta operacao. Tente novamente. |
-| `[SQL-CONN]` | `ETIMEOUT`, `ESOCKET`, `ELOGIN`, 4060, 18456 | Falha de conexao com o banco. |
+| `[SQL-153]` | `FETCH NEXT` 0 / NULL | Falha ao processar no banco. |
+| `[SQL-CONN]` | `ETIMEOUT`, `ESOCKET`, `ELOGIN`, 4060, 18456, `Timeout: Request failed to complete` | Falha de conexao com o banco. Request > 30 s entra aqui mesmo com o pool saudável. |
 
 ## HTTP
 

@@ -66,6 +66,7 @@ Parâmetro inválido: 400 com `message` e `errors[]`.
 | `PUT` | `/expedicao/conferir/notify` | Emite `conferir.update.listen`. 204 |
 | `GET` | `/internal/sockets` | Monitor. Loopback; outro origin: 404 vazio |
 | `GET` | `/internal/sockets/:socketId` | Detalhe do socket |
+| `POST` | `/internal/sockets/emergencia` | Emite `servidor.emergencia.listen`. 204. Loopback |
 
 `GET`/`PUT`/`DELETE` em `/expedicao/create-login-app` respondem 501. `DELETE /expedicao/login-app` e `POST`/`PUT`/`DELETE` em `/expedicao/versaoapp` respondem 404 `{ "message": "not implemented …" }`. `/expedicao/conferir` e `/expedicao/separacao` (sem `/notify`) respondem 501.
 

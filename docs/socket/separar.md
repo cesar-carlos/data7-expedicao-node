@@ -12,15 +12,19 @@ Canal: `${socket.id} <evento>`.
 
 Lista de `SepararEstoque` com tipo de operação, prioridade, `CodSetoresEstoque` (`STRING_AGG`) e `CodUsuariosSeparacao`.
 
-SQL: `src/sql/expedicao/expedicao.separar.consulta.sql`. DTO: `ExpedicaoSepararConsultaDto`.
+SQL: `src/sql/expedicao/expedicao.separar.consulta.sql`. DTO: `ExpedicaoSepararConsultaDto`. A escuta periódica usa **o mesmo arquivo**.
+
+A base (alias `SepararConsulta`) é só `SepararEstoque` + tipo + prioridade. `STRING_AGG` de setor e usuário fica em `OUTER APPLY` **depois** desse alias. O helper acrescenta `WHERE` / `ORDER BY` / `OFFSET/FETCH` no mesmo nível, para o SQL Server cortar a página **antes** de agregar. Envolver o `STRING_AGG` de novo numa derived table (`SELECT * FROM (…aggs…) SepararConsulta`) faz a lista varrer `ItemSepararEstoque` inteira, estourar `SQL_REQUEST_TIMEOUT_MS` (30 s) e segurar lock compartilhado — o ERP espera para gravar. Não subir o timeout para esconder isso.
 
 `WHERE` típico: `CodEmpresa`, `Situacao IN (...)`, `CodSetorEstoque = <id>`.
 
-`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque`. `LIKE` em `CodSetoresEstoque` não entra nesse `EXISTS` e não usa índice.
+`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque` (usa o alias `SepararConsulta`). `LIKE` em `CodSetoresEstoque` (`'%3%'`) e em `DataEmissao` (`'yyyy-MM-dd%'`) **não é recusado**: vira o mesmo `EXISTS` / igualdade ou intervalo, para o `exp` antigo não quebrar. Código: `src/repository/common/separar.consulta.where.ts`.
 
-`DataEmissao` na view é `SepararEstoque.Data` (`DATE`). Filtrar com `=` ou intervalo, não `LIKE 'yyyy-MM-dd%'`.
+`DataEmissao` na view é `SepararEstoque.Data` (`DATE`). O cliente novo manda `=` ou intervalo; o shim cobre o `LIKE`.
 
-Índices: `IX_SepararEstoque_Situacao`, `IX_ItemSepararEstoque_Setor`.
+Consultas iguais no mesmo socket (mesmo `Where` / página / ordem) compartilham um SQL e respondem **todos** os `ResponseIn`. Não cancela o segundo pedido. `SET LOCK_TIMEOUT` (padrão 5 s, `SQL_LOCK_TIMEOUT_MS`) vale neste `SELECT` e no listen. Timeout do Node cancela a request; o cliente continua vendo `[SQL-CONN]`.
+
+Índices: `IX_SepararEstoque_Situacao`, `IX_ItemSepararEstoque_Setor`, `IX_SeparacaoUsuarioSetor_Usuario` (segundo `APPLY`). [Índices](../expedicao/indices.md). [Where](../contratos/where.md).
 
 ### `separar.progresso.consulta`
 
@@ -64,4 +68,4 @@ Estágio do percurso (`carrinho.percurso.estagio`) emite `separar.update.listen`
 
 ## Escuta periódica
 
-`separar.consulta.listen` **não** é pedido do cliente. O processo consulta e emite para todos os sockets. Página padrão 20, não 1500. Não substitui o `separar.update.listen` do fechamento. [Escuta](./escuta.md).
+`separar.consulta.listen` **não** é pedido do cliente. O processo consulta e emite para todos os sockets. Página padrão 20, não 1500. Mesmo SQL desta consulta. O cliente usa o `Data`; não dispara outra `separar.consulta` no mesmo tick. Não substitui o `separar.update.listen` do fechamento. [Escuta](./escuta.md).

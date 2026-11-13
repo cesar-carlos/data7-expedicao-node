@@ -61,6 +61,16 @@ describe('consulta de separacao por usuario e setor', () => {
     expect(query.outerParams).toEqual([setor]);
   });
 
+  it('empurra CodUsuario IS NULL do coletor antigo para dentro da leitura', () => {
+    const query = buildSeparacaoUsuarioSetorConsultaQuery([
+      Params.equals('CodEmpresa', 1),
+      { key: 'CodUsuario', operator: 'IS', value: null },
+    ]);
+
+    expect(query.sql).toContain('sut.CodUsuario IS NULL');
+    expect(query.outerParams).toEqual([]);
+  });
+
   it('aplica usuario e setor antes de somar os pedidos desse usuario', () => {
     const query = buildSeparacaoUsuarioSetorConsultaQuery([
       Params.equals('CodUsuario', 15),

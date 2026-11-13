@@ -269,4 +269,24 @@ describe('ConnectionSqlServerMssql', () => {
     expect(isSqlPoolAcquireTimeout(new Error('Timeout: ResourceRequest timed out'))).toBe(true);
     expect(isSqlPoolAcquireTimeout(new Error('Login failed'))).toBe(false);
   });
+
+  it('should reset LOCK_TIMEOUT and cancel the request when a tracked query fails', async () => {
+    const created: FakePool[] = [];
+    const connection = ConnectionSqlServerMssql.startTestInstance(() => {
+      const pool = createFakePool();
+      created.push(pool);
+      return pool as unknown as ConnectionPool;
+    });
+
+    const pool = await connection.getConnection();
+    const fakePool = created[0]!;
+    fakePool.requestQuery = vi.fn(async (sql: string) => {
+      expect(sql.startsWith('SET LOCK_TIMEOUT -1;')).toBe(true);
+      throw new Error('Timeout: Request failed to complete in 30000ms');
+    });
+
+    const request = pool.request() as unknown as FakeRequest;
+    await expect(request.query('SELECT 1')).rejects.toThrow(/Timeout: Request failed to complete/);
+    expect(request.cancel).toHaveBeenCalled();
+  });
 });

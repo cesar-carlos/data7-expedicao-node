@@ -10,7 +10,7 @@ Pedido: `${socket.id} <evento>`. Envelope: [consulta Socket.IO](../contratos/con
 
 | Evento | SQL / tabela | DTO | Nota |
 | --- | --- | --- | --- |
-| `separar.consulta` | `src/sql/expedicao/expedicao.separar.consulta.sql` | `ExpedicaoSepararConsultaDto` | `CodSetorEstoque =` vira `EXISTS` em `ItemSepararEstoque`. Não filtrar `CodSetoresEstoque` com `LIKE`. [Separar](./separar.md) |
+| `separar.consulta` | `src/sql/expedicao/expedicao.separar.consulta.sql` | `ExpedicaoSepararConsultaDto` | `STRING_AGG` em `OUTER APPLY` depois da base; o helper pagina no mesmo `SELECT`. `CodSetorEstoque =` e `LIKE` em `CodSetoresEstoque` / `DataEmissao` viram `EXISTS` / data. Dedup por socket responde todos os `ResponseIn`. [Separar](./separar.md) |
 | `separar.progresso.consulta` | `expedicao.progresso.separacao.consulta.sql` | `ExpedicaoProgressoSeparacaoConsultaDto` | Totais da separação |
 | `separar.estoque.item.impresso.consulta` | `expedicao.item.impresso.consulta.sql` | `ExpedicaoItemImpressoConsultaDto` | `Where` vazio vira `[]` |
 | `separar.select` | tabela `SepararEstoque` | `ExpedicaoSepararDto` | Sem joins da view |
@@ -77,7 +77,7 @@ Escuta periódica **sem pedido**: `separar.consulta.listen`. [Escuta](./escuta.m
 
 | Evento | Filtro | Índice |
 | --- | --- | --- |
-| `separar.consulta` | `CodEmpresa`, `Situacao IN`, `CodSetorEstoque =` | PK + `IX_SepararEstoque_Situacao` + `IX_ItemSepararEstoque_Setor` |
+| `separar.consulta` | `CodEmpresa`, `Situacao IN`, `CodSetorEstoque =` | PK + `IX_SepararEstoque_Situacao` + `IX_ItemSepararEstoque_Setor` + `IX_SeparacaoUsuarioSetor_Usuario` (`APPLY`) |
 | `separar.usuario.setor.consulta` | `CodEmpresa + CodUsuario + CodSetorEstoque` | `IX_SeparacaoUsuarioSetor_Usuario` |
 | `conferir.item.consulta` | `CodEmpresa + CodConferir + CodCarrinho` | `IX_ItemConferir_Percurso` (join no estágio) |
 | `conferencia.item.consulta` | `CodEmpresa + CodConferir + CodCarrinho` | `IX_ItemConferencia_Percurso` |
@@ -85,7 +85,7 @@ Escuta periódica **sem pedido**: `separar.consulta.listen`. [Escuta](./escuta.m
 | `estoque.produto.consulta` | `CodigoBarras1` / `CodigoBarras2` | `IX_Produto_CodigoBarras1/2` |
 | `produto.conversao.unidade.consulta` | `Codigo` | `IX_ConversaoUnidadeMedida_Codigo` |
 
-Não usar `LIKE` em `CodSetoresEstoque` nem em `DataEmissao`. [Índices](../expedicao/indices.md).
+O cliente novo manda `CodSetorEstoque =` e data com `=` / intervalo. `LIKE` em `CodSetoresEstoque` / `DataEmissao` ainda chega do `exp` e é reescrito no servidor. [Índices](../expedicao/indices.md).
 
 ## O que não é consulta de lista
 

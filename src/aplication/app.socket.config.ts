@@ -6,6 +6,8 @@ import { type SocketEventDefinition } from '../socket/protocol/socket.event.defi
 import { logSocketLifecycle } from '../socket/protocol/socket.logger';
 import { instrumentServer, instrumentSocket } from '../socket/monitor/socket.monitor.instrument';
 import { getSocketMonitor, type SocketMonitor } from '../socket/monitor/socket.monitor';
+import { bindServidorEmergenciaIo } from '../services/servidor.emergencia.service';
+import { SERVIDOR_EMERGENCIA_LISTEN } from '../socket/protocol/servidor.emergencia';
 
 import UsuarioEvent from '../socket/usuario/usuario.event';
 import CarrinhoEvent from '../socket/carrinho/carrinho.event';
@@ -344,6 +346,12 @@ const SOCKET_EVENT_DEFINITIONS: SocketEventDefinition[] = [
     register: (io, socket) => new ArmazenarEvent(io, socket),
   },
   {
+    name: 'servidor.emergencia',
+    events: [],
+    listenChannels: [SERVIDOR_EMERGENCIA_LISTEN],
+    register: () => undefined,
+  },
+  {
     name: 'setor.estoque',
     events: [
       { eventSuffix: 'setor.estoque.select', kind: 'query' },
@@ -359,6 +367,7 @@ const SOCKET_EVENT_DEFINITIONS: SocketEventDefinition[] = [
 export default class AppSocket {
   constructor(private readonly io: SocketIOServer) {
     this.validateDefinitions();
+    bindServidorEmergenciaIo(this.io);
     instrumentServer(this.io, getSocketMonitor());
     this.initialize();
   }

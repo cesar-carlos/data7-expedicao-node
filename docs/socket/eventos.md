@@ -22,7 +22,7 @@ Quase toda feature expõe:
 
 Exceções: algumas features só têm `select` (sem view de consulta). `sequencia.select` não tem mutação. `expedicao.percurso.estagio` não emite `*.listen`.
 
-`Mutation` vazia: vários handlers respondem `Mutation: []` sem gravar (`allowEmptyMutation`). Payload inválido responde no `ResponseIn` (ou no canal padrão) com `[INVALID_PAYLOAD] …`; não falha em silêncio. Socket já desconectado: o emit da resposta é ignorado e o SQL em voo daquele socket é cancelado; `*.listen` para os outros clientes só deixa de sair se a mutação não tiver terminado.
+`Mutation` vazia: vários handlers respondem `Mutation: []` sem gravar (`allowEmptyMutation`). Payload inválido responde no `ResponseIn` (ou no canal padrão) com `[INVALID_PAYLOAD] …`; não falha em silêncio. Consultas `*.consulta` iguais no mesmo socket compartilham um SQL e respondem todos os `ResponseIn`. Socket já desconectado: o emit da resposta é ignorado e o SQL em voo daquele socket é cancelado; timeout do Node também cancela a request (`[SQL-CONN]`). `*.listen` para os outros clientes só deixa de sair se a mutação não tiver terminado.
 
 `SocketCrudRegistrar` emite `*.listen` com as linhas da mutação quando a feature não define `loadListen` (cancelamento, armazenar, tipos de operação, processo executável). `usuario` / `carrinho` / `setor.estoque` continuam recarregando a consulta. Delete com `loadListenBeforeExecute` (e o de `carrinho.percurso.estagio`) carrega o snapshot **antes** de apagar.
 
@@ -36,7 +36,7 @@ O servidor emite no canal `*.listen` para **todos** os sockets. Três formas de 
 
 - `ExpedicaoMutationBasicEvent` — `{ Session, ResponseIn, Mutation }`
 - `ExpedicaoMutationListenEvent` — `{ Mutation }`
-- `ExpedicaoBasicListenEvent` — `{ Data }` (timer e `POST /expedicao/separacao/notify`)
+- `ExpedicaoBasicListenEvent` — `{ Data }` (timer, `POST /expedicao/separacao/notify` e `servidor.emergencia.listen`)
 
 ## Listen cruzado
 

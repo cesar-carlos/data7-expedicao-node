@@ -26,7 +26,7 @@ Comece por `docs/contratos/README.md` antes de alterar helper de consulta, `Pagi
 Rotas HTTP de login e usuarios: `docs/http/`. Comece por `docs/http/README.md`.
 
 Catalogo dos eventos Socket.IO (`*.consulta`, `*.select`, mutacao, `*.listen`) fica em `docs/socket/`.
-Comece por `docs/socket/README.md` e `docs/socket/consultas.md` antes de incluir, renomear ou alterar handler em `src/socket/`. Listen emitido pelo servidor: `docs/socket/listen.md` (nao unificar payload; trigger 02 nao emite `conferir.insert.listen`). Escuta periodica: `docs/socket/escuta.md`. Registro: `src/aplication/app.socket.config.ts`.
+Comece por `docs/socket/README.md` e `docs/socket/consultas.md` antes de incluir, renomear ou alterar handler em `src/socket/`. Listen emitido pelo servidor: `docs/socket/listen.md` (nao unificar payload; trigger 02 nao emite `conferir.insert.listen`). Escuta periodica: `docs/socket/escuta.md`. Canal de emergencia e o que ja esta no servidor vs o que ainda nao: `docs/socket/protecoes-cliente.md` (para agentes dos Flutter). Registro: `src/aplication/app.socket.config.ts`.
 
 ## Contexto atual do repositorio
 

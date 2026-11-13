@@ -11,6 +11,7 @@ import {
   executeSelectWhereAny,
   normalizeConsultaWhere,
   resolveSelectPagination,
+  wrapSelectLockTimeout,
 } from '../../../../src/repository/common/consulta.sql.helper';
 import { SQL_MAX_PARAMS, SQL_PARAM_BUDGET } from '../../../../src/repository/common/sql.param.budget';
 import { SocketClientError } from '../../../../src/utils/repository.error';
@@ -59,6 +60,13 @@ describe('resolveSelectPagination', () => {
 
     expect(page.limit).toBe(20);
     expect(page.offset).toBe(40);
+  });
+
+  it('should clamp a duck-typed LIMIT 0 so FETCH NEXT is never 0', () => {
+    const page = resolveSelectPagination({ limit: 0, offset: 0, page: 1 } as Pagination);
+
+    expect(page.limit).toBe(1);
+    expect(page.offset).toBe(0);
   });
 });
 
@@ -118,12 +126,14 @@ describe('applySelectOrdering', () => {
 
 function createTrackingPool() {
   const queries: Array<{ sql: string; bindCount: number }> = [];
+  const binds: Array<{ name: string; value: unknown }> = [];
   const pool = {
     request() {
       let bindCount = 0;
       const request = {
-        input() {
+        input(name?: string, _type?: unknown, value?: unknown) {
           bindCount += 1;
+          if (name) binds.push({ name, value });
           return request;
         },
         async query(sqlText: string) {
@@ -141,7 +151,7 @@ function createTrackingPool() {
       return request;
     },
   };
-  return { pool: pool as unknown as ConnectionPool, queries };
+  return { pool: pool as unknown as ConnectionPool, queries, binds };
 }
 
 describe('executeSelectWhereAny parameter budget', () => {
@@ -187,6 +197,41 @@ describe('executeSelectWhereAny parameter budget', () => {
       expect(query.sql).not.toContain('OFFSET');
     }
     expect(result.recordset).toHaveLength(800);
+  });
+});
+
+describe('wrapSelectLockTimeout', () => {
+  it('should skip the SET when the timeout is disabled', () => {
+    expect(wrapSelectLockTimeout('SELECT 1', 0)).toBe('SELECT 1');
+  });
+});
+
+describe('executeSelectWhere FETCH binds', () => {
+  it('should bind FETCH NEXT 1 when the caller sends LIMIT 0', async () => {
+    const { pool, binds } = createTrackingPool();
+    await executeSelectWhere(
+      pool,
+      selectSql,
+      [Params.equals('CodEmpresa', 1)],
+      { limit: 0, offset: 0, page: 1 } as Pagination,
+      undefined,
+    );
+
+    expect(binds.find((bind) => bind.name === '__pg_limit')?.value).toBe(1);
+    expect(binds.find((bind) => bind.name === '__pg_offset')?.value).toBe(0);
+  });
+
+  it('should prepend SET LOCK_TIMEOUT on a paged select', async () => {
+    const { pool, queries } = createTrackingPool();
+    await executeSelectWhere(
+      pool,
+      selectSql,
+      [Params.equals('CodEmpresa', 1)],
+      Pagination.create(20),
+      undefined,
+    );
+
+    expect(queries[0].sql).toMatch(/^SET LOCK_TIMEOUT \d+;/);
   });
 });
 

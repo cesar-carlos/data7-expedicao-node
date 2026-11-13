@@ -40,8 +40,11 @@ O mesmo `CodCarrinhoPercurso` serve separação e conferência. A origem muda no
 
 ## O que já foi aplicado neste repositório
 
+- `separar.consulta` agrega setor/usuário em `OUTER APPLY` **depois** da página (`OFFSET/FETCH`), para a lista não varrer `ItemSepararEstoque` nem segurar lock longo. [Separar](../socket/separar.md). Regra 25 em [Regras](./regras.md).
+- Lista: `LIKE` de setor/data reescrito (não recusado), dedup de `*.consulta` por socket (todos os `ResponseIn`), `SET LOCK_TIMEOUT` no `SELECT`, cancel da request no timeout do Node. Regra 26.
+- Canal `servidor.emergencia.listen` para aviso direto ao coletor. Desconexão automática por lock **ainda não**. Regra 27. Guia: [proteções](../socket/protecoes-cliente.md).
 - Socket.IO e HTTP classificam falha em `classifyClientError`. O cliente recebe `[identificador] mensagem`. Detalhe em [Erros](./erros.md).
-- `THROW` 50011–50099 (e o índice `UX_Conferir_OrigemAtiva`) viram `BUSINESS_RULE_VIOLATION`.
+- `THROW` 50011–50099 viram `BUSINESS_RULE_VIOLATION`.
 - Testes em `test/src/utils/repository.error.test.ts` e `test/src/aplication/app.express.error.test.ts`.
 
 Nos coletores:

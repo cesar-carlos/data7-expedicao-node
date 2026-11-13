@@ -216,6 +216,7 @@ export default class ConnectionSqlServerMssql {
     pool.request = ((...args: Parameters<ConnectionPool['request']>) => {
       const request = originalRequest(...args);
       trackSqlRequest(request);
+      patchTrackedRequest(request);
       return request;
     }) as ConnectionPool['request'];
     tracked.__sqlScopeTracked = true;
@@ -738,4 +739,22 @@ function isPoolBusy(counters: PoolCounters): boolean {
   const pending = counters.pending ?? 0;
   const borrowed = counters.borrowed ?? 0;
   return pending > 0 || borrowed > 0;
+}
+
+function patchTrackedRequest(request: Request): void {
+  const originalQuery = request.query.bind(request) as (command: string) => Promise<unknown>;
+
+  const patchedQuery = (command: string) => {
+    const sqlText = typeof command === 'string' ? `SET LOCK_TIMEOUT -1;\n${command}` : command;
+    return originalQuery(sqlText).catch((error: unknown) => {
+      try {
+        request.cancel();
+      } catch {
+        // The driver may already have finished the request.
+      }
+      throw error;
+    });
+  };
+
+  (request as unknown as { query: typeof patchedQuery }).query = patchedQuery;
 }

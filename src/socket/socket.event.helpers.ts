@@ -11,6 +11,12 @@ import {
   leaveSocketSqlScope,
   runWithSqlScope,
 } from '../infra/sql.request.scope';
+import {
+  clearSocketQueryInFlight,
+  getSocketQueryInFlight,
+  setSocketQueryInFlight,
+  socketQueryDedupeKey,
+} from './protocol/socket.query.dedupe';
 
 type ParsedSocketEventPayload = {
   raw: Record<string, unknown>;
@@ -93,6 +99,77 @@ export async function withSocketRequest(
     return;
   }
 
+  if (request.kind === 'query') {
+    await runDedupedSocketQuery(socket, request, startedAt, handler);
+    return;
+  }
+
+  try {
+    await runSocketHandler(socket, request, startedAt, handler);
+  } catch {
+    // Error already went out on ResponseIn.
+  }
+}
+
+async function runDedupedSocketQuery(
+  socket: Socket,
+  request: NormalizedSocketRequest,
+  startedAt: number,
+  handler: (context: SocketHandlerContext) => Promise<void>,
+): Promise<void> {
+  const key = socketQueryDedupeKey(request);
+  const existing = getSocketQueryInFlight(socket, key);
+  if (existing) {
+    try {
+      const data = await existing;
+      emitSocketQueryResponse(socket, request, data);
+      logSocketDuration({
+        event: request.eventName,
+        socketId: socket.id,
+        responseIn: request.responseIn,
+        requestId: request.requestId,
+        durationMs: Date.now() - startedAt,
+        rows: countRows(data),
+        listenRows: 0,
+        status: 'ok',
+        listenCount: 0,
+      });
+    } catch (error) {
+      emitSocketError(
+        socket,
+        request.responseIn,
+        request.session,
+        error,
+        classifyClientError(error).code,
+        request.requestId,
+        request.eventName,
+        Date.now() - startedAt,
+      );
+    }
+    return;
+  }
+
+  let captured: unknown;
+  const shared = runSocketHandler(socket, request, startedAt, handler, (data) => {
+    captured = data;
+  }).then(() => captured);
+  setSocketQueryInFlight(socket, key, shared);
+  try {
+    await shared;
+  } catch {
+    // Leader already received the error emit.
+  } finally {
+    clearSocketQueryInFlight(socket, key);
+  }
+}
+
+async function runSocketHandler(
+  socket: Socket,
+  request: NormalizedSocketRequest,
+  startedAt: number,
+  handler: (context: SocketHandlerContext) => Promise<void>,
+  onQueryData?: (data: unknown) => void,
+): Promise<void> {
   let listenCount = 0;
   let rowCount = 0;
   let listenRows = 0;
@@ -101,6 +178,7 @@ export async function withSocketRequest(
     request,
     emitQuery(queryData) {
       rowCount = countRows(queryData);
+      onQueryData?.(queryData);
       emitToSocket(
         socket,
         request.responseIn,
@@ -157,6 +235,7 @@ export async function withSocketRequest(
       rowCount,
       listenRows,
     );
+    throw error;
   } finally {
     leaveSocketSqlScope(socket, sqlScope);
   }

@@ -4,7 +4,7 @@ import { Param, Params, Pagination, OrderBy } from '../../contracts/local.base.p
 import ConnectionSqlServerMssql from '../../infra/connection.sql.server.mssql';
 import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.consulta.repository.contract';
 import ExpedicaoSeparacaoUsuarioSetorConsultaDto from '../../dto/expedicao/expedicao.separacao.usuario.setor.consulta.dto';
-import { executeSelectWhere } from '../common/consulta.sql.helper';
+import { executeSelectPaged, executeSelectWhere } from '../common/consulta.sql.helper';
 import {
   buildSeparacaoUsuarioSetorConsultaQuery,
   separacaoUsuarioSetorConsultaSql,
@@ -20,9 +20,7 @@ export default class SqlServerExpedicaoSeparacaoUsuarioSetorConsultaRepository
     const pool: ConnectionPool = await this.connect.getConnection();
 
     try {
-      const sqlText = separacaoUsuarioSetorConsultaSql();
-      const sqlWithPagination = `${sqlText} ORDER BY (SELECT NULL) OFFSET ${pagination?.offset} ROWS FETCH NEXT ${pagination?.limit} ROWS ONLY`;
-      const result = await pool.request().query(sqlWithPagination);
+      const result = await executeSelectPaged(pool, separacaoUsuarioSetorConsultaSql(), pagination);
 
       if (result.recordset.length === 0) return [];
       const entity = result.recordset.map((item: any) => {

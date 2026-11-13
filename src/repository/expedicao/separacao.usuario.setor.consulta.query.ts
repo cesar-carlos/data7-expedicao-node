@@ -2,7 +2,7 @@ import path from 'path';
 import sql from 'mssql';
 import type { Request } from 'mssql';
 
-import { ComparisonOperator, Param, Params } from '../../contracts/local.base.params';
+import { ComparisonOperator, Param, Params, normalizeComparisonOperator } from '../../contracts/local.base.params';
 import { readSqlFileCached } from '../../infra/sql.file.cache';
 import ParamsCommonRepository from '../common/params.common';
 
@@ -50,7 +50,7 @@ export function buildSeparacaoUsuarioSetorConsultaQuery(params: Param[] = []): S
 
   const pushed = new Set<Param>();
   const predicate = (column: string, param: Param): string | undefined => {
-    const operator = param.operator || ComparisonOperator.EQUALS;
+    const operator = normalizeComparisonOperator(param.operator);
     if (!PUSHABLE_OPERATORS.has(operator) || !Params.isValid(param)) return undefined;
     pushed.add(param);
     if (operator === ComparisonOperator.IS_NULL) return `${column} IS NULL`;
@@ -72,7 +72,7 @@ export function buildSeparacaoUsuarioSetorConsultaQuery(params: Param[] = []): S
   const userParams = of('CodUsuario');
   const userSeek =
     userParams.length > 0 &&
-    userParams.every((param) => USER_SEEK_OPERATORS.has(param.operator || ComparisonOperator.EQUALS));
+    userParams.every((param) => USER_SEEK_OPERATORS.has(normalizeComparisonOperator(param.operator)));
 
   const baseFilter = [
     ...sqlOf('CodEmpresa', 'ise.CodEmpresa'),

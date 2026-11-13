@@ -8,6 +8,7 @@ import {
   chunkGroupsByBindBudget,
   chunkInValues,
   countGroupsBinds,
+  countParamBinds,
   expandParamsForInBudget,
   sliceRecordsetPage,
 } from '../../../../src/repository/common/sql.param.budget';
@@ -64,6 +65,11 @@ describe('sql.param.budget', () => {
       rows.slice(5, 15),
     );
     expect(sliceRecordsetPage(rows, undefined, true)).toHaveLength(800);
+  });
+
+  it('should count IS / IS NULL as zero binds', () => {
+    expect(countParamBinds(Params.isNull('CodUsuario'))).toBe(0);
+    expect(countParamBinds({ key: 'CodUsuario', operator: 'IS', value: null })).toBe(0);
   });
 
   it('should chunk IN values without dropping the tail', () => {

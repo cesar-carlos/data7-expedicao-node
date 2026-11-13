@@ -9,6 +9,7 @@ import LocalBaseConsultaRepositoryContract from '../../contracts/local.base.cons
 import ExpedicaoSepararConsultaDto from '../../dto/expedicao/expedicao.separar.consulta.dto';
 import ParamsCommonRepository from '../common/params.common';
 import { executeSelectPaged, executeSelectWhere, executeSelectWhereAny } from '../common/consulta.sql.helper';
+import { rewriteSepararConsultaLegacySql } from '../common/separar.consulta.where';
 import { wrapRepositoryError } from '../../utils/repository.error';
 
 export default class SqlServerExpedicaoSepararConsultaRepository
@@ -45,18 +46,14 @@ export default class SqlServerExpedicaoSepararConsultaRepository
     try {
       const select = this.getSelectSql();
 
-      let result;
-      if (typeof params === 'string') {
-        const _params = this.buildParamsFromString(params);
-        const page = pagination ?? Pagination.create();
-        const paramOrderBy =
-          orderBy && orderBy.isValid() ? `ORDER BY ${orderBy.getFullOrderBy()}` : 'ORDER BY (SELECT NULL)';
-        const sql = _params ? `${select} WHERE ${_params}` : select;
-        const sqlWithPagination = `${sql} ${paramOrderBy} OFFSET ${page.offset} ROWS FETCH NEXT ${page.limit} ROWS ONLY`;
-        result = await pool.request().query(sqlWithPagination);
-      } else {
-        result = await executeSelectWhere(pool, select, params, pagination, orderBy, true);
-      }
+      const result = await executeSelectWhere(
+        pool,
+        select,
+        typeof params === 'string' ? this.buildParamsFromString(params) : params,
+        pagination,
+        orderBy,
+        true,
+      );
 
       if (result.recordset.length === 0) return [];
       return result.recordset.map((item: any) => ExpedicaoSepararConsultaDto.fromObject(item));
@@ -83,29 +80,6 @@ export default class SqlServerExpedicaoSepararConsultaRepository
 
   private buildParamsFromString(paramsString: string): string {
     if (!paramsString || paramsString.trim() === '') return '';
-    const codSetorEstoqueRegex = /CodSetorEstoque\s*=\s*'?(\d+)'?/g;
-
-    let result = paramsString;
-    const matches = paramsString.match(codSetorEstoqueRegex);
-
-    if (matches) {
-      matches.forEach((match) => {
-        const valueMatch = match.match(/CodSetorEstoque\s*=\s*'?(\d+)'?/);
-        if (valueMatch) {
-          const value = valueMatch[1];
-          const existsClause = `EXISTS(
-          SELECT *
-          FROM Expedicao.ItemSepararEstoque ise
-          WHERE ise.CodEmpresa = SepararConsulta.CodEmpresa
-            AND ise.CodSepararEstoque = SepararConsulta.CodSepararEstoque
-            AND ise.CodSetorEstoque = '${value}'
-        )`;
-
-          result = result.replace(match, existsClause);
-        }
-      });
-    }
-
-    return result;
+    return rewriteSepararConsultaLegacySql(paramsString);
   }
 }

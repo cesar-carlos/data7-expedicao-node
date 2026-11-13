@@ -66,7 +66,7 @@ alwaysApply: true
 
 ### Listen Conventions
 
-- Broadcast channels keep the current `*.listen` naming. Catalog of what the server emits: `docs/socket/listen.md`.
+- Broadcast channels keep the current `*.listen` naming. Catalog of what the server emits: `docs/socket/listen.md`. Emergency channel `servidor.emergencia.listen` is server-push `{ Data }` without `Session`; clients must not emit it. Client-agent guide: `docs/socket/protecoes-cliente.md`.
 - Mutation-related broadcasts must preserve their existing payload family. Some channels emit `ExpedicaoMutationBasicEvent`, others emit `ExpedicaoMutationListenEvent`, and the periodic/notify path emits `ExpedicaoBasicListenEvent` (`Data`); do not unify them publicly unless a client migration is part of the task.
 - Preserve existing cross-feature broadcasts such as `separar.update.listen`, `conferir.item.update.listen`, and `separar.item.consulta.update.listen`. Trigger 02 creating `Conferir` does not emit `conferir.insert.listen`.
 

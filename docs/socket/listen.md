@@ -4,7 +4,7 @@ O cliente **não** emite `*.listen`. Só escuta o nome do canal, sem `socket.id`
 
 Pedido de consulta e mutação: [eventos](./eventos.md). Envelope de pedido: [consulta Socket.IO](../contratos/consulta-socket.md). Visão dos canais: [comunicação](../comunicacao.md).
 
-Esta página descreve o que o servidor **emite hoje**. Não unificar famílias de payload nem inventar canal novo sem migração dos dois Flutter.
+Esta página descreve o que o servidor **emite hoje**. Não unificar famílias de payload. Canal novo de emergência (`servidor.emergencia.listen`) é aditivo: o coletor antigo ignora; o novo deve escutar — [proteções](./protecoes-cliente.md).
 
 ## Famílias de payload
 
@@ -100,7 +100,13 @@ A lista de conferência só vê o documento novo com `conferir.consulta` (ou `ca
 
 ## Timer
 
-Só `separar.consulta.listen`. Página até 20, intervalo 8 s. [Escuta periódica](./escuta.md). Não substitui o `separar.update.listen` do Finalizar Carrinho.
+Só `separar.consulta.listen`. Página até 20, intervalo 8 s. Mesmo SQL de `separar.consulta`. [Escuta periódica](./escuta.md). Não substitui o `separar.update.listen` do Finalizar Carrinho. O cliente usa o `Data`; não dispara outra `separar.consulta` no mesmo tick.
+
+## Emergência (servidor → cliente)
+
+Canal **`servidor.emergencia.listen`**. O cliente não emite. Família `{ Data }` (sem `Session`). Aviso, manutenção ou desconexão iminente. Registrar na conexão com `allEvent: true`.
+
+O servidor **já emite** este canal (HTTP loopback `POST /internal/sockets/emergencia`). Desconectar sozinho quem trava a base **ainda não** está ligado; quando estiver, o aviso sai neste canal antes do `disconnect`. Contrato para os coletores: [proteções](./protecoes-cliente.md).
 
 ## O que não emitir
 

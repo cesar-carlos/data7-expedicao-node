@@ -5,6 +5,7 @@ export const MSSQL_POOL_DEFAULTS = {
   acquireTimeoutMillis: 60_000,
   connectionTimeout: 30_000,
   requestTimeout: 30_000,
+  lockTimeout: 5_000,
   healthCheckTimeoutMs: 2_000,
   heartbeatIntervalMs: 30_000,
 } as const;
@@ -18,6 +19,7 @@ export type MssqlRuntimeOptions = {
   };
   connectionTimeout: number;
   requestTimeout: number;
+  lockTimeout: number;
   healthCheckTimeoutMs: number;
   heartbeatIntervalMs: number;
 };
@@ -79,6 +81,12 @@ export function resolveMssqlRuntimeOptions(env: NodeJS.Dict<string> = process.en
       MSSQL_POOL_DEFAULTS.requestTimeout,
       1_000,
       120_000,
+    ),
+    lockTimeout: parseBoundedInt(
+      env.SQL_LOCK_TIMEOUT_MS,
+      MSSQL_POOL_DEFAULTS.lockTimeout,
+      0,
+      30_000,
     ),
     healthCheckTimeoutMs: parseBoundedInt(
       env.SQL_HEALTHCHECK_TIMEOUT_MS,

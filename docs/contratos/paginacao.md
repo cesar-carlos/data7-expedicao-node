@@ -8,6 +8,10 @@ ORDER BY ... OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY
 
 Sem `ORDER BY` do cliente, a ordenação fica `ORDER BY (SELECT NULL)`, porque o SQL Server recusa `OFFSET/FETCH` sem ordem. Os `TOP 1` que existem no SQL pegam um carrinho ou um percurso ligado ao registro. Eles não limitam a lista.
 
+Em `separar.consulta` o `STRING_AGG` **não** pode ficar dentro da derived table que o helper pagina. Fica em `OUTER APPLY` depois do alias `SepararConsulta`; o `OFFSET/FETCH` entra nesse mesmo `SELECT`. Assim a página (20 no listen, `LIMIT` do cliente na lista) corta `SepararEstoque` **antes** de agregar setor e usuário. [Separar](../socket/separar.md).
+
+O helper prefixa `SET LOCK_TIMEOUT` nesse `SELECT` (padrão 5 s, `SQL_LOCK_TIMEOUT_MS`; `0` desliga). O teto de `LIMIT` explícito do cliente **não** muda.
+
 Constantes: `src/contracts/local.base.pagination.ts`.
 
 | Constante | Valor | Uso |
@@ -24,6 +28,7 @@ Regras:
 - `LIMIT` explícito do cliente **não** é cortado em 1500 (`readUserPageLimit`).
 - `OFFSET` ausente → 0.
 - `PAGE` ausente → 1. O helper de consulta usa `OFFSET`/`LIMIT`; `PAGE` é metadado.
+- `FETCH NEXT` no SQL Server exige n ≥ 1. `resolveSelectPagination` / `bindSelectPage` reconstroem a página antes do bind: objeto `{ limit: 0 }` ou `NULL` não chega no banco (erro 153).
 
 `conferir.item.consulta` e `conferencia.item.consulta` exigem `CodCarrinho` no `Where`. Sem o filtro o servidor recusa; com filtro ausente no cliente antigo a página de 1500 cortava o carrinho aberto. Regra 14 em [expedição](../expedicao/regras.md). O índice `IX_ItemConferir_Percurso` cobre esse join; [índices](../expedicao/indices.md).
 
@@ -56,7 +61,7 @@ Salvar um carrinho grande (F12, centenas de itens) usa a chave do estágio quand
 
 ## Escuta periódica
 
-`separar.consulta.listen` **não** usa 1500. Padrão 20, `SEPARAR_LISTEN_LIMIT` entre 1 e 500. [Escuta](../socket/escuta.md).
+`separar.consulta.listen` **não** usa 1500. Padrão 20, `SEPARAR_LISTEN_LIMIT` entre 1 e 500. Mesmo SQL da consulta pedida pelo cliente. [Escuta](../socket/escuta.md).
 
 ## Onde o cliente manda a página
 

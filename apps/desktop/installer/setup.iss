@@ -1,7 +1,7 @@
 #define MyAppName "Data7 Expedicao"
 #define MyShortcutName "Data7 Expedicao Server"
 #ifndef MyAppVersion
-#define MyAppVersion "1.1.7"
+#define MyAppVersion "1.1.8"
 #endif
 #define MyAppExeName "Data7Expedicao.exe"
 #define MyAppId "{{7E4C1A2B-9D30-4F55-8A61-2C8B0E4D6F19}"

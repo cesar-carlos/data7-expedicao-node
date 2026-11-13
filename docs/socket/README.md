@@ -16,6 +16,7 @@ Domínio de expedição (situação, trigger, erro, índice): [expedição](../e
 4. [Separar](./separar.md) — lista, item, progresso, setor
 5. [Conferir](./conferir.md) — documento, carrinho, item e scan
 6. [Escuta periódica](./escuta.md) — `separar.consulta.listen`
+7. [Proteções para os coletores](./protecoes-cliente.md) — o que já está no servidor, o canal de emergência, o que ainda não ligou
 
 ## Fonte no código
 
@@ -24,12 +25,15 @@ Domínio de expedição (situação, trigger, erro, índice): [expedição](../e
 | Registro na conexão | `src/aplication/app.socket.config.ts` (`SOCKET_EVENT_DEFINITIONS`) |
 | Handler por feature | `src/socket/<feature>/*.event.ts` |
 | SQL da lista (`consulta`) | `src/sql/` |
-| Corte de página | `src/repository/common/consulta.sql.helper.ts` |
+| Corte de página | `src/repository/common/consulta.sql.helper.ts` (`SET LOCK_TIMEOUT`) |
+| Shim `LIKE` de separar | `src/repository/common/separar.consulta.where.ts` |
+| Dedup de consulta | `src/socket/protocol/socket.query.dedupe.ts` |
 | Envelope legado | `src/socket/protocol/socket.protocol.adapter.ts` |
 | CRUD genérico | `src/socket/socket.crud.registrar.ts` |
 | Escuta periódica | `src/services/separar.periodic.listen.service.ts` — **não** entra no registro acima |
 | Notify HTTP → listen | `src/controllers/expedicao/separacao.notify.expedicao.controller.ts`, `conferir.notify.expedicao.controller.ts` |
-| Monitor | `src/socket/monitor/`, rotas `/internal/sockets` (loopback) |
+| Canal de emergência | `servidor.emergencia.listen` — `src/services/servidor.emergencia.service.ts` (o cliente não emite) |
+| Monitor | `src/socket/monitor/`, rotas `/internal/sockets` (loopback); `POST /internal/sockets/emergencia` emite o aviso |
 
 ## Três papéis
 

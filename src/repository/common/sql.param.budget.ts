@@ -1,4 +1,9 @@
-import { ComparisonOperator, type Param } from '../../contracts/local.base.params';
+import {
+  ComparisonOperator,
+  isNullComparisonOperator,
+  normalizeComparisonOperator,
+  type Param,
+} from '../../contracts/local.base.params';
 import { Pagination } from '../../contracts/local.base.pagination';
 
 /** SQL Server TDS limit: one request cannot bind more than this. */
@@ -14,8 +19,8 @@ export const SQL_PARAM_BUDGET = 2000;
 export const SQL_IN_CHUNK = 500;
 
 export function countParamBinds(param: Param): number {
-  const op = param.operator || ComparisonOperator.EQUALS;
-  if (op === ComparisonOperator.IS_NULL || op === ComparisonOperator.IS_NOT_NULL) {
+  const op = normalizeComparisonOperator(param.operator);
+  if (isNullComparisonOperator(op)) {
     return 0;
   }
   if (op === ComparisonOperator.CUSTOM) {

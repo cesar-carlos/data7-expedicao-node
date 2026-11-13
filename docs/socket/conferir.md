@@ -48,7 +48,7 @@ Tabela física. `conferir.item.select` **não** devolve `CodCarrinho`.
 
 `conferir.insert|update|delete`, `conferir.item.*`, `conferencia.item.*`.
 
-`conferir.insert` exige `CodEmpresa`, `Origem` e `CodOrigem`. Origem já ativa (não cancelada) responde `[50016] Ja existe conferencia ativa para esta origem. Nao e permitido gerar outra.` — o mesmo texto do índice `UX_Conferir_OrigemAtiva` e da trigger `04`. Delete de conferir/separar carrega o snapshot da consulta **antes** de apagar e emite esse snapshot no `*.delete.listen`.
+`conferir.insert` exige `CodEmpresa`, `Origem` e `CodOrigem`. Origem já ativa (não cancelada) responde `[50016] Ja existe conferencia ativa para esta origem. Nao e permitido gerar outra.` — o texto da trigger `04`. Delete de conferir/separar carrega o snapshot da consulta **antes** de apagar e emite esse snapshot no `*.delete.listen`.
 
 ## Listen
 

@@ -34,6 +34,8 @@ O canal de pedido continua `${socket.id} <evento>`. Exemplo: `abc123 conferir.it
 
 O coletor `exp` espera a resposta em até 30s e remove o listener do UUID em seguida.
 
+Consultas `*.consulta` iguais no mesmo socket (mesmo evento, `Where`, página e ordem) compartilham um SQL. Cada `ResponseIn` recebe o mesmo `Data`. O segundo pedido **não** é recusado. Mutação não entra nesse dedup.
+
 ### Pagination
 
 Query string, número (`LIMIT`) ou objeto `{ limit, offset, page }`.

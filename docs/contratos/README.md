@@ -22,11 +22,11 @@ Rotas específicas: [Login](../http/login-app.md), [Usuários](../http/usuario-c
 | Contrato | Código |
 | --- | --- |
 | Página | `src/contracts/local.base.pagination.ts` |
-| `Where` / `Params` | `src/contracts/local.base.params.ts`, `src/repository/common/params.common.ts` |
+| `Where` / `Params` | `src/contracts/local.base.params.ts`, `src/repository/common/params.common.ts`, shim `separar.consulta.where.ts` |
 | Teto 2100 binds | `src/repository/common/sql.param.budget.ts` — chunk de `consultaAny` / `IN` |
 | `OrderBy` | `src/contracts/local.base.orderby.ts` |
 | Corte no SQL | `src/repository/common/consulta.sql.helper.ts` |
 | Envelope Socket | `src/socket/protocol/socket.protocol.adapter.ts` |
 | SQL da lista | `src/sql/` — o arquivo não corta a lista; o helper corta |
 
-Testes: `test/src/contracts/local.base.pagination.test.ts`, `test/src/repository/common/consulta.sql.helper.test.ts`.
+Testes: `test/src/contracts/local.base.pagination.test.ts`, `test/src/repository/common/consulta.sql.helper.test.ts`, `test/src/repository/expedicao/separar.consulta.sql.test.ts` (`OUTER APPLY` depois da base; `EXISTS` no alias `SepararConsulta`), `test/src/repository/common/separar.consulta.where.test.ts` (shim de `LIKE`), `test/src/socket/socket.query.dedupe.test.ts`.

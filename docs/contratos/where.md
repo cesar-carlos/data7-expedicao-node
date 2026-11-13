@@ -45,8 +45,10 @@ Não é filtro SQL. `Where` é o **nome** da sequência (`Produto_Sequencia`, �
 | `Params.lessThan` / `lessThanOrEqual` | `<` / `<=` |
 | `Params.like` / `notLike` | `LIKE` / `NOT LIKE` |
 | `Params.in` / `notIn` | `IN` / `NOT IN` (lista vazia em `IN` vira `1=0`; lista enorme é fatiada no teto 2100) |
-| `Params.isNull` / `isNotNull` | `IS NULL` / `IS NOT NULL` |
+| `Params.isNull` / `isNotNull` | `IS NULL` / `IS NOT NULL` (sem `value`; o coletor antigo `operator: 'IS'` + `value: null` vira `IS NULL`) |
 | `Params.between` | `BETWEEN` — valor `[min, max]` |
+
+`>` / `<` ligam **valor**, não nome de coluna. `QuantidadeItensSetor > QuantidadeItensSeparacaoSetor` não existe neste contrato — filtrar no cliente ou empurrar no SQL interno da consulta.
 | `Params.custom` | `CUSTOM` — só no `build` legado; consultas paginadas não devem receber isso do cliente |
 
 Vários grupos no mesmo `SELECT`: `executeSelectWhereAny` → `(a AND b) OR (c AND d)`, com o mesmo limite de página.
@@ -71,9 +73,9 @@ No salvar carrinho, se o lote for do mesmo estágio (`CodEmpresa` + documento + 
 
 Erro residual: `[SQL-8003] Muitos itens nesta operacao. Tente novamente.` — [Erros](../expedicao/erros.md).
 
-Exceção: em `separar.consulta`, `CodSetorEstoque` vira `EXISTS` em `ItemSepararEstoque`, não coluna da view. `LIKE` em `CodSetoresEstoque` (STRING_AGG da view) **não** entra nesse `EXISTS`.
+Exceção: em `separar.consulta`, `CodSetorEstoque` vira `EXISTS` em `ItemSepararEstoque` (alias `SepararConsulta`), não coluna da view. O coletor `exp` ainda manda `LIKE` em `CodSetoresEstoque` e `DataEmissao`; o servidor **não recusa** — reescreve para o mesmo `EXISTS` / igualdade ou intervalo (`src/repository/common/separar.consulta.where.ts`). String SQL legado passa pela mesma reescrita. O `STRING_AGG` fica fora da derived table da página — [paginação](./paginacao.md), [separar](../socket/separar.md).
 
-Índices desses `WHERE` (scripts `07`/`08`/`09` na `Estacao`): [Índices](../expedicao/indices.md). `LIKE '%n%'` em `CodSetoresEstoque` e `LIKE` em `DataEmissao` (`DATE`) não usam B-tree — mande `CodSetorEstoque =` e igualdade ou intervalo de data.
+Índices desses `WHERE` (scripts `07`/`08`/`09` na `Estacao`): [Índices](../expedicao/indices.md). Preferir `CodSetorEstoque =` e igualdade ou intervalo de data no cliente; o shim do `LIKE` existe para não quebrar o `exp`.
 
 `conferir.item.consulta` e `conferencia.item.consulta` **exigem** `CodCarrinho` (número `> 0`) na lista ou no fragmento SQL (`CodCarrinho = 94`). Sem isso: `[INVALID_PAYLOAD] <evento> exige CodCarrinho no Where.`
 

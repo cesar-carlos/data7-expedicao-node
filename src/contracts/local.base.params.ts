@@ -21,6 +21,18 @@ export enum ComparisonOperator {
   CUSTOM = 'CUSTOM',
 }
 
+/** Coletor antigo manda `IS` / `IS NOT` com value null em vez de `IS NULL`. */
+export function normalizeComparisonOperator(operator: string | undefined): string {
+  const op = (operator || ComparisonOperator.EQUALS).trim();
+  if (op === ComparisonOperator.IS_NULL || op === 'IS') return ComparisonOperator.IS_NULL;
+  if (op === ComparisonOperator.IS_NOT_NULL || op === 'IS NOT') return ComparisonOperator.IS_NOT_NULL;
+  return op;
+}
+
+export function isNullComparisonOperator(operator: string): boolean {
+  return operator === ComparisonOperator.IS_NULL || operator === ComparisonOperator.IS_NOT_NULL;
+}
+
 export class Params {
   /**
    * Cria um parâmetro com operador de igualdade (=)
@@ -139,13 +151,11 @@ export class Params {
    * Valida se um parâmetro está corretamente formatado
    */
   public static isValid(param: Param): boolean {
-    return (
-      param &&
-      typeof param.key === 'string' &&
-      param.key.length > 0 &&
-      param.value !== undefined &&
-      (param.operator === undefined || typeof param.operator === 'string')
-    );
+    if (!param || typeof param.key !== 'string' || param.key.length === 0) return false;
+    if (param.operator !== undefined && typeof param.operator !== 'string') return false;
+    const operator = normalizeComparisonOperator(param.operator);
+    if (isNullComparisonOperator(operator)) return true;
+    return param.value !== undefined;
   }
 
   /**
@@ -157,7 +167,7 @@ export class Params {
     const conditions = params
       .filter((p) => Params.isValid(p))
       .map((p) => {
-        const operator = p.operator || ComparisonOperator.EQUALS;
+        const operator = normalizeComparisonOperator(p.operator);
 
         switch (operator) {
           case ComparisonOperator.IS_NULL:

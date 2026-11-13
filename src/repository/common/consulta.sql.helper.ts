@@ -2,8 +2,10 @@ import sql, { ConnectionPool } from 'mssql';
 import type { Request } from 'mssql';
 
 import { Param, Params, Pagination, OrderBy, DEFAULT_PAGE_LIMIT } from '../../contracts/local.base.params';
+import { resolveMssqlRuntimeOptions } from '../../assets/config.msql';
 import { logAppWarn } from '../../infra/app.logger';
 import ParamsCommonRepository from './params.common';
+import { rewriteSepararConsultaLegacySql } from './separar.consulta.where';
 import { SocketClientError, wrapRepositoryError } from '../../utils/repository.error';
 import {
   chunkGroupsByBindBudget,
@@ -52,9 +54,21 @@ function warnLegacySqlWhere(sqlText: string): void {
   });
 }
 
-/** Consulta sem página explícita fica no teto padrão. Sem isso o SELECT devolve a view inteira. */
+/**
+ * Sempre devolve um Pagination real: LIMIT 0/NaN/ausente não chega no
+ * `FETCH NEXT` (SQL 153: "Invalid usage of the option NEXT").
+ */
 export function resolveSelectPagination(pagination: Pagination | undefined): Pagination {
-  return pagination ?? Pagination.create(DEFAULT_PAGE_LIMIT);
+  if (!pagination) return Pagination.create(DEFAULT_PAGE_LIMIT);
+  return Pagination.create(Number(pagination.limit), Number(pagination.offset), Number(pagination.page));
+}
+
+/** SQL Server recusa FETCH NEXT 0 e FETCH NEXT NULL. */
+export function bindSelectPage(req: Request, page: Pagination | undefined): void {
+  if (!page) return;
+  const resolved = resolveSelectPagination(page);
+  req.input('__pg_offset', sql.Int, resolved.offset);
+  req.input('__pg_limit', sql.Int, resolved.limit);
 }
 
 /**
@@ -93,6 +107,11 @@ export function applySelectPage(
   };
 }
 
+export function wrapSelectLockTimeout(sqlText: string, timeoutMs = resolveMssqlRuntimeOptions().lockTimeout): string {
+  if (timeoutMs <= 0) return sqlText;
+  return `SET LOCK_TIMEOUT ${timeoutMs};\n${sqlText}`;
+}
+
 export async function executeSelectWhere(
   pool: ConnectionPool,
   selectSql: string,
@@ -110,11 +129,15 @@ export async function executeSelectWhere(
 
     if (isLegacySqlWhere(whereParams)) {
       warnLegacySqlWhere(whereParams.sql);
-      baseSql = `${selectSql} WHERE ${whereParams.sql}`;
+      const sqlFragment = expedicaoSepararConsulta
+        ? rewriteSepararConsultaLegacySql(whereParams.sql)
+        : whereParams.sql;
+      baseSql = `${selectSql} WHERE ${sqlFragment}`;
       applyToRequest = () => {};
     } else if (ParamsCommonRepository.needsLegacyWhere(whereParams)) {
       const legacy = ParamsCommonRepository.build(whereParams);
-      baseSql = legacy ? `${selectSql} WHERE ${legacy}` : selectSql;
+      const sqlFragment = expedicaoSepararConsulta && legacy ? rewriteSepararConsultaLegacySql(legacy) : legacy;
+      baseSql = sqlFragment ? `${selectSql} WHERE ${sqlFragment}` : selectSql;
       applyToRequest = () => {};
     } else {
       const expanded = expandParamsForInBudget(whereParams);
@@ -133,12 +156,9 @@ export async function executeSelectWhere(
     const req = pool.request();
     applyToRequest(req);
     applyExtra?.(req);
-    if (assembled.page) {
-      req.input('__pg_offset', sql.Int, assembled.page.offset);
-      req.input('__pg_limit', sql.Int, assembled.page.limit);
-    }
+    bindSelectPage(req, assembled.page);
 
-    return await req.query(assembled.sqlText);
+    return await req.query(wrapSelectLockTimeout(assembled.sqlText));
   } catch (e) {
     throw wrapRepositoryError(e);
   }
@@ -184,11 +204,8 @@ async function querySelectWhereAny(
   const assembled = applySelectPage(baseSql, orderBy, pagination, unbounded);
   const req = pool.request();
   where.apply(req);
-  if (assembled.page) {
-    req.input('__pg_offset', sql.Int, assembled.page.offset);
-    req.input('__pg_limit', sql.Int, assembled.page.limit);
-  }
-  return await req.query(assembled.sqlText);
+  bindSelectPage(req, assembled.page);
+  return await req.query(wrapSelectLockTimeout(assembled.sqlText));
 }
 
 export async function executeSelectPaged(
@@ -198,10 +215,11 @@ export async function executeSelectPaged(
 ): Promise<{ recordset: any[] }> {
   try {
     const req = pool.request();
-    req.input('__pg_offset', sql.Int, Number(pagination.offset));
-    req.input('__pg_limit', sql.Int, Number(pagination.limit));
+    bindSelectPage(req, pagination);
     return await req.query(
-      `${selectSql} ORDER BY (SELECT NULL) OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+      wrapSelectLockTimeout(
+        `${selectSql} ORDER BY (SELECT NULL) OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+      ),
     );
   } catch (e) {
     throw wrapRepositoryError(e);
@@ -217,10 +235,11 @@ export async function executeSelectPagedWithOrder(
 ): Promise<{ recordset: any[] }> {
   try {
     const req = pool.request();
-    req.input('__pg_offset', sql.Int, Number(pagination.offset));
-    req.input('__pg_limit', sql.Int, Number(pagination.limit));
+    bindSelectPage(req, pagination);
     return await req.query(
-      `${selectSql} ${orderByClause} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+      wrapSelectLockTimeout(
+        `${selectSql} ${orderByClause} OFFSET @__pg_offset ROWS FETCH NEXT @__pg_limit ROWS ONLY`,
+      ),
     );
   } catch (e) {
     throw wrapRepositoryError(e);

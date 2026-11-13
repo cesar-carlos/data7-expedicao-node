@@ -9,3 +9,4 @@ Visão dos canais: [comunicação](../comunicacao.md). Envelope de lista: [consu
 1. [Login do aplicativo](./login-app.md) — criar, entrar, consultar, atualizar
 2. [Usuários do ERP](./usuario-consulta.md) — `GET /usuarios`
 3. [Consulta HTTP](../contratos/consulta-http.md) — `Page` / `Offset` / `Limit`, health, notify, monitor
+4. [Proteções para os coletores](../socket/protecoes-cliente.md) — canal de emergência (`POST /internal/sockets/emergencia` é loopback; o app só escuta Socket.IO)

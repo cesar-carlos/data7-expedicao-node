@@ -1,6 +1,6 @@
 # Índices de consulta
 
-Os `WHERE` dos clientes Flutter caem no `SELECT * FROM (view) WHERE …`. O SQL Server só usa índice se o predicado for coluna real da tabela.
+Os `WHERE` dos clientes Flutter caem no SQL de `src/sql/` + `WHERE` do helper. O SQL Server só usa índice se o predicado for coluna real da tabela (não alias de `STRING_AGG`).
 
 Scripts para avaliar e executar na `Estacao` (já no `RODAR.sql`):
 
@@ -12,18 +12,18 @@ Scripts para avaliar e executar na `Estacao` (já no `RODAR.sql`):
 | 8 | `08 - diagnostico-indices-consulta.sql` — só leitura, checklist `EXISTE` / `FALTA` / `TABELA AUSENTE` / `EXISTE FILTRADO` |
 | 9 | `09 - indices-consulta-expedicao.sql` — cria o que faltar; se achar filtro em `Produto`/`Conversao`, dropa e recria sem filtro |
 
-O nome do arquivo é a ordem de execução (00–09 na pasta). `UX_Conferir_OrigemAtiva` é o `03`. Duplicata: `03a` + `03b`. Detalhe: `LEIA-ME.md` e `LEIA-ME-indices-consulta.md`.
+O nome do arquivo é a ordem de execução (00–09 na pasta). O `03` **dropa** `UX_Conferir_OrigemAtiva` (FireDAC 1934 no ERP). Duplicata: `03a` + `03b`. Unicidade: trigger `04`. Detalhe: `LEIA-ME.md` e `LEIA-ME-indices-consulta.md`.
 
 Triggers (00–06) são o outro pacote. [Triggers](./triggers.md).
 
-O 09 **não** altera tabela, coluna nem chave. Pode rodar de novo. **Não** recria `UX_Conferir_OrigemAtiva` (isso é o 03).
+O 09 **não** altera tabela, coluna nem chave. Pode rodar de novo. **Não** cria `UX_Conferir_OrigemAtiva` (o 03 dropa se existir).
 
 ## Clientes
 
 | App | `WHERE` típico |
 | --- | --- |
 | `D:\Developer\Data7\Expedicao\Flutter\app_expedicao` | Igualdade: documento (`CodEmpresa` + `CodSepararEstoque` / `CodConferir`), origem, carrinho, código de barras |
-| `D:\Developer\Data7\Expedicao\Flutter\app\exp` | O mesmo, mais lista com `Situacao IN`, `CodSetorEstoque` e `LIKE` |
+| `D:\Developer\Data7\Expedicao\Flutter\app\exp` | O mesmo, mais lista com `Situacao IN` e `CodSetorEstoque =`. `LIKE` em `CodSetoresEstoque` / `DataEmissao` ainda existe no coletor; a API reescreve para `EXISTS` / data e **não** recusa o pedido |
 
 Envelope do filtro: [Where](../contratos/where.md). Eventos que usam esses `WHERE`: [consultas Socket.IO](../socket/consultas.md).
 
@@ -55,7 +55,7 @@ Os sete primeiros já estavam no final de `zTabelas.sql`. O 09 só cria se ainda
 | `IX_ItemConferir_Percurso` | `ItemConferir` | janela `CodCarrinho` na conferência (`CodCarrinho` vem do join com o estágio) |
 | `IX_Cancelamento_Origem` | `Cancelamento` | `CodEmpresa + Origem + CodOrigem + ItemOrigem` |
 | `IX_ItemSepararEstoque_Setor` | `ItemSepararEstoque` | `EXISTS CodSetorEstoque` em `separar.consulta` e picking por setor |
-| `IX_SeparacaoUsuarioSetor_Usuario` | `SeparacaoUsuarioSetor` | próxima separação (`CodEmpresa + CodUsuario + CodSetorEstoque`) |
+| `IX_SeparacaoUsuarioSetor_Usuario` | `SeparacaoUsuarioSetor` | próxima separação (`CodEmpresa + CodUsuario + CodSetorEstoque`); segundo `OUTER APPLY` de `separar.consulta` |
 | `IX_ItemSeparacaoEstoque_Produto` | `ItemSeparacaoEstoque` | gravar / cancelar item (`CodProduto`) |
 | `IX_SepararEstoque_Situacao` | `SepararEstoque` | lista com `Situacao IN (...)` |
 | `IX_Produto_CodigoBarras1` / `IX_Produto_CodigoBarras2` | `dbo.Produto` | scan de produto (**sem** filtro) |
@@ -63,19 +63,21 @@ Os sete primeiros já estavam no final de `zTabelas.sql`. O 09 só cria se ainda
 
 Código de barras **não** usa índice filtrado. O ERP FireDAC e as triggers Data7 ligam `ANSI_WARNINGS OFF`; filtro em `dbo.Produto` gera erro 1934 em qualquer `UPDATE` (ex.: `ItemProdutoVendido.AtualizaPosicaoProduto`). Se o 08 marcar `EXISTE FILTRADO`, rode o **07** e depois o **09**. Se a coluna não existir na `Estacao`, o 09 ignora e imprime o motivo.
 
-`UX_Conferir_OrigemAtiva` (`CodEmpresa, Origem, CodOrigem` onde `Situacao <> 'CANCELADA'`) continua no script 03. Serve o `WHERE` de conferência ativa. Esse **é** filtrado, de propósito — só afeta DML em `Expedicao.Conferir`. As triggers `02`/`04`/`05` ficam com `ANSI_WARNINGS ON` para não gerar 1934 no Finalizar Carrinho.
+Não crie `UX_Conferir_OrigemAtiva`. Índice filtrado em `Expedicao.Conferir` faz o ERP FireDAC falhar no `UPDATE` da conferência (Local Erro 886, SQL 1934, `ANSI_WARNINGS OFF`). Unicidade de conferência ativa fica na trigger `04` (`THROW 50016`). O script `03` dropa o UX se ainda existir. As triggers `01`/`02`/`04`/`05`/`06` ficam com `ANSI_WARNINGS ON`.
 
 ## O que índice não resolve
 
 | Filtro do cliente | Motivo | O que usar |
 | --- | --- | --- |
-| `CodSetoresEstoque LIKE '%3%'` | Coluna é `STRING_AGG` na view, não existe na tabela | `CodSetorEstoque = 3` — a API vira `EXISTS` em `ItemSepararEstoque` |
-| `DataEmissao LIKE 'yyyy-MM-dd%'` | `SepararEstoque.Data` é `DATE`; `LIKE` converte e ignora o índice | `=` ou intervalo (`BETWEEN` / `>=` e `<`) |
+| `CodSetoresEstoque LIKE '%3%'` | Coluna é `STRING_AGG` do `OUTER APPLY`, não existe na tabela | A API reescreve para `CodSetorEstoque = 3` (`EXISTS` em `ItemSepararEstoque`). O cliente novo já manda igualdade |
+| `DataEmissao LIKE 'yyyy-MM-dd%'` | `SepararEstoque.Data` é `DATE`; `LIKE` converte e ignora o índice | A API reescreve para `=` ou intervalo (`>=` e `<`). O cliente novo já manda isso |
 | `LIKE '%texto%'` em nome / endereço | B-tree não faz seek em contains | Prefixo sem `%` inicial, ou full-text se a busca for requisito |
 | `ORDER BY (SELECT NULL)` | Paginação sem ordem estável | Mandar `OrderBy` no contrato |
 
-Em `separar.consulta`, `CodSetorEstoque` com igualdade **não** filtra a view: vira `EXISTS` em `ItemSepararEstoque`. Detalhe em [Where](../contratos/where.md).
+Em `separar.consulta`, `CodSetorEstoque` com igualdade **não** filtra a view: vira `EXISTS` em `ItemSepararEstoque`. O `STRING_AGG` de `CodSetoresEstoque` / `CodUsuariosSeparacao` não entra na derived table da página: fica em `OUTER APPLY` depois da base, para o `OFFSET/FETCH` não agregar a tabela inteira. Detalhe em [Where](../contratos/where.md) e [separar](../socket/separar.md).
+
+Na Estação, `READ_COMMITTED_SNAPSHOT ON` (DBA) faz a lista não bloquear o `UPDATE` do ERP. Não entra neste repositório Node e não muda JSON.
 
 ## Depois de executar
 
-Rode o 08 de novo. Esperado: nada em `FALTA` nem em `EXISTE FILTRADO`, salvo `TABELA AUSENTE` (índice ignorado) ou `UX_Conferir_OrigemAtiva` se o 03 ainda não rodou.
+Rode o 08 de novo. Esperado: nada em `FALTA` nem em `EXISTE FILTRADO`, salvo `TABELA AUSENTE` (índice ignorado). `UX_Conferir_OrigemAtiva` deve estar ausente.

@@ -30,11 +30,13 @@ http(s)://<host>:<porta>
 
 Socket.IO usa o namespace padrão `/`, no mesmo origin. O handshake não manda autenticação.
 
-Os dois Flutter abrem o socket só com `websocket` (sem polling), `autoConnect` e reconexão. A sessão é `socket.id`. Pedido de consulta e mutação sai no canal `${socket.id} <evento>`. A resposta volta no `ResponseIn` (UUID do pedido). Broadcast `*.listen` usa o nome do canal, sem `socket.id`.
+Os dois Flutter abrem o socket só com `websocket` (sem polling), `autoConnect` e reconexão. A sessão é `socket.id`. Pedido de consulta e mutação sai no canal `${socket.id} <evento>`. A resposta volta no `ResponseIn` (UUID do pedido). Broadcast `*.listen` usa o nome do canal, sem `socket.id`. Emergência: `servidor.emergencia.listen` (`{ Data }`, sem `Session`) — o coletor escuta na conexão, `allEvent: true`. [Proteções](./socket/protecoes-cliente.md).
 
 O corpo Socket.IO (pedido e resposta) é JSON **string**. O cliente precisa aceitar string ou objeto já decodificado.
 
 Timeout típico no coletor `exp`: HTTP 10s de conexão / 30s de leitura; Socket.IO 30s por pedido.
+
+Proteções de lista **não** mudam envelope nem recusam pedido publicado: `LIKE` de setor/data é reescrito, consultas iguais no mesmo socket compartilham o SQL (cada `ResponseIn` recebe `Data`), `SET LOCK_TIMEOUT` no `SELECT`, cancel no timeout. Handshake **continua sem token**. [Where](./contratos/where.md). Regras 26–27 em [expedição](./expedicao/regras.md). O que já está no ar vs o que ainda não: [proteções](./socket/protecoes-cliente.md).
 
 ## HTTP que o coletor usa
 
@@ -60,6 +62,7 @@ Detalhe: [login](./http/login-app.md), [usuários](./http/usuario-consulta.md), 
 | `PUT` | `/expedicao/conferir/notify` | Emite `conferir.update.listen` (`{ Mutation }`). 204 |
 | `GET` | `/internal/sockets` | Monitor. Só loopback; outro origin recebe 404 vazio |
 | `GET` | `/internal/sockets/:socketId` | Detalhe e trace do cliente |
+| `POST` | `/internal/sockets/emergencia` | Emite `servidor.emergencia.listen`. 204. Loopback. Não é fluxo do coletor |
 
 `GET`/`POST`/`PUT`/`DELETE` em `/expedicao/conferir` e `/expedicao/separacao` (sem `/notify`) respondem 501.
 
@@ -102,7 +105,7 @@ O cliente **não** emite `*.listen`. Só escuta o nome do canal. Catálogo, payl
 | Timer do processo | `separar.consulta.listen` — [escuta](./socket/escuta.md) |
 | HTTP notify | `POST /expedicao/separacao/notify` (`{ Data }`), `PUT /expedicao/conferir/notify` (`{ Mutation }`) |
 
-A trigger 02 **não** emite `conferir.insert.listen`. O coletor `exp` escuta hoje `separar.consulta.listen` e `separar.update.listen` na lista de separação. O desktop aplica `separar.update.listen` com `allEvent: true`.
+A trigger 02 **não** emite `conferir.insert.listen`. O coletor `exp` escuta hoje `separar.consulta.listen` e `separar.update.listen` na lista de separação. O `Data` da escuta periódica **é** a lista; não disparar outra `separar.consulta` no mesmo tick. O desktop aplica `separar.update.listen` com `allEvent: true`. [Escuta](./socket/escuta.md).
 
 ## Monitor
 

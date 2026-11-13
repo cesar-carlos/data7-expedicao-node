@@ -18,13 +18,16 @@ O intervalo padrão é 8 segundos e o limite padrão é 20 registros. Os dois va
 Comportamento do timer (`SepararPeriodicListenService`):
 
 - Sem clientes no namespace padrão, **não** consulta o banco.
-- Uma página global de até `SEPARAR_LISTEN_LIMIT` linhas. Ordem: `CodEmpresa ASC`, `CodSepararEstoque DESC`.
+- Uma página global de até `SEPARAR_LISTEN_LIMIT` linhas. Ordem: `CodEmpresa ASC`, `CodSepararEstoque DESC`. `Where` vazio. Mesmo SQL de `separar.consulta` (`expedicao.separar.consulta.sql`): `OUTER APPLY` depois da base, `OFFSET/FETCH` no mesmo nível. [Separar](./separar.md).
 - Payload idêntico ao tick anterior (hash SHA-256) não é emitido de novo, salvo quando volta a haver cliente depois de um período sem ninguém.
+- Uma execução por vez. Falha registra e aplica backoff exponencial (até 120 s). O timer **não** cancela a request SQL no disconnect do socket. O `SELECT` usa o mesmo `SET LOCK_TIMEOUT` das listas (`SQL_LOCK_TIMEOUT_MS`, padrão 5 s) e cancela a request se o Node estourar o timeout.
 - Várias instâncias Node (PM2 cluster / réplicas) cada uma tem o próprio timer.
 
-Uma falha na consulta é registrada e o timer continua. O desligamento do processo encerra o timer.
+Timeout de 30 s nesta consulta chega ao cliente como `[SQL-CONN] Falha de conexao com o banco.` O diagnóstico no log é `Timeout: Request failed to complete in 30000ms` — a request não terminou; o pool pode continuar saudável (`GET /usuarios` rápido). Não subir `SQL_REQUEST_TIMEOUT_MS`: a sessão segura lock por mais tempo. [Erros](../expedicao/erros.md).
 
-O cliente escuta o evento. A conexão do socket não exige token. O corpo é JSON string `{ "Data": [ … ] }`.
+O desligamento do processo encerra o timer.
+
+O cliente escuta o evento e **usa o `Data`**. Disparar outra `separar.consulta` no mesmo tick empilha a query pesada com o timer. A conexão do socket não exige token. O corpo é JSON string `{ "Data": [ … ] }`.
 
 ```javascript
 socket.on('separar.consulta.listen', (payload) => {

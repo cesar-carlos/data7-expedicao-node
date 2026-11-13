@@ -14,7 +14,7 @@ docs/
 |- comunicacao.md         HTTP + Socket.IO no mesmo processo
 |- contratos/             envelope, Where, página
 |- http/                  login, usuários, health, notify, monitor
-|- socket/                catálogo de eventos e escuta periódica
+|- socket/                catálogo de eventos, escuta periódica e proteções para os coletores
 |- expedicao/             regras, situações, triggers, erros, índices
 |- params-common.md       redireciona para contratos/where.md
 `- paginacao-limites.md   redireciona para contratos/paginacao.md
@@ -32,7 +32,7 @@ docs/
 
 ## Contratos
 
-- [Paginação](./contratos/paginacao.md) — `LIMIT` 1500, `OFFSET/FETCH`, unidade de medida
+- [Paginação](./contratos/paginacao.md) — `LIMIT` 1500, `OFFSET/FETCH`, unidade de medida; `separar.consulta` pagina **antes** do `STRING_AGG`
 - [Where](./contratos/where.md) — lista `{ key, value }` (preferida) ou string SQL legado
 - [Consulta Socket.IO](./contratos/consulta-socket.md)
 - [Consulta HTTP](./contratos/consulta-http.md)
@@ -49,6 +49,7 @@ docs/
 - [Listen](./socket/listen.md) — o que o servidor emite (`separar.update.listen`, conferência, trigger)
 - [Separar](./socket/separar.md) / [Conferir](./socket/conferir.md)
 - [Escuta periódica](./socket/escuta.md) — `separar.consulta.listen`
+- [Proteções para os coletores](./socket/protecoes-cliente.md) — já no servidor / escutar agora / ainda não
 
 ## Expedição
 
@@ -79,7 +80,8 @@ O processo lê o `.env`. O modelo está em `.env.exemple`.
 | `SQL_POOL_IDLE_TIMEOUT_MS` | Opcional. Padrão 30000 |
 | `SQL_POOL_ACQUIRE_TIMEOUT_MS` | Opcional. Padrão 60000. Espera por um slot do pool |
 | `SQL_CONNECTION_TIMEOUT_MS` | Opcional. Padrão 30000 |
-| `SQL_REQUEST_TIMEOUT_MS` | Opcional. Padrão 30000 |
+| `SQL_REQUEST_TIMEOUT_MS` | Opcional. Padrão 30000. Não subir para esconder lista lenta; o Node cancela a request nesse timeout |
+| `SQL_LOCK_TIMEOUT_MS` | Opcional. Padrão 5000, entre 0 e 30000. `SET LOCK_TIMEOUT` só nas listas. `0` desliga |
 | `SQL_HEALTHCHECK_TIMEOUT_MS` | Opcional. Padrão 2000. `SELECT 1` do heartbeat; pool cheio não reconecta |
 
 O aplicativo Windows instala em `C:\Program Files\Data7 Expedicao`. Se já houver uma cópia, o instalador remove o programa antigo e grava a nova no mesmo lugar. A configuração fica em `%ProgramData%\data7-expedicao\config.json`, compartilhada por todos os usuários, e essa pasta não é apagada na atualização nem na desinstalação. A senha do banco não volta para a tela depois de gravada. HTTP e Socket.IO aceitam qualquer origem e não exigem token. O monitor `/internal/sockets` só responde no loopback.

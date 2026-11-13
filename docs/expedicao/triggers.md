@@ -18,8 +18,8 @@ Volta de emergência (snapshot da `Estacao` antes de aplicar): `Rollback\RODAR-R
 | 2 | `02 - tr_ExpedicaoCarrinhoPercursoConferir.sql` — `Conferir` + `ConferirResumo` + `ItemConferir` |
 | 2a | `02a - preencher-conferir-resumo.sql` — histórico sem resumo |
 | 3a | `03a - diagnostico-conferir-duplicadas.sql` (somente leitura) |
-| 3b | `03b - cancelar-conferir-duplicadas.sql` — a Estacao tem duplicatas ativas; o 03 falha sem isto |
-| 3 | `03 - ux_Conferir_OrigemAtiva.sql` — se 50016, `03a -` lista e `03b -` cancela extras |
+| 3b | `03b - cancelar-conferir-duplicadas.sql` — cancela extras da mesma origem |
+| 3 | `03 - ux_Conferir_OrigemAtiva.sql` — DROP do UX filtrado (FireDAC 1934); unicidade na 04 |
 | 4 | `04 - tr_ExpedicaoConferirOrigemUnica.sql` |
 | 5 | `05 - tr_ExpedicaoItemConferirEstagio.sql` |
 | 6 | `06 - tr_ExpedicaoCarrinhoPercursoEstagioConferirInicio.sql` |
@@ -85,7 +85,7 @@ Formato no cliente e no HTTP: [Erros](./erros.md). Este servidor mapeia 50011–
 
 Trigger 01 só fecha se o estágio `SE` **mudou** para `SEPARADO` ou `CANCELADA`, o percurso está `EM SEPARACAO`, não há carrinho `SE` aberto e a quantidade pendente é `<= 0` (só `FN`/`SP` em `SEPARADO`/`AGRUPADO`). Cabeçalho travado com `UPDLOCK, HOLDLOCK`.
 
-Trigger 02 só gera conferência se o percurso `SE` **passou a** `SEPARADO`, `FazerConferencia = S`, não existe `Conferir` ativo e existe item copiável. `50012` dispara antes do `50011` quando a conferência é obrigatória, há quantidade na lista e não há item em carrinho `SEPARADO`/`AGRUPADO`. Grava `ConferirResumo` (`CodCarrinhos` de estágio `SE` `SEPARADO`/`AGRUPADO`) e, se `FazerArmazenamento = S`, `Armazenar` (Observacao truncada; local via `APPLY`). Triggers 01/02/04/05/06 ficam com `ANSI_WARNINGS ON` o tempo todo por causa do UX filtrado (script 03). `SET OFF` na 01 (Finalizar Carrinho) ou na 04 aninhada gerava SQL 1934. O insert de estágio do Node usa `OUTPUT … INTO` para conviver com a trigger 06 (SQL 334). `ItemArmazenar` na `Estacao` já tem `tr_ItemArmazenar` (`AFTER INSERT`): o insert do Node também usa `OUTPUT … INTO`. A 06 também recusa estágio `CO` se `Conferir` estiver `CANCELADA`.
+Trigger 02 só gera conferência se o percurso `SE` **passou a** `SEPARADO`, `FazerConferencia = S`, não existe `Conferir` ativo e existe item copiável. `50012` dispara antes do `50011` quando a conferência é obrigatória, há quantidade na lista e não há item em carrinho `SEPARADO`/`AGRUPADO`. Grava `ConferirResumo` (`CodCarrinhos` de estágio `SE` `SEPARADO`/`AGRUPADO`) e, se `FazerArmazenamento = S`, `Armazenar` (Observacao truncada; local via `APPLY`). Triggers 01/02/04/05/06 ficam com `ANSI_WARNINGS ON`. Não há índice filtrado em `Expedicao.Conferir` (FireDAC 1934 / Local Erro 886); o script `03` dropa `UX_Conferir_OrigemAtiva` se existir. Unicidade ativa é a trigger `04`. O insert de estágio do Node usa `OUTPUT … INTO` para conviver com a trigger 06 (SQL 334). `ItemArmazenar` na `Estacao` já tem `tr_ItemArmazenar` (`AFTER INSERT`): o insert do Node também usa `OUTPUT … INTO`. A 06 também recusa estágio `CO` se `Conferir` estiver `CANCELADA`.
 
 ## O que não muda
 
