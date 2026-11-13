@@ -4,7 +4,7 @@ O cliente **não** emite `*.listen`. Só escuta o nome do canal, sem `socket.id`
 
 Pedido de consulta e mutação: [eventos](./eventos.md). Envelope de pedido: [consulta Socket.IO](../contratos/consulta-socket.md). Visão dos canais: [comunicação](../comunicacao.md).
 
-Esta página descreve o que o servidor **emite hoje**. Não unificar famílias de payload. Canal novo de emergência (`servidor.emergencia.listen`) é aditivo: o coletor antigo ignora; o novo deve escutar — [proteções](./protecoes-cliente.md).
+Esta página descreve o que o servidor **emite hoje**. Não unificar famílias de payload. Canal de emergência (`servidor.emergencia.listen`) é aditivo: o desktop já escuta; o `exp` ainda deve registrar — [proteções](./protecoes-cliente.md).
 
 ## Famílias de payload
 
@@ -106,7 +106,7 @@ Só `separar.consulta.listen`. Página até 20, intervalo 8 s. Mesmo SQL de `sep
 
 Canal **`servidor.emergencia.listen`**. O cliente não emite. Família `{ Data }` (sem `Session`). Aviso, manutenção ou desconexão iminente. Registrar na conexão com `allEvent: true`.
 
-O servidor **já emite** este canal (HTTP loopback `POST /internal/sockets/emergencia`). Desconectar sozinho quem trava a base **ainda não** está ligado; quando estiver, o aviso sai neste canal antes do `disconnect`. Contrato para os coletores: [proteções](./protecoes-cliente.md).
+O servidor **já emite** este canal (HTTP loopback `POST /internal/sockets/emergencia`). O desktop **já** escuta. O `exp` **ainda deve** registrar. Desconectar sozinho quem trava a base **ainda não** está ligado; quando estiver, o aviso sai neste canal antes do `disconnect`. Contrato para os coletores: [proteções](./protecoes-cliente.md).
 
 ## O que não emitir
 

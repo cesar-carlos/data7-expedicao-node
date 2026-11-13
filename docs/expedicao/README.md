@@ -42,7 +42,7 @@ O mesmo `CodCarrinhoPercurso` serve separação e conferência. A origem muda no
 
 - `separar.consulta` agrega setor/usuário em `OUTER APPLY` **depois** da página (`OFFSET/FETCH`), para a lista não varrer `ItemSepararEstoque` nem segurar lock longo. [Separar](../socket/separar.md). Regra 25 em [Regras](./regras.md).
 - Lista: `LIKE` de setor/data reescrito (não recusado), dedup de `*.consulta` por socket (todos os `ResponseIn`), `SET LOCK_TIMEOUT` no `SELECT`, cancel da request no timeout do Node. Regra 26.
-- Canal `servidor.emergencia.listen` para aviso direto ao coletor. Desconexão automática por lock **ainda não**. Regra 27. Guia: [proteções](../socket/protecoes-cliente.md).
+- Canal `servidor.emergencia.listen` para aviso direto ao coletor. Desktop já escuta; `exp` ainda não. Desconexão automática por lock **ainda não**. Regra 27. Guia: [proteções](../socket/protecoes-cliente.md). Plano: [feature](../feature/protecao-base-e-emergencia.md).
 - Socket.IO e HTTP classificam falha em `classifyClientError`. O cliente recebe `[identificador] mensagem`. Detalhe em [Erros](./erros.md).
 - `THROW` 50011–50099 viram `BUSINESS_RULE_VIOLATION`.
 - Testes em `test/src/utils/repository.error.test.ts` e `test/src/aplication/app.express.error.test.ts`.
@@ -52,6 +52,6 @@ Nos coletores:
 - `conferir.item.consulta` e `conferencia.item.consulta` **exigem** `CodCarrinho` no `Where` (`[INVALID_PAYLOAD]` se faltar).
 - Lista vazia de item a conferir **não** conta como conferência completa.
 - Desktop (`app_expedicao`): `AppError.fromSocket` / `AppError.display` mostram o texto prefixado, sem dump `AppError{...}`.
-- `exp`: `SocketRequestHelper` lê `Error` e relança `DataError`. O prefixo `[50014]` chega na mensagem.
+- `exp`: `SocketRequestHelper` lê `Error` e relança `DataError`. O prefixo `[50014]` chega na mensagem. Lista de separar manda `CodSetorEstoque =` e intervalo de `DataEmissao`; aplica o `Data` de `separar.consulta.listen` sem nova consulta no mesmo tick. Falta o listener global de `servidor.emergencia.listen`.
 
 A base `Estacao` recebeu o `RODAR.sql` e os ajustes das triggers (2026-11-12). Volta: `Rollback\RODAR-ROLLBACK.sql`. Detalhe: `LEIA-ME.md`. Triggers: `LEIA-ME-triggers-conferir.md` (`02 -` grava `Conferir` + `ConferirResumo` + `ItemConferir`; `06 -` exige `OUTPUT … INTO` no Node). Índices de `WHERE`: [Índices](./indices.md) (`07 -` drop do filtro em `Produto` se o FireDAC der 1934, `08 -` diagnóstico, `09 -` criação). Sem as triggers o `[50014]` não existe na base.

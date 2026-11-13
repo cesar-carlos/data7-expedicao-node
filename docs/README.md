@@ -16,6 +16,7 @@ docs/
 |- http/                  login, usuários, health, notify, monitor
 |- socket/                catálogo de eventos, escuta periódica e proteções para os coletores
 |- expedicao/             regras, situações, triggers, erros, índices
+|- feature/               planos de implementação futura (ainda não ligados)
 |- params-common.md       redireciona para contratos/where.md
 `- paginacao-limites.md   redireciona para contratos/paginacao.md
 ```
@@ -59,6 +60,11 @@ docs/
 - [Triggers](./expedicao/triggers.md)
 - [Erros](./expedicao/erros.md)
 - [Índices](./expedicao/indices.md)
+
+## Features futuras
+
+- [Índice](./feature/README.md)
+- [Proteção da base, emergência e disconnect](./feature/protecao-base-e-emergencia.md) — o que já está no Node, riscos de falso positivo, fases 1–5
 
 ## Configuração
 

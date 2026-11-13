@@ -23,7 +23,7 @@ O 09 **não** altera tabela, coluna nem chave. Pode rodar de novo. **Não** cria
 | App | `WHERE` típico |
 | --- | --- |
 | `D:\Developer\Data7\Expedicao\Flutter\app_expedicao` | Igualdade: documento (`CodEmpresa` + `CodSepararEstoque` / `CodConferir`), origem, carrinho, código de barras |
-| `D:\Developer\Data7\Expedicao\Flutter\app\exp` | O mesmo, mais lista com `Situacao IN` e `CodSetorEstoque =`. `LIKE` em `CodSetoresEstoque` / `DataEmissao` ainda existe no coletor; a API reescreve para `EXISTS` / data e **não** recusa o pedido |
+| `D:\Developer\Data7\Expedicao\Flutter\app\exp` | O mesmo, mais lista com `Situacao IN`, `CodSetorEstoque =` e `DataEmissao` em intervalo. `LIKE` de setor/data só em build antigo; a API reescreve para `EXISTS` / data e **não** recusa o pedido |
 
 Envelope do filtro: [Where](../contratos/where.md). Eventos que usam esses `WHERE`: [consultas Socket.IO](../socket/consultas.md).
 

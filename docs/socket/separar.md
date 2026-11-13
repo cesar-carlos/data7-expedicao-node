@@ -18,9 +18,9 @@ A base (alias `SepararConsulta`) é só `SepararEstoque` + tipo + prioridade. `S
 
 `WHERE` típico: `CodEmpresa`, `Situacao IN (...)`, `CodSetorEstoque = <id>`.
 
-`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque` (usa o alias `SepararConsulta`). `LIKE` em `CodSetoresEstoque` (`'%3%'`) e em `DataEmissao` (`'yyyy-MM-dd%'`) **não é recusado**: vira o mesmo `EXISTS` / igualdade ou intervalo, para o `exp` antigo não quebrar. Código: `src/repository/common/separar.consulta.where.ts`.
+`CodSetorEstoque` **não** é coluna da view. O repositório transforma igualdade em `EXISTS` em `ItemSepararEstoque` (usa o alias `SepararConsulta`). O `exp` atual manda essa igualdade. `LIKE` em `CodSetoresEstoque` (`'%3%'`) e em `DataEmissao` (`'yyyy-MM-dd%'`) **não é recusado**: vira o mesmo `EXISTS` / igualdade ou intervalo, para build antigo não quebrar. Código: `src/repository/common/separar.consulta.where.ts`.
 
-`DataEmissao` na view é `SepararEstoque.Data` (`DATE`). O cliente novo manda `=` ou intervalo; o shim cobre o `LIKE`.
+`DataEmissao` na view é `SepararEstoque.Data` (`DATE`). O `exp` atual manda intervalo (`>=` / `<`); o shim cobre o `LIKE`.
 
 Consultas iguais no mesmo socket (mesmo `Where` / página / ordem) compartilham um SQL e respondem **todos** os `ResponseIn`. Não cancela o segundo pedido. `SET LOCK_TIMEOUT` (padrão 5 s, `SQL_LOCK_TIMEOUT_MS`) vale neste `SELECT` e no listen. Timeout do Node cancela a request; o cliente continua vendo `[SQL-CONN]`.
 

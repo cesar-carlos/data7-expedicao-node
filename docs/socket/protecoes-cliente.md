@@ -1,6 +1,6 @@
 # Proteções do servidor — guia para agentes dos coletores
 
-Documento para quem altera os Flutter (`app_expedicao` e `exp`). O servidor é SQL Server. Este arquivo diz o que **já está no ar**, o que o cliente **precisa escutar agora**, e o que **ainda não** existe — para o app se preparar sem quebrar o contrato atual.
+Documento para quem altera os Flutter (`app_expedicao` e `exp`). O servidor é SQL Server. Este arquivo diz o que **já está no ar**, o que cada coletor **já cumpre**, o que o `exp` **ainda precisa escutar**, e o que **ainda não** existe no servidor.
 
 Dois coletores, o mesmo Socket.IO:
 
@@ -19,7 +19,7 @@ Envelope, `Where` e página: [comunicação](../comunicacao.md), [contratos](../
 | **Escutar agora** | Canal novo já emite. Cliente antigo ignora. Cliente novo **deve** registrar o listener. |
 | **Ainda não** | Não quebra hoje. Prepare o código. Quando ligar, o app antigo pode falhar se não estiver pronto. |
 
-Nada abaixo recusa o payload que os coletores já mandam (`LIKE` de setor/data, string SQL no `Where`, `LIMIT` explícito, handshake sem token).
+Nada abaixo recusa o payload que os coletores já mandam (`LIKE` de setor/data em **build antigo**, string SQL no `Where`, `LIMIT` explícito, handshake sem token). O `exp` atual já manda `CodSetorEstoque =` e intervalo de `DataEmissao`.
 
 ---
 
@@ -38,12 +38,12 @@ O servidor protege a base **sem** mudar JSON de pedido/resposta das consultas at
 
 ### O que o cliente já deve fazer (não é breaking, é higiene)
 
-1. Preferir `CodSetorEstoque =` em vez de `LIKE` em `CodSetoresEstoque`.
-2. Preferir igualdade ou intervalo de `DataEmissao`, não `LIKE 'yyyy-MM-dd%'`.
-3. Preferir `Where` como lista `{ key, value }`, não string SQL.
-4. **Não** disparar outra `separar.consulta` no mesmo tick de `separar.consulta.listen`. Usar o `Data` do listen.
+1. Preferir `CodSetorEstoque =` em vez de `LIKE` em `CodSetoresEstoque`. **`exp` já manda igualdade.**
+2. Preferir igualdade ou intervalo de `DataEmissao`, não `LIKE 'yyyy-MM-dd%'`. **`exp` já manda `>=` / `<`.**
+3. Preferir `Where` como lista `{ key, value }`, não string SQL. **`exp` já usa `buildWhereParams()`.**
+4. **Não** disparar outra `separar.consulta` no mesmo tick de `separar.consulta.listen`. Usar o `Data` do listen. **`exp` já aplica o snapshot.**
 5. Tratar `[SQL-1222]` como “tente de novo”, não como payload inválido.
-6. Tratar `[SQL-CONN]` como timeout/falha de conexão. Não relançar a mesma consulta em loop imediato.
+6. Tratar `[SQL-CONN]` como timeout/falha de conexão. Não relançar a mesma consulta em loop imediato. **`exp` já não retenta `[SQL-CONN]`.**
 
 Regra 26 em [expedição](../expedicao/regras.md). Shim: [Where](../contratos/where.md).
 
@@ -55,7 +55,7 @@ Canal: **`servidor.emergencia.listen`**
 
 O cliente **não emite** este evento. Só escuta o nome, sem `socket.id`, desde a conexão (não só numa tela).
 
-Uso: aviso direto do servidor (manutenção, cliente travando a base, desconexão iminente). Sem este listener, o app antigo continua no ar, mas **não é avisado** antes de um disconnect futuro.
+Uso: aviso direto do servidor (manutenção, desconexão iminente). O desktop já registra na conexão. Sem o listener, o `exp` continua no ar, mas **não é avisado** antes de um disconnect.
 
 ### Estado deste canal
 
@@ -63,12 +63,13 @@ Uso: aviso direto do servidor (manutenção, cliente travando a base, desconexã
 | --- | --- |
 | Nome do canal e payload `{ Data }` | **Já no servidor** |
 | HTTP interno para o operador emitir o aviso | **Já no servidor** (`POST /internal/sockets/emergencia`, só loopback) |
-| Listener nos Flutter | **Escutar agora** — ainda não existe nos coletores |
+| Listener no desktop (`app_expedicao`) | **Já no coletor** — `ServidorEmergenciaService`, `allEvent: true`, na conexão |
+| Listener no `exp` | **Escutar agora** — ainda não existe |
 | Desconectar sozinho quem está travando a base | **Ainda não** — quando existir, o servidor emite este canal **antes** e só então corta o socket |
 
 ### Payload
 
-Família `ExpedicaoBasicListenEvent`. **Não tem `Session`**. Não ignore o evento por filtro de sessão. No desktop e no `exp`, registre com `allEvent: true`.
+Família `ExpedicaoBasicListenEvent`. **Não tem `Session`**. Não ignore o evento por filtro de sessão. O desktop já usa `allEvent: true`. O `exp` tem de registrar igual.
 
 O corpo no fio é JSON **string** (aceite também objeto já decodificado):
 
@@ -110,7 +111,9 @@ O corpo no fio é JSON **string** (aceite também objeto já decodificado):
    - depois do corte, tela de “servidor encerrou a sessão” + reconectar só com ação do usuário (ou backoff longo).
 6. Cliente que **não** escuta: o servidor ainda pode desconectar; o usuário só vê o socket cair.
 
-### Dart (os dois apps)
+### Dart (referência para o `exp`)
+
+O desktop já tem `ServidorEmergenciaService` (`lib/src/app/servidor_emergencia_service.dart`). Espelhar esse serviço; o esboço abaixo é só o contrato do payload.
 
 ```dart
 socket.on('servidor.emergencia.listen', (payload) {
@@ -128,7 +131,7 @@ socket.on('servidor.emergencia.listen', (payload) {
 });
 ```
 
-No `EventListenerModel` / `ListenEventService` do desktop e do `exp`: **`allEvent: true`**. Sem isso, um filtro de `Session` pode engolir o aviso (este canal não manda `Session`).
+No `EventListenerModel` / `ListenEventService`: **`allEvent: true`**. Sem isso, um filtro de `Session` engole o aviso (este canal não manda `Session`).
 
 ### O cliente não chama o HTTP
 
@@ -142,7 +145,7 @@ Estas mudanças **não** estão ligadas. Quando forem, o servidor avisará neste
 
 | Proteção | Risco se o app não estiver pronto | Como se preparar agora |
 | --- | --- | --- |
-| Recusar `LIKE` não indexado com `[INVALID_PAYLOAD]` | Lista de separar do `exp` antigo quebra | Já mandar `CodSetorEstoque =` e data por igualdade/intervalo |
+| Recusar `LIKE` não indexado com `[INVALID_PAYLOAD]` | Lista de separar de **build antigo** do `exp` quebra | `exp` atual já manda `CodSetorEstoque =` e data por intervalo; não voltar ao `LIKE` |
 | Recusar string SQL no `Where` | `QueryBuilder.buildSqlWhere()` deixa de funcionar | Mandar lista `{ key, value }` |
 | Cortar `LIMIT` explícito num teto (hoje o cliente manda e o servidor respeita) | Página menor que a esperada | Não depender de `LIMIT` enorme; paginar |
 | Token no handshake Socket.IO | Conexão recusada | Deixar o cliente **capaz** de mandar token; hoje **não** mandar / **não** exigir |
@@ -152,6 +155,8 @@ Estas mudanças **não** estão ligadas. Quando forem, o servidor avisará neste
 | `READ_COMMITTED_SNAPSHOT` na `Estacao` | Nenhum no JSON | Só DBA; o app não muda |
 
 Handshake **continua sem token**. `LIMIT` explícito **continua respeitado**. String SQL no `Where` **continua aceita** (com aviso no log).
+
+Plano de implementação futura (kick automático, RCSI, breaking): [feature](../feature/protecao-base-e-emergencia.md). Kick automático **não** está na fila enquanto o risco for falso positivo.
 
 ---
 
@@ -172,9 +177,15 @@ Não embrulhar com `Exception('Erro ao X: $e')` nem dump `AppError{...}`. Deskto
 
 ## Checklist para o agente do coletor
 
-- [ ] Listener global de `servidor.emergencia.listen` com `allEvent: true`
-- [ ] UI para `Mensagem`
-- [ ] Caminho de `Acao=desconectar` (parar consultas, não reconectar em loop)
-- [ ] `Where` de setor/data em igualdade (o shim existe, mas o app novo não deve mandar `LIKE`)
-- [ ] Não refazer `separar.consulta` no tick do listen periódico
-- [ ] Não inventar handshake com token **ainda** (o servidor rejeitaria o cliente antigo se o token passasse a ser obrigatório sem migração)
+Estado em 2026-11-13. O desktop já cumpre o canal de emergência. O `exp` ainda não.
+
+| Item | Desktop | `exp` |
+| --- | --- | --- |
+| Listener global de `servidor.emergencia.listen` com `allEvent: true` | Feito | **Escutar agora** |
+| UI para `Mensagem` | Feito | **Escutar agora** |
+| Caminho de `Acao=desconectar` (parar consultas, não reconectar em loop) | Feito | **Escutar agora** |
+| `Where` de setor/data em igualdade (não mandar `LIKE`) | N/A na lista (não filtra setor com `LIKE`) | Feito |
+| Não refazer `separar.consulta` no tick do listen periódico | — | Feito |
+| Não inventar handshake com token **ainda** | Feito | Feito |
+
+Espelhar no `exp` o `ServidorEmergenciaService` do desktop (`lib/src/app/servidor_emergencia_service.dart`): registrar na conexão, mostrar `Mensagem`, e em `Acao=desconectar` pausar auto-reconnect.

@@ -73,9 +73,9 @@ No salvar carrinho, se o lote for do mesmo estágio (`CodEmpresa` + documento + 
 
 Erro residual: `[SQL-8003] Muitos itens nesta operacao. Tente novamente.` — [Erros](../expedicao/erros.md).
 
-Exceção: em `separar.consulta`, `CodSetorEstoque` vira `EXISTS` em `ItemSepararEstoque` (alias `SepararConsulta`), não coluna da view. O coletor `exp` ainda manda `LIKE` em `CodSetoresEstoque` e `DataEmissao`; o servidor **não recusa** — reescreve para o mesmo `EXISTS` / igualdade ou intervalo (`src/repository/common/separar.consulta.where.ts`). String SQL legado passa pela mesma reescrita. O `STRING_AGG` fica fora da derived table da página — [paginação](./paginacao.md), [separar](../socket/separar.md).
+Exceção: em `separar.consulta`, `CodSetorEstoque` vira `EXISTS` em `ItemSepararEstoque` (alias `SepararConsulta`), não coluna da view. O `exp` atual manda `CodSetorEstoque =` e `DataEmissao` em intervalo (`>=` dia, `<` dia seguinte) na lista `{ key, value }`. O servidor **não recusa** `LIKE` de build antigo em `CodSetoresEstoque` / `DataEmissao`: reescreve para o mesmo `EXISTS` / igualdade ou intervalo (`src/repository/common/separar.consulta.where.ts`). String SQL legado passa pela mesma reescrita. O `STRING_AGG` fica fora da derived table da página — [paginação](./paginacao.md), [separar](../socket/separar.md).
 
-Índices desses `WHERE` (scripts `07`/`08`/`09` na `Estacao`): [Índices](../expedicao/indices.md). Preferir `CodSetorEstoque =` e igualdade ou intervalo de data no cliente; o shim do `LIKE` existe para não quebrar o `exp`.
+Índices desses `WHERE` (scripts `07`/`08`/`09` na `Estacao`): [Índices](../expedicao/indices.md). O cliente novo não deve voltar a mandar `LIKE` de setor/data; o shim existe para build antigo.
 
 `conferir.item.consulta` e `conferencia.item.consulta` **exigem** `CodCarrinho` (número `> 0`) na lista ou no fragmento SQL (`CodCarrinho = 94`). Sem isso: `[INVALID_PAYLOAD] <evento> exige CodCarrinho no Where.`
 

@@ -85,7 +85,7 @@ Escuta periódica **sem pedido**: `separar.consulta.listen`. [Escuta](./escuta.m
 | `estoque.produto.consulta` | `CodigoBarras1` / `CodigoBarras2` | `IX_Produto_CodigoBarras1/2` |
 | `produto.conversao.unidade.consulta` | `Codigo` | `IX_ConversaoUnidadeMedida_Codigo` |
 
-O cliente novo manda `CodSetorEstoque =` e data com `=` / intervalo. `LIKE` em `CodSetoresEstoque` / `DataEmissao` ainda chega do `exp` e é reescrito no servidor. [Índices](../expedicao/indices.md).
+O `exp` atual manda `CodSetorEstoque =` e data com `=` / intervalo. `LIKE` em `CodSetoresEstoque` / `DataEmissao` só chega de build antigo e é reescrito no servidor. [Índices](../expedicao/indices.md).
 
 ## O que não é consulta de lista
 
